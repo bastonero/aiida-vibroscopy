@@ -1,16 +1,23 @@
 # -*- coding: utf-8 -*-
-"""Turn-key solution to automatically compute the self-consistent Hubbard parameters for a given structure."""
+"""
+Turn-key solution to automatically compute the second order derivatives of the 
+total energy in respect to electric field and atom displacements.
+"""
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
-from aiida.engine import WorkChain, ToContext, while_, if_, append_
-from aiida.orm.nodes.data.array.bands import find_bandgap
+from aiida.engine import WorkChain, ToContext, if_, append_, calcfunction
 from aiida.plugins import CalculationFactory, WorkflowFactory
 
-from aiida_quantumespresso_finite_differences.calculations.compute_long_range_constants import *
-from aiida_quantumespresso_finite_differences.calculations.wrappers import *
 
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 PwCalculation = CalculationFactory('quantumespresso.pw')
+SecondOrderDerivativesWorkChain = WorkflowFactory('quantumespresso.fd.second_order_derivatives')
+
+@calcfunction
+def link_volume(parameters):
+    '''Take the volume from outputs.output_parameters and link it for provenance.'''
+    volume = parameters.attributes['volume']
+    return orm.Float(volume)
 
 def validate_elfield(elfield, _):
     """Validate the value of the electric field."""
@@ -89,23 +96,21 @@ class FiniteElectricFieldsWorkChain(WorkChain):
             cls.run_elfield_scf,
             cls.inspect_elfield_scf,
             cls.run_results,
+            cls.results,
         )
-        spec.output('output_tensors', valid_type=orm.ArrayData, required=False,
-            help='Contains high frequency dielectric tensor and Born effective charge tensors, computed at first order in electric field.')
-        spec.output('output_arrays', valid_type=orm.ArrayData, required=False,
-            help='Contains partial (i.e. `arrays`) high frequency dielectric tensor and Born effective charge tensors, computed at first order in the selected direction of the electric field.')
+        spec.expose_outputs(SecondOrderDerivativesWorkChain)
         spec.exit_code(401, 'ERROR_FAILED_INIT_SCF',
             message='The initial scf work chain failed.') 
         spec.exit_code(402, 'ERROR_FAILED_ELFIELD_SCF',
             message='The electric field scf work chain failed for direction {direction}.') 
         spec.exit_code(403, 'ERROR_EFIELD_CARD_FATAL_FAIL ',
             message='One of the electric field card is abnormally all zeros or the direction finding failed.') 
+        spec.exit_code(404, 'ERROR_NUMERICAL_DERIVATIVES ',
+            message='The numerical derivatives calculation failed.') 
+            
         
     def setup(self):
-        """Set up the context."""
-        self.ctx.effective_charges = []
-        self.ctx.high_freq_dielectric = []
-       
+        """Set up the context."""       
         # constructing the elfield_cards for the different scf calculations
         self.ctx.elfield_card = []
         for i in range(3):
@@ -118,7 +123,7 @@ class FiniteElectricFieldsWorkChain(WorkChain):
             self.ctx.elfield_card.append(vector)
         
         if 'selected_elfield' in self.inputs:
-            #setting the elfield card array to one direction only
+            # setting the elfield card array to one direction only
             self.ctx.only_one_elfield = True
             self.ctx.elfield_card = [self.ctx.elfield_card[self.inputs.selected_elfield.value]]
         else:
@@ -133,8 +138,6 @@ class FiniteElectricFieldsWorkChain(WorkChain):
             self.ctx.has_parent_scf = True
         else:
             self.ctx.has_parent_scf = False
-            
-        
             
     def validate_inputs(self):
         """Validate inputs."""
@@ -158,9 +161,9 @@ class FiniteElectricFieldsWorkChain(WorkChain):
         """
         inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='elfield_scf'))
         parameters = inputs.pw.parameters.get_dict()
-#       inputs.pw.parameters.setdefault('CONTROL', {})
-#       inputs.pw.parameters.setdefault('SYSTEM', {})
-#       inputs.pw.parameters.setdefault('ELECTRONS', {})
+        parameters.setdefault('CONTROL', {})
+        parameters.setdefault('SYSTEM', {})
+        parameters.setdefault('ELECTRONS', {})
         # --- Compulsory keys for electric enthalpy        
         parameters['CONTROL']['lelfield'] = True
         parameters['ELECTRONS']['efield_cart'] = elfield_array
@@ -213,9 +216,9 @@ class FiniteElectricFieldsWorkChain(WorkChain):
             return self.exit_codes.ERROR_FAILED_INIT_SCF    
         
     def run_elfield_scf(self):
-        """Run pw scf for computing tensors."""
-        
-        inputs = self.get_inputs(elfield_array=[0.,0.,0.]) # 1. Running scf with null electric field
+        """Run pw scf for computing tensors."""      
+        # 1. Running scf with null electric field
+        inputs = self.get_inputs(elfield_array=[0.,0.,0.]) 
         key = 'null_electric_field'
         inputs.metadata.call_link_label = key
         
@@ -223,13 +226,10 @@ class FiniteElectricFieldsWorkChain(WorkChain):
         self.to_context(**{key: node})
         self.report(f'launched PwBaseWorkChain<{node.pk}> with null electric field')    
              
-        for card in self.ctx.elfield_card: # 2. Running scf with different electric fields  
-            direction, found = self.find_direction(card)
-            #if not found:
-            #    self.report(f'unexpected empty electric card')
-            #    return self.exit_codes.ERROR_EFIELD_CARD_FATAL_FAIL           
+        # 2. Running scf with different electric fields  
+        for card in self.ctx.elfield_card: 
+            direction, found = self.find_direction(card)            
             inputs = self.get_inputs(elfield_array=card)  
-            #inputs.pw.parameters = orm.Dict(dict=inputs.pw.parameters)
             
             key =  f'electric_field_{direction}'
             inputs.metadata.call_link_label = key
@@ -253,24 +253,29 @@ class FiniteElectricFieldsWorkChain(WorkChain):
                 if not workchain.is_finished_ok:
                     self.report(f'electric field scf failed with exit status {workchain.exit_status}')
                     return self.exit_codes.ERROR_FAILED_ELFIELD_SCF.format(direction=key[-1])
-        
+
     def run_results(self):
         """Compute outputs from previous calculations."""
-        # 1. Output trajectory of null electric field
-        outputs_null_ef = self.ctx.null_electric_field.outputs.output_trajectory
-        outputs_param = self.ctx.null_electric_field.outputs.output_parameters
-                           
-        # 2. Output trajectory of finite electric fields
-        outputs_finite_efs = orm.List(list=[ wc.outputs.output_trajectory for key, wc in self.ctx.items() if key.startswith('electric_field_') ] )
+        data = {label: wc.outputs.output_trajectory for label, wc in self.ctx.items() if (label.startswith('null') or label[-1] in ['0','1','2']) }
+        elfield = self.inputs['elfield']
+        volume = link_volume(self.ctx.null_electric_field.outputs.output_parameters)
+        key = 'numerical_derivatives'
         
-        # 3. Compute, run and output of the results 
-        if not self.ctx.only_one_elfield:
-            epsilon = compute_high_frequency_dielectric_tensor(outputs_param, outputs_null_ef, outputs_finite_efs, self.inputs.elfield)
-            born_charges = compute_effective_charge_tensors(outputs_null_ef, outputs_finite_efs, self.inputs.elfield)
-            computed_tensors = wrap_tensors(epsilon, born_charges)
-            #computed_tensors = run_tensors(outputs_null_ef, outputs_finite_efs, self.inputs.elfield)
-            self.out('output_tensors', computed_tensors)
-        else:
-            computed_arrays = run_arrays(outputs_null_ef, outputs_finite_efs, 
-                                        self.inputs.elfield, self.inputs.selected_elfield)
-            self.out('output_arrays', computed_arrays) 
+        inputs = {'data':data,
+                  'elfield':elfield,
+                  'volume':volume,
+                  'metadata':{'call_link_label':key}
+                  }
+        
+        node = self.submit(SecondOrderDerivativesWorkChain, **inputs)
+        self.to_context(**{key: node})
+        self.report(f'launched SecondOrderDerivativesWorkChain<{node.pk}> for computing numerical derivatives.')   
+
+    def results(self):
+        """Show outputss."""
+        # Inspecting numerical derivative work chain
+        workchain = self.ctx.numerical_derivatives
+        if not workchain.is_finished_ok:
+            self.report(f'computation of numerical derivatives failed with exit status {workchain.exit_status}')
+            return self.exit_codes.ERROR_NUMERICAL_DERIVATIVES  
+        self.out_many(self.exposed_outputs(self.ctx.numerical_derivatives, SecondOrderDerivativesWorkChain))

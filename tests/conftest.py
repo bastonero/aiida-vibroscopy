@@ -290,6 +290,29 @@ def generate_nberrycyc():
     return _generate_nberrycyc
 
 @pytest.fixture
+def generate_trajectory():
+    """Return a `TrajectoryData` node."""
+
+    def _generate_trajectory(trajectory=None):
+        """Return a `TrajectoryData` with minimum data."""
+        from aiida.orm import TrajectoryData
+        import numpy as np
+        
+        if trajectory is None:
+            node = TrajectoryData()
+            node.set_array('electronic_dipole_cartesian_axes',np.array([[[0.,0.,0.]]]))
+            node.set_array('forces',np.array([[[0.,0.,0.],[0.,0.,0.]]]) )
+            stepids = np.array([1])
+            times = stepids * 0.0
+            cells = np.array([[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]])
+            positions = np.array([[[0., 0., 0.],[0.,0.,0.]]])
+            node.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg','O'], positions=positions, times=times)
+        
+        return node.store()
+
+    return _generate_trajectory
+
+@pytest.fixture
 def generate_parser():
     """Fixture to load a parser class for testing parsers."""
 
@@ -350,27 +373,75 @@ def generate_inputs_finite_electric_fields(generate_inputs_pw, generate_structur
         inputs_elfield_scf = generate_inputs_pw(structure=structure)
 
         kpoints = inputs_elfield_scf.pop('kpoints')
-
-        elfield_node = elfield or generate_elfield(0.001)
-        nberrycyc_node = nberrycyc or generate_nberrycyc(3)
         
         inputs = {
             'elfield_scf': {
                 'pw': inputs_elfield_scf,
                 'kpoints': kpoints,
             },
-            'elfield':elfield_node,
-            'nberrycyc':nberrycyc_node,
         }
         
         if not selected_elfield==None:
             from aiida.orm import Int
             inputs['selected_elfield']=Int(selected_elfield)
-        
+        if not elfield==None:
+            inputs['elfield']=generate_elfield(elfield)
+        else:
+            inputs['elfield']=generate_elfield(0.001)
+        if not nberrycyc==None:
+            inputs['nberrycyc']=generate_nberrycyc(nberrycyc)
+        else:
+            inputs['nberrycyc']=generate_nberrycyc(3)
+
         return inputs
 
     return _generate_inputs_finite_electric_fields
 
+@pytest.fixture
+def generate_inputs_second_derivatives(generate_trajectory, generate_elfield, generate_nberrycyc):
+    """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
+
+    def _generate_inputs_second_derivatives(trial=None, volume=None, elfield=None):
+        """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
+        from aiida.orm import Float
+        
+        if trial is None:
+            data = {
+                'null':generate_trajectory(),
+                'field0':generate_trajectory(),
+                'field1':generate_trajectory(),
+                'field2':generate_trajectory(),
+            }
+        elif trial==0:
+            data = {
+                'null':generate_trajectory(),
+                'field1':generate_trajectory(),
+            }
+        elif trial==1:
+            data = {
+                'field1':generate_trajectory(),
+            }
+        elif trial==2:
+            data = {
+                'null':generate_trajectory(),
+            }
+        
+        inputs = {
+            'data':data,
+        }
+        
+        if not volume==None:
+            inputs['volume']=Float(volume)
+        else:
+            inputs['volume']=Float(1.0)
+        if not elfield==None:
+            inputs['elfield']=generate_elfield(elfield)
+        else:
+            inputs['elfield']=generate_elfield(0.001)
+
+        return inputs
+
+    return _generate_inputs_second_derivatives
 
 @pytest.fixture(scope='session')
 def generate_upf_data(tmp_path_factory):
