@@ -2,7 +2,8 @@
     "name": "aiida-quantumespresso-finite-differences",
     "author": "Lorenzo Bastonero",
     "author_email": "bastonero.lorenzo@gmail.com",
-    "description": "AiiDA plugin to compute quantities using finite differences and Quantum ESPRESSO.",
+    "url": "https://github.com/bastonero/aiida-quantumespresso-ir-raman",
+    "description": "AiiDA plugin to compute IR and Raman spectra using finite differences and fields via Quantum ESPRESSO.",
     "license": "MIT",
     "classifiers": [
         "Programming Language :: Python",
@@ -11,10 +12,13 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.1.0",
+    "version": "0.3.1",
     "entry_points": {
         "aiida.workflows": [
-            "quantumespresso.fd.finite_electric_fields = aiida_quantumespresso_finite_differences.workflows.finite_electric_fields:FiniteElectricFieldsWorkChain"
+            "quantumespresso.fd.finite_electric_fields = aiida_quantumespresso_finite_differences.workflows.finite_electric_fields:FiniteElectricFieldsWorkChain",
+            "quantumespresso.fd.susceptibility_derivatives = aiida_quantumespresso_finite_differences.workflows.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
+            "quantumespresso.fd.first_order_derivatives = aiida_quantumespresso_finite_differences.workflows.computations.first_order_derivatives:FirstOrderDerivativesWorkChain",
+            "quantumespresso.fd.second_order_derivatives = aiida_quantumespresso_finite_differences.workflows.computations.second_order_derivatives:SecondOrderDerivativesWorkChain"
         ]
     },
     "include_package_data": true,
@@ -22,9 +26,7 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core>=1.4.0",
-	"aiida-quantumespresso>=3.4.0",
-        "sqlalchemy<1.4",
-        "psycopg2-binary<2.9"
+        "aiida-quantumespresso>=3.4.0"
     ],
     "extras_require": {
         "testing": [
