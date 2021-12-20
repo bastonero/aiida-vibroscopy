@@ -18,7 +18,9 @@
             "quantumespresso.vibroscopy.dielectric.finite_electric_fields = aiida_quantumespresso_vibroscopy.workflows.dielectric.finite_electric_fields:FiniteElectricFieldsWorkChain",
             "quantumespresso.vibroscopy.dielectric.susceptibility_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
             "quantumespresso.vibroscopy.dielectric.first_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.first_order_derivatives:FirstOrderDerivativesWorkChain",
-            "quantumespresso.vibroscopy.dielectric.second_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.second_order_derivatives:SecondOrderDerivativesWorkChain"
+            "quantumespresso.vibroscopy.dielectric.second_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.second_order_derivatives:SecondOrderDerivativesWorkChain",
+            "quantumespresso.vibroscopy.dielectric = aiida_quantumespresso_vibroscopy.workflows.dielectric.base:DielectricWorkChain",
+            "quantumespresso.vibroscopy.phonons.force_sets = aiida_quantumespresso_vibroscopy.workflows.phonons.force_sets:ForceSetsWorkChain"
         ]
     },
     "include_package_data": true,
@@ -26,7 +28,8 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core>=1.6.0",
-        "aiida-quantumespresso>=3.4.0"
+        "aiida-quantumespresso>=3.4.0",
+        "aiida-phonopy>=0.7"
     ],
     "extras_require": {
         "tests": [
