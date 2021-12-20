@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Calculations and workflows that call and wrap the output results."""
-from aiida_quantumespresso_finite_differences.calculations.compute_long_range_constants import *
+from aiida_quantumespresso_ir_raman.calculations.compute_long_range_constants import *
 from aiida.engine import calcfunction, workfunction
 
 #@calcfunction                     
