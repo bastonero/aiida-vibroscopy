@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Turn-key solution to automatically compute the self-consistent Hubbard parameters for a given structure."""
+"""Code agnostic workflow which wraps up calculations. """
 from aiida import orm
 from aiida.engine import WorkChain, if_, calcfunction
 from aiida.plugins import WorkflowFactory
 from math import pi as PI
 from math import sqrt  
 import numpy as np
+from qe_tools import CONSTANTS
 
 def delta(a,b):
     """Delta Kronecker"""
@@ -20,9 +21,8 @@ def compute_tensors(vol, elfield, **data):
     Return the high frequency dielectric tensor and Born effective charges
     using finite differences at first order .
 
-    ::NOTE ON CHARGE:: the results are divided by the elementary electronic charge in atomic units (sqrt(2)).
-    """
-    volume = vol.value
+    ::NOTE ON UNITS:: the results are divided by the elementary electronic charge in atomic units (sqrt(2)). Some  converted to a.u. with constant from qe_tools.CONSTANTS.  """
+    volume = vol.value/(CONSTANTS.bohr_to_ang**3)
     dE = elfield.value
     dielectric_tensor = []
     data_fields = []
@@ -47,8 +47,9 @@ def compute_tensors(vol, elfield, **data):
     
     effective_charge_tensors = []
     
-    forces_atoms_0 = data_null.get_array('forces')[-1]
-    forces_atoms_Es = [data_field.get_array('forces')[-1] for data_field in data_fields]
+    au_units = CONSTANTS.bohr_to_ang/CONSTANTS.ry_to_ev
+    forces_atoms_0 = au_units*data_null.get_array('forces')[-1]
+    forces_atoms_Es = [au_units*data_field.get_array('forces')[-1] for data_field in data_fields]
     
     for I in range(len(forces_atoms_0)): # running on atom index
         single_atom_tensor = []
@@ -70,7 +71,7 @@ def compute_arrays(vol, elfield, **data):
 
     ::NOTE ON CHARGE:: the results are divided by the elementary electronic charge in atomic units (sqrt(2)).
     """
-    volume = vol.value
+    volume = vol.value/(CONSTANTS.bohr_to_ang**3)
     dE = elfield.value
     dielectric_array = []
     data_fields = []
@@ -93,8 +94,9 @@ def compute_arrays(vol, elfield, **data):
     
     effective_charge_arrays = []
     
-    forces_atoms_0 = data_null.get_array('forces')[-1]
-    forces_atoms_E = data_fields[0].get_array('forces')[-1] 
+    au_units = CONSTANTS.bohr_to_ang/CONSTANTS.ry_to_ev
+    forces_atoms_0 = au_units*data_null.get_array('forces')[-1]
+    forces_atoms_E = au_units*data_fields[0].get_array('forces')[-1] 
     
     for I in range(len(forces_atoms_0)): # running on atom index (tot=#atoms)
         # building single atomic effective charge array
@@ -126,7 +128,7 @@ def validate_data(data, _):
         return f'invalid total number of inputs: expected 2 or 4, given {length}'
 
 
-class SecondOrderDerivativesWorkChain(WorkChain):
+class FirstOrderDerivativesWorkChain(WorkChain):
     """
     Workchain that computes the second order derivatives via finite differences,
     providing force and polarization vectors as TrajectoryData or ArrayData
