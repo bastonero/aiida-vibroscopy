@@ -1,9 +1,9 @@
 {
-    "name": "aiida-quantumespresso-finite-differences",
+    "name": "aiida-quantumespresso-vibroscopu",
     "author": "Lorenzo Bastonero",
     "author_email": "bastonero.lorenzo@gmail.com",
-    "url": "https://github.com/bastonero/aiida-quantumespresso-ir-raman",
-    "description": "AiiDA plugin to compute IR and Raman spectra using finite differences and fields via Quantum ESPRESSO.",
+    "url": "https://github.com/bastonero/aiida-quantumespresso-vibroscopy",
+    "description": "AiiDA QuantumESPRESSO-based plugin to compute vibrational spectra, phonon and dielectric properties using finite differences and fields.",
     "license": "MIT",
     "classifiers": [
         "Programming Language :: Python",
@@ -15,10 +15,10 @@
     "version": "0.3.1",
     "entry_points": {
         "aiida.workflows": [
-            "quantumespresso.fd.finite_electric_fields = aiida_quantumespresso_finite_differences.workflows.finite_electric_fields:FiniteElectricFieldsWorkChain",
-            "quantumespresso.fd.susceptibility_derivatives = aiida_quantumespresso_finite_differences.workflows.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
-            "quantumespresso.fd.first_order_derivatives = aiida_quantumespresso_finite_differences.workflows.computations.first_order_derivatives:FirstOrderDerivativesWorkChain",
-            "quantumespresso.fd.second_order_derivatives = aiida_quantumespresso_finite_differences.workflows.computations.second_order_derivatives:SecondOrderDerivativesWorkChain"
+            "quantumespresso.fd.finite_electric_fields = aiida_quantumespresso_ir_raman.workflows.finite_electric_fields:FiniteElectricFieldsWorkChain",
+            "quantumespresso.fd.susceptibility_derivatives = aiida_quantumespresso_ir_raman.workflows.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
+            "quantumespresso.fd.first_order_derivatives = aiida_quantumespresso_ir_raman.workflows.computations.first_order_derivatives:FirstOrderDerivativesWorkChain",
+            "quantumespresso.fd.second_order_derivatives = aiida_quantumespresso_ir_raman.workflows.computations.second_order_derivatives:SecondOrderDerivativesWorkChain"
         ]
     },
     "include_package_data": true,
@@ -29,7 +29,7 @@
         "aiida-quantumespresso>=3.4.0"
     ],
     "extras_require": {
-        "testing": [
+        "tests": [
             "pgtest~=1.3.1",
             "wheel~=0.31",
             "coverage",
