@@ -1,9 +1,9 @@
 {
-    "name": "aiida-quantumespresso-vibroscopu",
+    "name": "aiida-quantumespresso-vibroscopy",
     "author": "Lorenzo Bastonero",
     "author_email": "bastonero.lorenzo@gmail.com",
     "url": "https://github.com/bastonero/aiida-quantumespresso-vibroscopy",
-    "description": "AiiDA QuantumESPRESSO-based plugin to compute vibrational spectra, phonon and dielectric properties using finite differences and fields.",
+    "description": "AiiDA Quantum-ESPRESSO-based plugin to compute vibrational spectra, phonon and dielectric properties using finite differences and fields.",
     "license": "MIT",
     "classifiers": [
         "Programming Language :: Python",
@@ -15,17 +15,17 @@
     "version": "0.3.1",
     "entry_points": {
         "aiida.workflows": [
-            "quantumespresso.fd.finite_electric_fields = aiida_quantumespresso_ir_raman.workflows.finite_electric_fields:FiniteElectricFieldsWorkChain",
-            "quantumespresso.fd.susceptibility_derivatives = aiida_quantumespresso_ir_raman.workflows.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
-            "quantumespresso.fd.first_order_derivatives = aiida_quantumespresso_ir_raman.workflows.computations.first_order_derivatives:FirstOrderDerivativesWorkChain",
-            "quantumespresso.fd.second_order_derivatives = aiida_quantumespresso_ir_raman.workflows.computations.second_order_derivatives:SecondOrderDerivativesWorkChain"
+            "quantumespresso.vibroscopy.dielectric.finite_electric_fields = aiida_quantumespresso_vibroscopy.workflows.dielectric.finite_electric_fields:FiniteElectricFieldsWorkChain",
+            "quantumespresso.vibroscopy.dielectric.susceptibility_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
+            "quantumespresso.vibroscopy.dielectric.first_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.first_order_derivatives:FirstOrderDerivativesWorkChain",
+            "quantumespresso.vibroscopy.dielectric.second_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.second_order_derivatives:SecondOrderDerivativesWorkChain"
         ]
     },
     "include_package_data": true,
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core>=1.4.0",
+        "aiida-core>=1.6.0",
         "aiida-quantumespresso>=3.4.0"
     ],
     "extras_require": {

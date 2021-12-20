@@ -8,8 +8,8 @@ from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import WorkChain, ToContext, if_, append_, calcfunction
 from aiida.plugins import CalculationFactory, WorkflowFactory
 
-from aiida_quantumespresso_ir_raman.utils.validation import set_tot_magnetization
-from aiida_quantumespresso_ir_raman.utils.elfield_cards_functions import generate_cards_first_order, find_direction
+from aiida_quantumespresso_vibroscopy.utils.validation import set_tot_magnetization
+from aiida_quantumespresso_vibroscopy.utils.elfield_cards_functions import generate_cards_first_order, find_direction
 
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 PwCalculation = CalculationFactory('quantumespresso.pw')
