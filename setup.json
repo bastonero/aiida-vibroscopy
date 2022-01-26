@@ -21,7 +21,7 @@
             "quantumespresso.vibroscopy.dielectric.second_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.second_order_derivatives:SecondOrderDerivativesWorkChain",
             "quantumespresso.vibroscopy.dielectric = aiida_quantumespresso_vibroscopy.workflows.dielectric.base:DielectricWorkChain",
             "quantumespresso.vibroscopy.dielectric.numerical_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.numerical_derivatives:NumericalDerivativesWorkChain",
-            "quantumespresso.vibroscopy.phonons.force_sets = aiida_quantumespresso_vibroscopy.workflows.phonons.force_sets:ForceSetsWorkChain"
+            "quantumespresso.vibroscopy.phonons.force_sets = aiida_quantumespresso_vibroscopy.workflows.phonons.force_sets:QuantumEspressoForceSetsWorkChain"
         ]
     },
     "include_package_data": true,

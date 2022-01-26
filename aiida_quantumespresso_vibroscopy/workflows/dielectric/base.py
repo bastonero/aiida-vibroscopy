@@ -4,6 +4,7 @@ from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import WorkChain, ToContext, if_, append_, calcfunction
 from aiida.plugins import CalculationFactory, WorkflowFactory
+from aiida.orm.nodes.data.array.bands import find_bandgap
 
 from aiida_quantumespresso_vibroscopy.utils.validation import set_tot_magnetization
 from aiida_quantumespresso_vibroscopy.utils.elfield_cards_functions import generate_cards_second_order, find_directions
@@ -22,6 +23,18 @@ def get_volume(parameters):
     """Take the volume from outputs.output_parameters and link it for provenance."""
     volume = parameters.attributes['volume']
     return orm.Float(volume)
+
+@calcfunction
+def compute_electric_field(parameters: orm.Dict, bands: orm.BandsData, structure: orm.StructureData):
+    "Return the estimated electric field as Egap/(10*e*a*Nk) in Ry a.u. ."
+    _, band_gap = find_bandgap(bands)
+    
+    kmesh = np.array(parameters.get_attribute('monkhorst_pack_grid'))
+    cell = np.array(structure.cell)
+    
+    denominator = 10*np.dot(cell, kmesh).max()*36.3609 # BEST TO DEFINE THE CONVERSION VALUE SOMEWHERE
+    
+    return orm.Float(band_gap/denominator)
 
 def validate_positive(value, _):
     """Validate the value of the electric field."""
@@ -46,7 +59,7 @@ class DielectircWorkChain(WorkChain):
     """
     
     _DEFAULT_NBERRYCYC = 3
-    _AVAILABLE_PROPERTIES = ('ir','raman','nac','nos')
+    _AVAILABLE_PROPERTIES = ('ir','raman','nac','non-linear-susceptibility')
     
     @classmethod
     def define(cls, spec):
@@ -94,6 +107,7 @@ class DielectircWorkChain(WorkChain):
         )
         
         spec.expose_outputs(SecondOrderDerivativesWorkChain)
+        spec.output('estimated_electric_field', valid_type = orm.Float, required=False)
         
         spec.exit_code(400, 'ERROR_FAILED_BASE_SCF',
             message='The initial scf work chain failed.')
@@ -127,6 +141,7 @@ class DielectircWorkChain(WorkChain):
             
         if 'electric_field' in self.inputs:
             self.ctx.should_estimate_electric_field = False
+            self.ctx.electric_field = self.inputs.electric_field.value
         else:
             self.ctx.should_estimate_electric_field = True
             
@@ -229,9 +244,10 @@ class DielectircWorkChain(WorkChain):
             parameters['SYSTEM']['nbnd'] = self.ctx.base_scf.outputs.output_parameters.get_dict()['number_of_bands']+10
         inputs.pw.parameters = orm.Dict(dict=parameters)
         
-        kpoints = inputs.kpoints.clone()
-        mesh = ( 2*np.array(kpoints.get_attribute('mesh')) ).tolist()
-        kpoints.kpoints.set_kpoints_mesh(mesh)
+        old_mesh = self.ctx.base_scf.outputs.output_parameters.get_attribute('monkhorst_pack_grid')
+        mesh = ( 2*np.array(old_mesh) ).tolist()
+        kpoints = orm.KpointsData()
+        kpoints.set_kpoints_mesh(mesh)
         inputs.kpoints = kpoints
         
         if 'parent_folder' in self.inputs: # JUST LINK THE FOLDER OR COPY OVER ONLY THE DENSITY
@@ -255,8 +271,11 @@ class DielectircWorkChain(WorkChain):
     
     def estimate_electric_field(self):
         """Estimate the electric field to be lower than the critical one. E ~ Egap/(e*a*Nk)"""
-        # call a `calcfunction` which takes in input structure, kpoints, output_bands (?)
-        # calculate_electric_field --> orm.Float
+        nscf_outputs = self.ctx.nscf.outputs
+        , _ = find_bandgap(nscf_outputs.output_band)
+        value_node = compute_electric_field(nscf_outputs.output_band, nscf_outputs.output_band)
+        self.out('estimated_electric_field', value_node)
+        self.ctx.electric_field = value_node.value
     
     def run_null_field_scf(self):
         """Run electric enthalpy scf with zero electric field."""      

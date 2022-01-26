@@ -3,12 +3,26 @@
 
 from aiida.common.extendeddicts import AttributeDict
 from aiida.plugins import WorkflowFactory
+from aiida.engine import calcfunction
 
 BaseForceSetsWorkChain = WorkflowFactory('phonopy.force_sets')
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 
+@calcfunction
+def get_forces(trajectory: TrajectoryData):
+    from aiida.orm import ArrayData
+    forces = ArrayData()
+    forces.set_array('forces', trajectory.get_array('forces'))
+    return forces
 
-class ForceSetsWorkChain(BaseForceSetsWorkChain):
+@calcfunction
+def get_energy(parameters: Dict):
+    from aiida.orm import Float
+    
+    return Float(parameters.get_attribute('energy'))
+
+
+class QuantumEspressoForceSetsWorkChain(BaseForceSetsWorkChain):
     """
     Workflow to compute automatically the force set of a given structure
     using the frozen phonons approach.
@@ -22,7 +36,7 @@ class ForceSetsWorkChain(BaseForceSetsWorkChain):
     @classmethod
     def define(cls, spec):
         # yapf: disable
-        super().define(spec)
+        super().define(spec) 
         spec.expose_inputs(PwBaseWorkChain, namespace='scf', exclude=('pw.structure',))
 
         spec.exit_code(400, 'ERROR_SUB_PROCESS_FAILED', # can't we say exactly which are not finished ok?
@@ -37,9 +51,8 @@ class ForceSetsWorkChain(BaseForceSetsWorkChain):
             if key.startswith('force_calc'):
                 num = key.split("_")[-1] # e.g. "001"
                 
-                output = workchain.outputs
-
-                forces_dict[f'forces_{num}'] = output.output_trajectory
+                forces_dict[f'forces_{num}'] = workchain.outputs.output_trajectory
+                forces_dict[f'energy_{num}'] = get_energy(workchain.outputs.output_parameters)
 
         return forces_dict
 
@@ -67,7 +80,7 @@ class ForceSetsWorkChain(BaseForceSetsWorkChain):
         for label, workchain in self.ctx.items():
             if label.startswith(self._RUN_PREFIX):
                 if workchain.is_finished_ok:
-                    forces = workchain.outputs.forces
+                    forces = get_forces(workchain.outputs.output_trajectory)
                     self.out(f'supercells_forces.{label}', forces)
                 else:
                     failed_runs.append(workchain.pk)
