@@ -14,7 +14,7 @@ or when installing from source:
     pip install aiida-quantumespresso-vibroscopy
 
 ## License
-The `aiida-quantumespresso` plugin package is released under the MIT license.
+The `aiida-quantumespresso-vibroscopy` plugin package is released under the MIT license.
 See the `LICENSE.txt` file for more details.
 
 
