@@ -3,7 +3,7 @@
     "author": "Lorenzo Bastonero",
     "author_email": "bastonero.lorenzo@gmail.com",
     "url": "https://github.com/bastonero/aiida-quantumespresso-vibroscopy",
-    "description": "AiiDA Quantum-ESPRESSO-based plugin to compute vibrational spectra, phonon and dielectric properties using finite differences and fields.",
+    "description": "AiiDA plugin to compute vibrational spectra and phonon properties using the Quantum ESPRESSO code.",
     "license": "MIT",
     "classifiers": [
         "Programming Language :: Python",
@@ -12,16 +12,18 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.3.1",
+    "version": "0.1.0",
     "entry_points": {
+        "aiida.data": [
+            "quantumespresso.vibroscopy.fp = aiida_quantumespresso_vibroscopy.data.vibro_fp: VibrationalFrozenPhononData",
+            "quantumespresso.vibroscopy.lr = aiida_quantumespresso_vibroscopy.data.vibro_fp: VibrationalLinearResponseData"
+        ],
         "aiida.workflows": [
-            "quantumespresso.vibroscopy.dielectric.finite_electric_fields = aiida_quantumespresso_vibroscopy.workflows.dielectric.finite_electric_fields:FiniteElectricFieldsWorkChain",
-            "quantumespresso.vibroscopy.dielectric.susceptibility_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.susceptibility_derivatives:SusceptibilityDerivativesWorkChain",
-            "quantumespresso.vibroscopy.dielectric.first_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.first_order_derivatives:FirstOrderDerivativesWorkChain",
-            "quantumespresso.vibroscopy.dielectric.second_order_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.second_order_derivatives:SecondOrderDerivativesWorkChain",
-            "quantumespresso.vibroscopy.dielectric = aiida_quantumespresso_vibroscopy.workflows.dielectric.base:DielectricWorkChain",
-            "quantumespresso.vibroscopy.dielectric.numerical_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.numerical_derivatives:NumericalDerivativesWorkChain",
-            "quantumespresso.vibroscopy.phonons.force_sets = aiida_quantumespresso_vibroscopy.workflows.phonons.force_sets:QuantumEspressoForceSetsWorkChain"
+            "quantumespresso.vibroscopy.dielectric = aiida_quantumespresso_vibroscopy.workflows.dielectric.base: DielectricWorkChain",
+            "quantumespresso.vibroscopy.dielectric.numerical_derivatives = aiida_quantumespresso_vibroscopy.workflows.dielectric.numerical_derivatives: NumericalDerivativesWorkChain",
+            "quantumespresso.vibroscopy.phonons.harmonic = aiida_quantumespresso_vibroscopy.workflows.phonons.harmonic: HarmonicWorkChain",
+            "quantumespresso.vibroscopy.spectra.iraman = aiida_quantumespresso_vibroscopy.workflows.spectra.iraman: IRamanSpectraWorkChain",
+            "quantumespresso.vibroscopy.spectra.intensities_average = aiida_quantumespresso_vibroscopy.workflows.spectra.intensities_average: IntensitiesAverageWorkChain"
         ]
     },
     "include_package_data": true,
@@ -30,7 +32,8 @@
     "install_requires": [
         "aiida-core>=1.6.0",
         "aiida-quantumespresso>=3.4.0",
-        "aiida-phonopy>=0.7"
+        "aiida-phonopy>=0.7",
+        "quadpy>=0.16.10"
     ],
     "extras_require": {
         "tests": [

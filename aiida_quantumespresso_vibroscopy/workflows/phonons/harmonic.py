@@ -1,50 +1,50 @@
 # -*- coding: utf-8 -*-
-"""Automatic IR and Raman spectra calculations using Phonopy and Quantum ESPRESSO."""
+"""Automatic harmonic frozen phonons calculations using Phonopy and Quantum ESPRESSO."""
 
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.plugins import DataFactory, WorkflowFactory
 from aiida.engine import WorkChain, if_
 
-from aiida_quantumespresso_vibroscopy.utils.validation import validate_positive, set_tot_magnetization
-from aiida_quantumespresso_vibroscopy.data import VibrationalFrozenPhononData
-from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import (
-    get_energy, get_forces, elaborate_non_analytical_constants, extract_max_order)
-from aiida_quantumespresso_vibroscopy.calculations.spectra_utils import (
-    generate_vibrational_data, get_supercells_for_hubbard)
-from .intensities_average import IntensitiesAverageWorkChain
 from ..dielectric.base import DielectricWorkChain
+from aiida_quantumespresso_vibroscopy.utils.validation import *
+from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import *
+from aiida_quantumespresso_vibroscopy.calculations.spectra_utils import *
 
 
 PreProcessData = DataFactory('phonopy.preprocess')
 PhonopyData = DataFactory('phonopy.phonopy')
-
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 
 
 def validate_inputs(inputs, _):
     """Validate the entire inputs namespace."""
-    ensamble_inputs = ['structure',  'symprec', 'is_symmetry']
+    ensamble_inputs = ['structure', 'supercell_matrix', 'primitive_matrix', 'symprec', 'is_symmetry']
 
     given_inputs = []
 
-    for einput in ensamble_inputs:
-        if einput in inputs:
-            given_inputs.append(einput)
+    for input in ensamble_inputs:
+        if input in inputs:
+            given_inputs.append(input)
 
     if 'preprocess_data' in inputs and given_inputs:
         return 'too many inputs have been provided'
 
-    if given_inputs and 'structure' not in given_inputs:
+    if given_inputs and not 'structure' in given_inputs:
         return 'a structure data is required'
 
-    if not given_inputs and 'preprocess_data' not in inputs:
+    if not given_inputs and not 'preprocess_data' in inputs:
         return 'at least one between `preprocess_data` and `structure` must be provided in input'
 
+    if 'nac_parameters' in inputs and 'dielectric_workchain' in inputs:
+        return 'too many inputs for non-analytical constants'
 
-class IRamanSpectraWorkChain(WorkChain):
+
+class HarmonicWorkChain(WorkChain):
     """
-    Workchain for automatically compute IR and Raman spectra using finite displacements and fields.
+    Workchain for automatically compute all the pre-process data necessary
+    for frozen phonons calculations. Non-analytical constants are computed
+    via finite differences as well through finite electric fields.
     """
 
     _ENABLED_DISPLACEMENT_GENERATOR_FLAGS = {
@@ -54,6 +54,7 @@ class IRamanSpectraWorkChain(WorkChain):
         'is_trigonal': [bool],
         'number_of_snapshots': [int, None],
         'random_seed': [int, None],
+        'temperature': [float, None],
         'cutoff_frequency': [float, None],
     }
 
@@ -65,22 +66,48 @@ class IRamanSpectraWorkChain(WorkChain):
         super().define(spec)
 
         spec.input(
+            'preprocess_data',
+            valid_type=(PhonopyData, PreProcessData),
+            required=False,
+            help='The preprocess data for frozen phonon calcualtion.'
+        )
+        spec.input(
             'structure',
             valid_type=orm.StructureData,
-            required=True,
+            required=False,
             help='The structure at equilibrium volume.'
+        )
+        spec.input(
+            'supercell_matrix',
+            valid_type=orm.List,
+            required=False,
+            validator=validate_matrix,
+            help=(
+                'The matrix used to generate the supercell from the input '
+                'structure in the List format. Allowed shapes are 3x1 and 3x3 lists.'
+            ),
+        )
+        spec.input(
+            'primitive_matrix',
+            valid_type=orm.List,
+            required=False,
+            validator=validate_matrix,
+            help=(
+                'The matrix used to generate the primitive cell from the input '
+                'structure in the List format. Allowed shapes are 3x1 and 3x3 lists.'
+            ),
         )
         spec.input(
             'symmetry_tolerance',
             valid_type=orm.Float,
             validator=validate_positive,
-            default=lambda: orm.Float(1e-5),
+            required=False,
             help='Symmetry tolerance for space group analysis on the input structure.',
         )
         spec.input(
             'is_symmetry',
             valid_type=orm.Bool,
-            default=lambda: orm.Bool(True),
+            required=False,
             help='Whether using or not the space group symmetries.',
         )
         spec.input(
@@ -93,28 +120,26 @@ class IRamanSpectraWorkChain(WorkChain):
                 + '\n '.join(f'{flag_name}' for flag_name in cls._ENABLED_DISPLACEMENT_GENERATOR_FLAGS)
             ),
         )
+        spec.input(
+            'nac_parameters',
+            valid_type=orm.ArrayData,
+            required=False,
+            validator=validate_nac,
+            help='Non-analytical parameters.',
+        )
         spec.expose_inputs(DielectricWorkChain, namespace='dielectric_workchain',
             namespace_options={
-                'required': True, 'populate_defaults': True,
-                'help': ('Inputs for the `DielectricWorkChain` that will be'
-                    'used to calculate the non-analytical constants.')
+                'required': False, 'populate_defaults': False,
+                'help': ('Inputs for the `DielectricWorkChain` that will be used to calculate the non-analytical constants.')
             },
             exclude=('clean_workdir','scf.pw.structure')
         )
         spec.expose_inputs(PwBaseWorkChain, namespace='scf',
             namespace_options={
                 'required': True,
-                'help': ('Inputs for the `PwBaseWorkChain` that will be used to run the electric enthalpy scfs.')
+                'help': ('Inputs for the `PwBaseWorkChain` that will be used to run the supercell with displacement scfs.')
             },
             exclude=('clean_workdir', 'pw.parent_folder', 'pw.structure')
-        )
-        spec.expose_inputs(IntensitiesAverageWorkChain, namespace='intensities_average',
-            namespace_options={
-                'required': True, 'populate_defaults': True,
-                'help': ('Inputs for the `IntensitiesAverageWorkChain` that will'
-                    'be used to run the average calculation over intensities.')
-            },
-            exclude=('vibrational_data',)
         )
         spec.input_namespace(
             'options',
@@ -156,9 +181,8 @@ class IRamanSpectraWorkChain(WorkChain):
         spec.output_namespace('supercells_energies', valid_type=orm.Float, dynamic=True, required=False,
             help='The total energy of each supercell.'
         )
-        spec.output('vibrational_data', valid_type=VibrationalFrozenPhononData,
-            help=('The phonopy data with supercells displacements, forces and (optionally)'
-                'nac parameters to use in the post-processing calculation.')
+        spec.output('output_phonopy_data', valid_type=PhonopyData,
+            help='The phonopy data with supercells displacements, forces and (optionally) nac parameters to use in the post-processing calculation.'
         )
         spec.expose_outputs(DielectricWorkChain, namespace='output_dielectric',
             namespace_options={
@@ -172,10 +196,8 @@ class IRamanSpectraWorkChain(WorkChain):
         spec.exit_code(401, 'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
             message=('The scf PwBaseWorkChain sub process in iteration '
                     'returned a non integer total magnetization (threshold exceeded).'))
-        spec.exit_code(402, 'ERROR_SUB_PROCESS_FAILED',
+        spec.exit_code(402, 'ERROR_SUB_PROCESS_FAILED', # can't we say exactly which are not finished ok?
             message='At least one sub processe did not finish successfully.')
-        spec.exit_code(403, 'ERROR_AVERAGING_FAILED',
-            message='The averaging procedure for intensities had an unexpected error.')
 
     @classmethod
     def _validate_displacements(cls, value, _):
@@ -199,24 +221,40 @@ class IRamanSpectraWorkChain(WorkChain):
 
     def setup(self):
         """Setup the workflow generating the PreProcessData."""
-        preprocess_inputs = {}
-        for pp_input in ['structure', 'symprec', 'is_symmetry', 'displacement_generator']:
-            if pp_input in self.inputs:
-                preprocess_inputs.update({pp_input:self.inputs[pp_input]})
-        preprocess_inputs.update({'supercell_matrix':orm.List(list=[1,1,1])})
-        preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
+        if 'preprocess_data' in self.inputs:
+            preprocess = self.inputs.preprocess_data
+            if 'displacement_generator' in self.inputs:
+                preprocess = preprocess.calcfunctions.get_preprocess_with_new_displacements(self.inputs.displacement_generator)
+        else:
+            preprocess_inputs = {}
+            for input in ['structure', 'supercell_matrix', 'primitive_matrix', 'symprec', 'is_symmetry', 'displacement_generator']:
+                if input in self.inputs:
+                    preprocess_inputs.update({input:self.inputs[input]})
+            preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
 
         self.ctx.preprocess_data = preprocess
-        self.ctx.run_parallel = self.inputs.options.run_parallel
+
+        if 'dielectric_workchain' in self.inputs:
+            self.ctx.run_parallel = self.inputs.options.run_parallel
+
+            parameters = self.inputs.dielectric_workchain.scf.pw.parameters.get_dict()
+            nspin = parameters.get('SYSTEM', {}).get('nspin', 1)
+            if  nspin != 1:
+                if len(preprocess.get_unitcell().sites) != len(preprocess.get_primitive_cell().sites):
+                    raise NotImplementedError('a primitive cell smaller than the unitcell with spin polarized is not supported.')
+        else:
+            self.ctx.run_parallel = False
 
         parameters = self.inputs.scf.pw.parameters.get_dict()
         nspin = parameters.get('SYSTEM', {}).get('nspin', 1)
-        self.ctx.is_magnetic = (nspin == 1)
+        self.ctx.is_magnetic = True if  nspin != 1 else False
 
-        self.ctx.plus_hubbard = parameters.get('SYSTEM', {}).get('lda_plus_u', False)
+        if parameters.get('SYSTEM', {}).get('lda_plus_u_kind', None) == 2:
+            self.ctx.plus_hubbard = True
+        else:
+            self.ctx.plus_hubbard = False
 
     def should_run_parallel(self):
-        """Return whether to run in parallel phonon and dielectric calculation."""
         return self.ctx.run_parallel
 
     def run_base_supercell(self):
@@ -248,6 +286,7 @@ class IRamanSpectraWorkChain(WorkChain):
 
     def run_forces(self):
         """Run an scf for each supercell with displacements."""
+        # Works only @ Gamma
         if self.ctx.plus_hubbard:
             supercells = get_supercells_for_hubbard(
                 preprocess_data=self.ctx.preprocess_data,
@@ -258,15 +297,13 @@ class IRamanSpectraWorkChain(WorkChain):
 
         self.out('supercells', supercells)
 
-        base_outputs = self.ctx.scf_supercell_0.outputs
-
         for key, supercell in supercells.items():
             num = key.split('_')[-1]
             label = f'{self._RUN_PREFIX}_{num}'
 
             inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='scf'))
             inputs.pw.structure = supercell
-            inputs.pw.parent_folder = base_outputs.remote_folder
+            inputs.pw.parent_folder = self.ctx.scf_supercell_0.outputs.remote_folder
 
             parameters = inputs.pw.parameters.get_dict()
             parameters.setdefault('CONTROL', {})
@@ -274,11 +311,9 @@ class IRamanSpectraWorkChain(WorkChain):
             parameters.setdefault('ELECTRONS', {})
             if self.ctx.is_magnetic:
                 parameters['SYSTEM'].pop('starting_magnetization', None)
-                parameters['SYSTEM']['nbnd'] = base_outputs.output_parameters.get_attribute('number_of_bands')
-                tot_magnetization = base_outputs.output_parameters.get_attributes('total_magnetization')
-                if set_tot_magnetization( inputs.pw.parameters, tot_magnetization):
+                parameters['SYSTEM']['nbnd'] = self.ctx.scf_supercell_0.outputs.output_parameters.get_dict()['number_of_bands']
+                if set_tot_magnetization( inputs.pw.parameters, self.ctx.scf_supercell_0.outputs.output_parameters.get_dict()['total_magnetization'] ):
                     return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
-
             parameters['ELECTRONS']['startingpot'] = 'file'
             inputs.pw.parameters = orm.Dict(dict=parameters)
 
@@ -293,9 +328,14 @@ class IRamanSpectraWorkChain(WorkChain):
     def run_dielectric(self):
         """Run a DielectricWorkChain."""
         inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric_workchain'))
+        preprocess = self.ctx.preprocess_data
 
-        inputs.scf.pw.structure = self.ctx.supercell
-        inputs.parent_folder = self.ctx.scf_supercell_0.outputs.remote_folder
+        if self.ctx.is_magnetic or (len(preprocess.get_unitcell().sites) != len(preprocess.get_primitive_cell().sites)):
+            inputs.scf.pw.structure = self.ctx.supercell
+            inputs.parent_folder = self.ctx.scf_supercell_0.outputs.remote_folder
+        else:
+            inputs.scf.pw.structure = self.ctx.preprocess_data.calcfunctions.get_primitive_cell()
+
         inputs.clean_workdir = self.inputs.clean_workdir
 
         key = 'dielectric_workchain'
@@ -318,8 +358,7 @@ class IRamanSpectraWorkChain(WorkChain):
                     self.out(f'supercells_forces.{label}', forces)
                     self.out(f'supercells_energies.{label}', energy)
                 else:
-                    self.report(f'PwBaseWorkChain with <PK={workchain.pk}> failed'
-                        'with exit status {workchain.exit_status}')
+                    self.report(f'PwBaseWorkChain with <PK={workchain.pk}> failed with exit status {workchain.exit_status}')
                     failed_runs.append(workchain.pk)
 
         if 'dielectric_workchain' in self.ctx:
@@ -337,51 +376,33 @@ class IRamanSpectraWorkChain(WorkChain):
 
     def run_results(self):
         """Run results generating outputs for post-processing and visualization."""
-        diel_out = self.ctx.dielectric_workchain.outputs
-        input_nac = {
-            'dielectric':diel_out.dielectric,
-            'born_charges':diel_out.born_charges
-        }
+        nac_parameters = None
 
-        nac = extract_max_order(**input_nac)
+        if 'nac_parameters' in self.inputs:
+            nac_parameters = self.inputs.nac_parameters
+        if 'dielectric_workchain' in self.inputs:
+            diel_out = self.ctx.dielectric_workchain.outputs
+            nac = extract_max_order({'dielectric':diel_out.dielectric, 'born_charges':diel_out.born_charges})
+            if not self.ctx.is_magnetic:
+                nac_parameters = get_non_analytical_constants(**nac)
+            else:
+                # Here we have to `elaborate` the nac parameters, since for magnetic insulators the nac are computed
+                # on the unitcell and not the primitive cell. For sanity check, we elaborate them.
+                nac_parameters = elaborate_non_analytical_constants(
+                    ref_structure=self.inputs.structure,
+                    preprocess_data=self.ctx.preprocess_data,
+                    **nac
+                )
 
-        nac_parameters = elaborate_non_analytical_constants(
-            ref_structure=self.inputs.structure,
-            preprocess_data=self.ctx.preprocess_data,
-            **nac
-        )
-
-        kwargs = {**self.outputs['supercells_forces']}
-
-        if 'dph0_susceptibility' in diel_out:
-            input_susc = {
-                'dph0_susceptibility':diel_out.dph0_susceptibility,
-                'nlo_susceptibility':diel_out.nlo_susceptibility
-            }
-            susceptibilities = extract_max_order(input_susc)
-            kwargs.update(susceptibilities)
-
-        self.ctx.vibrational_data = generate_vibrational_data(
-            preprocess_data=self.ctx.preprocess_data,
+        phonopy_data = PhonopyData(preprocess_data=self.ctx.preprocess_data)
+        self.ctx.full_phonopy_data = phonopy_data.calcfunctions.generate_full_phonopy_data(
             nac_parameters=nac_parameters,
-            **kwargs,
+            **self.outputs['supercells_forces']
         )
-
-        self.out('vibrational_data', self.ctx.vibrational_data)
-
-        inputs = AttributeDict(self.exposed_inputs(IntensitiesAverageWorkChain, namespace='intensities_average'))
-        inputs.vibrational_data = self.ctx.vibrational_data
-        future = self.submit(IntensitiesAverageWorkChain, **inputs)
-        self.report(f'submitting `IntensitiesAverageWorkChain` <PK={future.pk}>.')
-        self.to_context(**{'intensities_average': future})
 
     def show_results(self):
         """Expose the outputs."""
-        if not self.ctx.intensities_average.is_finished_ok:
-            self.report('the averaging procedure failed')
-            return self.exit_codes.ERROR_AVERAGING_FAILED
-
-        self.out_many(self.exposed_outputs(self.ctx.intensities_average, IntensitiesAverageWorkChain))
+        self.out('output_phonopy_data', self.ctx.full_phonopy_data)
 
     def on_terminated(self):
         """Clean the working directories of all child calculations if `clean_workdir=True` in the inputs."""
