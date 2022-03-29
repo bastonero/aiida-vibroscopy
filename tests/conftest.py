@@ -2,7 +2,6 @@
 # pylint: disable=redefined-outer-name
 """Initialise a text database and profile for pytest."""
 import collections
-import io
 import os
 import shutil
 import tempfile
@@ -227,13 +226,15 @@ def generate_structure():
     def _generate_structure(sites=None):
         """Return a `StructureData` representing bulk silicon."""
         from aiida.orm import StructureData
-            
-        cell = [[3.9625313477, -3.9625313477, 0.0],
-                [-3.9625313477, 0.0, 3.9625313477],
-                [0.0, -3.9625313477, -3.9625313477]]
-        #cell = [[1., 1., 0], [1., 0, 1.], [0, 1., 1.]]
-        
-        structure = StructureData(cell=cell)
+
+        if sites is None:
+            cell = [[3.9625313477, -3.9625313477, 0.0],
+                    [-3.9625313477, 0.0, 3.9625313477],
+                    [0.0, -3.9625313477, -3.9625313477]]
+            structure = StructureData(cell=cell)
+        else:
+            structure = StructureData()
+
         if sites is None:
             structure.append_atom(position=(0., 0., 0.), symbols='Mg', name='Mg')
             structure.append_atom(position=(1.98126567385, 1.98126567385, 1.98126567385), symbols='O', name='O')
@@ -244,6 +245,33 @@ def generate_structure():
         return structure
 
     return _generate_structure
+
+
+@pytest.fixture
+def generate_preprocess_data(generate_structure):
+    """Generate a `PreProcessData`."""
+
+    def _generate_preprocess_data(supercell_matrix=None, primitive_matrix=None):
+        """Return a `PreProcessData` with bulk silicon as structure."""
+        from aiida.plugins import DataFactory
+
+        PreProcessData = DataFactory('phonopy.preprocess')
+        structure = generate_structure()
+
+        if supercell_matrix is None:
+            supercell_matrix = [1,1,1]
+        if primitive_matrix is None:
+            primitive_matrix = 'auto'
+
+        preprocess_data =  PreProcessData(
+            structure=structure,
+            supercell_matrix=supercell_matrix,
+            primitive_matrix=primitive_matrix
+        )
+
+        return preprocess_data
+
+    return _generate_preprocess_data
 
 
 @pytest.fixture
@@ -262,34 +290,6 @@ def generate_kpoints_mesh():
     return _generate_kpoints_mesh
 
 @pytest.fixture
-def generate_elfield():
-    """Return a `Float` node."""
-
-    def _generate_elfield(elfield):
-        """Return a `Float` with the value of `elfield`."""
-        from aiida.orm import Float
-
-        elfield_node = Float(elfield)
-
-        return elfield_node
-
-    return _generate_elfield
-
-@pytest.fixture
-def generate_nberrycyc():
-    """Return a `Float` node."""
-
-    def _generate_nberrycyc(nberrycyc):
-        """Return a `Int` with the value of `nberrycyc`."""
-        from aiida.orm import Int
-
-        nberrycyc_node = Int(nberrycyc)
-
-        return nberrycyc_node
-
-    return _generate_nberrycyc
-
-@pytest.fixture
 def generate_trajectory():
     """Return a `TrajectoryData` node."""
 
@@ -297,7 +297,7 @@ def generate_trajectory():
         """Return a `TrajectoryData` with minimum data."""
         from aiida.orm import TrajectoryData
         import numpy as np
-        
+
         if trajectory is None:
             node = TrajectoryData()
             node.set_array('electronic_dipole_cartesian_axes',np.array([[[0.,0.,0.]]]))
@@ -307,7 +307,7 @@ def generate_trajectory():
             cells = np.array([[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]])
             positions = np.array([[[0., 0., 0.],[0.,0.,0.]]])
             node.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg','O'], positions=positions, times=times)
-        
+
         return node.store()
 
     return _generate_trajectory
@@ -362,49 +362,55 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
 
 
 @pytest.fixture
-def generate_inputs_finite_electric_fields(generate_inputs_pw, generate_structure, generate_elfield, generate_nberrycyc):
-    """Generate default inputs for a `FiniteElectricFieldsWorkChain`."""
+def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
+    """Generate default inputs for a `DielectricWorkChain`."""
 
-    def _generate_inputs_finite_electric_fields(elfield=None, nberrycyc=None, selected_elfield=None):
-        """Generate default inputs for a `FiniteElectricFieldsWorkChain`."""
-        from aiida.orm import Dict, Float
+    def _generate_inputs_dielectric(
+            property='raman',
+            clean_workdir=True,
+            electric_field=None,
+            electric_field_scale=None,
+            accuracy=None,
+            diagonal_scale=None
+        ):
+        """Generate default inputs for a `DielectricWorkChain`."""
+        from aiida.orm import Float, Int, Bool
 
         structure = generate_structure()
-        inputs_elfield_scf = generate_inputs_pw(structure=structure)
+        inputs_scf = generate_inputs_pw(structure=structure)
 
-        kpoints = inputs_elfield_scf.pop('kpoints')
-        
+        kpoints = inputs_scf.pop('kpoints')
+
         inputs = {
-            'elfield_scf': {
-                'pw': inputs_elfield_scf,
+            'property':property,
+            'scf': {
+                'pw': inputs_scf,
                 'kpoints': kpoints,
             },
+            'clean_workdir': Bool(clean_workdir),
         }
-        
-        if not selected_elfield==None:
-            from aiida.orm import Int
-            inputs['selected_elfield']=Int(selected_elfield)
-        if not elfield==None:
-            inputs['elfield']=generate_elfield(elfield)
-        else:
-            inputs['elfield']=generate_elfield(0.001)
-        if not nberrycyc==None:
-            inputs['nberrycyc']=generate_nberrycyc(nberrycyc)
-        else:
-            inputs['nberrycyc']=generate_nberrycyc(3)
+
+        if electric_field is not None:
+            inputs['electric_field']=Float(electric_field)
+        if electric_field_scale is not None:
+            inputs['electric_field_scale']=Float(electric_field_scale)
+        if accuracy is not None:
+            inputs['central_difference']={'accuracy':Int(accuracy)}
+        if diagonal_scale is not None:
+            inputs['central_difference']={'diagonal_scale':Float(diagonal_scale)}
 
         return inputs
 
-    return _generate_inputs_finite_electric_fields
+    return _generate_inputs_dielectric
 
 @pytest.fixture
-def generate_inputs_second_derivatives(generate_trajectory, generate_elfield, generate_nberrycyc):
+def generate_inputs_second_derivatives(generate_trajectory):
     """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
 
     def _generate_inputs_second_derivatives(trial=None, volume=None, elfield=None):
         """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
         from aiida.orm import Float
-        
+
         if trial is None:
             data = {
                 'null':generate_trajectory(),
@@ -425,23 +431,24 @@ def generate_inputs_second_derivatives(generate_trajectory, generate_elfield, ge
             data = {
                 'null':generate_trajectory(),
             }
-        
+
         inputs = {
             'data':data,
         }
-        
-        if not volume==None:
+
+        if not volume is None:
             inputs['volume']=Float(volume)
         else:
             inputs['volume']=Float(1.0)
-        if not elfield==None:
-            inputs['elfield']=generate_elfield(elfield)
+        if not elfield is None:
+            inputs['elfield']=Float(elfield)
         else:
-            inputs['elfield']=generate_elfield(0.001)
+            inputs['elfield']=Float(0.001)
 
         return inputs
 
     return _generate_inputs_second_derivatives
+
 
 @pytest.fixture(scope='session')
 def generate_upf_data(tmp_path_factory):

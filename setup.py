@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Define the setup for the `aiida-quantumespresso-finite-differences` plugin."""
 
+
 def setup_package():
     """Install the `aiida-quantumespresso-finite-differences` package."""
     import json
@@ -16,17 +17,17 @@ def setup_package():
         description = handle.read()
 
     setup(
-        #include_package_data=True,
+        # include_package_data=True,
         packages=find_packages(),
         package_data={
             '': ['*'],
         },
-        #reentry_register=True,
+        # reentry_register=True,
         long_description=description,
         long_description_content_type='text/markdown',
         **setup_json
     )
-    
+
 
 if __name__ == '__main__':
     setup_package()

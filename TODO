@@ -1,12 +1,3 @@
 # To do list - no priority order
 
----------------
-* = to be done
-v = completed
----------------
-
- * (E)  set 'clean_workdir' to FALSE for the init_scf
- * (E+) enable to clen the workdir also of init_scf at the end
-   of the workflow, if this has been set in the input
  * (H)  implement symmetry to allow for less calcs
- * (M+) implement directional kpoint density
