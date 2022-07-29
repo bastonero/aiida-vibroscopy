@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 """Validation function utilities."""
 
-__all__ = ('set_tot_magnetization', 'validate_matrix', 'validate_positive', 'validate_nac')
+__all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive', 'validate_nac')
 
 
-def set_tot_magnetization(input_parameters, tot_magnetization):
+def validate_tot_magnetization(tot_magnetization, thr=0.1):
     """
     Set the tot magnetization input key equal to the round value of tot_magnetization and return TRUE if
     the latter does not exceed the given threshold from its original value.
     This is needed because 'tot_magnetization' must be an integer in the aiida-quantumespresso input parameters.
     """
-    thr = 0.1  # threshold measuring the deviation from integer value
-
     int_tot_magnetization = round(tot_magnetization, 0)
-    input_parameters['SYSTEM']['tot_magnetization'] = int_tot_magnetization
 
     return abs(tot_magnetization - int_tot_magnetization) > thr
 

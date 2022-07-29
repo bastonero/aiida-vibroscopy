@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Define the setup for the `aiida-quantumespresso-finite-differences` plugin."""
+"""Define the setup for the `aiida-quantumespresso-vibroscopy` plugin."""
 
 
 def setup_package():
-    """Install the `aiida-quantumespresso-finite-differences` package."""
+    """Install the `aiida-quantumespresso-vibroscopy` package."""
     import json
     from setuptools import setup, find_packages
 
@@ -17,12 +17,12 @@ def setup_package():
         description = handle.read()
 
     setup(
-        # include_package_data=True,
+        include_package_data=True,
+        reentry_register=True,
         packages=find_packages(),
         package_data={
             '': ['*'],
         },
-        # reentry_register=True,
         long_description=description,
         long_description_content_type='text/markdown',
         **setup_json

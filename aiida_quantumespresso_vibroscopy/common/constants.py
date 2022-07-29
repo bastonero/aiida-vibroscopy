@@ -16,7 +16,8 @@ DEFAULT = SimpleNamespace(
     efield_au_to_si = 51.4220674763 / sqrt(2), # Ry a.u. to Volt/angstrom
     forces_si_to_au = (CONSTANTS.ry_to_ev/CONSTANTS.bohr_to_ang)**-1, # eV/ang to Ry/bohr
     cm_to_kelvin = units.CmToEv/units.Kb,
-    thz_to_cm = units.THzToCm
+    thz_to_cm = units.THzToCm,
+    debey_ang = 0.2081943
     # to be defined:
     # * kelvin to eV
     # * nm to eV

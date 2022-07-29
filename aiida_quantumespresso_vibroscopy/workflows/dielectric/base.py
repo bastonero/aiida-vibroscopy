@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Base workflow for dielectric properties calculation from finite fields."""
+import time
 from math import sqrt
 
 from aiida import orm
@@ -10,7 +11,7 @@ from aiida.orm.nodes.data.array.bands import find_bandgap
 
 import numpy as np
 
-from aiida_quantumespresso_vibroscopy.utils.validation import set_tot_magnetization, validate_positive
+from aiida_quantumespresso_vibroscopy.utils.validation import validate_tot_magnetization, validate_positive
 from aiida_quantumespresso_vibroscopy.utils.elfield_cards_functions import get_vector_from_number
 from aiida_quantumespresso_vibroscopy.common import UNITS_FACTORS
 
@@ -35,7 +36,7 @@ def compute_electric_field(
     kmesh = np.array(parameters.get_attribute('monkhorst_pack_grid'))
     cell = np.array(structure.cell)
 
-    denominator = np.fabs(np.dot(cell, kmesh)).max()*UNITS_FACTORS.efield_au_to_si
+    denominator = np.fabs(np.dot(cell.T, kmesh)).max()*UNITS_FACTORS.efield_au_to_si
 
     return orm.Float(scaling*band_gap/denominator)
 
@@ -50,7 +51,7 @@ def get_accuracy_from_field_intensity(norm: orm.Float):
 
     :param norm: intensity of electric field in Ry a.u.
     """
-    return orm.Int(4) if norm.value < 5e-4 else orm.Int(2)
+    return orm.Int(4) if (norm.value < 1e-4 or norm.value > 1e-2) else orm.Int(2)
 
 def validate_accuracy(value, _):
     """Validate the value of the numerical accuracy. Only positive integer even numbers, 0 excluded."""
@@ -83,8 +84,10 @@ class DielectricWorkChain(WorkChain):
     """
 
     _DEFAULT_NBERRYCYC = 3
-    _AVAILABLE_PROPERTIES = ('ir','born-charges','dielectric','nac','bec',
-        'raman','susceptibility-derivative','non-linear-susceptibility')
+    _AVAILABLE_PROPERTIES = (
+        'ir','born-charges','dielectric','nac','bec',
+        'raman','susceptibility-derivative','non-linear-susceptibility'
+    )
 
     @classmethod
     def define(cls, spec):
@@ -125,14 +128,20 @@ class DielectricWorkChain(WorkChain):
                   'This must be an EVEN positive integer number. If not specified, an automatic '
                   'choice is made upon the intensity of the critical electric field.')
         )
+        spec.input_namespace(
+            'options',
+            help='Options for how to run the workflow.',
+        )
+        spec.input(
+            'options.sleep_submission_time', valid_type=float, non_db=True, default=3.0,
+            help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
+        )
         spec.inputs.validator = validate_inputs
 
         spec.outline(
             cls.setup,
-            if_(cls.should_run_base_scf)(
-                cls.run_base_scf,
-                cls.inspect_base_scf,
-            ),
+            cls.run_base_scf,
+            cls.inspect_base_scf,
             if_(cls.should_estimate_electric_field)(
                 cls.run_nscf,
                 cls.inspect_nscf,
@@ -180,11 +189,6 @@ class DielectricWorkChain(WorkChain):
         """Set up the context and the outline."""
         self.ctx.clean_workdir = self.inputs.clean_workdir.value
 
-        if 'parent_scf' in self.inputs:
-            self.ctx.should_run_base_scf = False
-        else:
-            self.ctx.should_run_base_scf = True
-
         if 'electric_field' in self.inputs:
             self.ctx.should_estimate_electric_field = False
             self.ctx.electric_field = self.inputs.electric_field
@@ -214,10 +218,6 @@ class DielectricWorkChain(WorkChain):
         else:
             # self.report('system is treated to be non-magnetic because `nspin == 1` in `scf.pw.parameters` input.')
             self.ctx.is_magnetic = False
-
-    def should_run_base_scf(self):
-        """Return whether a ground-state scf calculation needs to be run."""
-        return self.ctx.should_run_base_scf
 
     def should_estimate_electric_field(self):
         """Return whether a nscf calculation needs to be run to estimate the electric field."""
@@ -256,10 +256,15 @@ class DielectricWorkChain(WorkChain):
         parameters['ELECTRONS']['startingpot'] = 'file'
         # --- Magnetic ground state
         if self.is_magnetic():
+            base_out = self.ctx.base_scf.outputs
             parameters['SYSTEM'].pop('starting_magnetization', None)
-            parameters['SYSTEM']['nbnd'] = self.ctx.base_scf.outputs.output_parameters.get_attribute('number_of_bands')
-            tot_magnetization = self.ctx.base_scf.outputs.output_parameters.get_attribute('total_magnetization')
-            if set_tot_magnetization( inputs.pw.parameters, tot_magnetization):
+            parameters['SYSTEM']['occupations'] = 'fixed'
+            parameters['SYSTEM'].pop('smearing', None)
+            parameters['SYSTEM'].pop('degauss', None)
+            parameters['SYSTEM']['nbnd'] = base_out.output_parameters.get_attribute('number_of_bands')
+            tot_magnetization = base_out.output_parameters.get_attribute('total_magnetization')
+            parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
+            if validate_tot_magnetization(tot_magnetization):
                 return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
         # --- Return
         inputs.pw.parameters = orm.Dict(dict=parameters)
@@ -272,8 +277,15 @@ class DielectricWorkChain(WorkChain):
         """Run initial scf for ground-state ."""
         inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='scf'))
         parameters = inputs.pw.parameters.get_dict()
+
         for key in ('nberrycyc, lelfield', 'efield_cart'):
-            parameters.pop(key, None)
+            parameters['CONTROL'].pop(key, None)
+            parameters['ELECTRONS'].pop(key, None)
+
+        if 'parent_scf' in self.inputs:
+            inputs.pw.parent_folder = self.inputs.parent_scf
+            parameters['ELECTRONS']['startingpot'] = 'file'
+
         inputs.pw.parameters = orm.Dict(dict=parameters)
 
         key = 'base_scf'
@@ -309,11 +321,7 @@ class DielectricWorkChain(WorkChain):
             parameters['SYSTEM']['nbnd'] = nbnd
 
         inputs.pw.parameters = orm.Dict(dict=parameters)
-
-        if 'parent_folder' in self.inputs:
-            inputs.pw.parent_folder = self.inputs.parent_folder
-        else:
-            inputs.pw.parent_folder = outputs.remote_folder
+        inputs.pw.parent_folder = outputs.remote_folder
 
         key = 'nscf'
         inputs.metadata.call_link_label = key
@@ -405,6 +413,7 @@ class DielectricWorkChain(WorkChain):
                 node = self.submit(PwBaseWorkChain, **inputs)
                 self.to_context(**{key: append_(node)})
                 self.report(f'launched PwBaseWorkChain<{node.pk}> with electric field index {number}')
+                time.sleep(self.inputs.options.sleep_submission_time)
 
         self.ctx.iteration = self.ctx.iteration +1
 

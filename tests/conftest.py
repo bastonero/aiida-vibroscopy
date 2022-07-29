@@ -495,3 +495,167 @@ def generate_upf_family(generate_upf_data):
         return family
 
     return _generate_upf_family
+
+
+@pytest.fixture
+def generate_inputs_pw_base(generate_inputs_pw, generate_structure):
+    """Generate default inputs for a `PwBaseWorkChain`."""
+
+    def _generate_inputs_pw_base():
+        """Generate default inputs for a `PwBaseWorkChain`."""
+        structure = generate_structure()
+        inputs_scf = generate_inputs_pw(structure=structure)
+
+        kpoints = inputs_scf.pop('kpoints')
+
+        inputs = {
+            'pw': inputs_scf,
+            'kpoints': kpoints,
+        }
+
+        return inputs
+
+    return _generate_inputs_pw_base
+
+
+@pytest.fixture
+def generate_base_scf_workchain_node(fixture_localhost):
+    """Generate an instance of `WorkflowNode`."""
+
+    def _generate_base_scf_workchain_node():
+        from aiida import orm
+        from aiida.common import LinkType
+        from aiida.plugins.entry_point import format_entry_point_string
+
+        computer = fixture_localhost
+        entry_point_name = 'quantumespresso.pw'
+
+        entry_point = format_entry_point_string('aiida.calculations', entry_point_name)
+        calcjob_node = orm.CalcJobNode(computer=computer, process_type=entry_point)
+        calcjob_node.store()
+
+        node = orm.WorkflowNode().store()
+
+        parameters = orm.Dict(dict={'number_of_bands': 5}).store()
+        parameters.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
+
+        remote_folder = orm.RemoteData(computer=computer, remote_path='/tmp').store()
+        remote_folder.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
+        remote_folder.add_incoming(calcjob_node, link_type=LinkType.CREATE, link_label='remote_folder')
+        remote_folder.store()
+
+        return node
+
+    return _generate_base_scf_workchain_node
+
+
+@pytest.fixture
+def generate_dielectric_workchain_node():
+    """Generate an instance of `WorkflowNode`."""
+
+    def _generate_dielectric_workchain_node(raman=False, ):
+        import numpy
+
+        from aiida import orm
+        from aiida.common import LinkType
+
+        label_1 = 'numerical_accuracy_2_step_1'
+        label_2 = 'numerical_accuracy_4'
+
+        node = orm.WorkflowNode().store()
+
+        dielectric = orm.ArrayData()
+        dielectric_array = numpy.eye(3)
+        dielectric.set_array(label_1, dielectric_array)
+        dielectric.set_array(label_2, dielectric_array)
+        dielectric.store()
+        dielectric.add_incoming(node, link_type=LinkType.RETURN, link_label='dielectric')
+
+        born_charges = orm.ArrayData()
+        b = numpy.eye(3)
+        born_charges_array = numpy.array( [b, -b] )
+        born_charges.set_array(label_1, born_charges_array)
+        born_charges.set_array(label_2, born_charges_array)
+        born_charges.store()
+        born_charges.add_incoming(node, link_type=LinkType.RETURN, link_label='born_charges')
+
+        if raman:
+            dph0_susceptibility = orm.ArrayData()
+            r = numpy.zeros((3,3,3))
+            numpy.fill_diagonal(r,1)
+            dph0_array = numpy.array( [r, -r] )
+            dph0_susceptibility.set_array(label_1, dph0_array)
+            dph0_susceptibility.set_array(label_2, dph0_array)
+            dph0_susceptibility.store()
+            dph0_susceptibility.add_incoming(node, link_type=LinkType.RETURN, link_label='dph0_susceptibility')
+
+            nlo_susceptibility = orm.ArrayData()
+            nlo_array = numpy.zeros((3,3,3))
+            nlo_susceptibility.set_array(label_1, nlo_array)
+            nlo_susceptibility.set_array(label_2, nlo_array)
+            nlo_susceptibility.store()
+            nlo_susceptibility.add_incoming(node, link_type=LinkType.RETURN, link_label='nlo_susceptibility')
+
+        return node
+
+    return _generate_dielectric_workchain_node
+
+@pytest.fixture
+def generate_vibrational_data(generate_structure):
+    """Generate a `VibrationalFrozenPhononData`."""
+
+    def _generate_vibrational_data(dielectric=None, born_charges=None, dph0=None, nlo=None, forces=None):
+        """Return a `VibrationalFrozenPhononData` with bulk silicon as structure."""
+        import numpy
+        from aiida.plugins import DataFactory
+        # from aiida_quantumespresso_vibroscopy.data.vibro_fp import VibrationalFrozenPhononData
+
+        VibrationalFrozenPhononData = DataFactory('quantumespresso.vibroscopy.fp')
+        PreProcessData = DataFactory('phonopy.preprocess')
+
+        structure = generate_structure()
+
+        supercell_matrix = [1,1,1]
+
+        preprocess_data =  PreProcessData(
+            structure=structure,
+            supercell_matrix=supercell_matrix,
+            primitive_matrix='auto'
+        )
+
+        preprocess_data.set_displacements()
+
+        vibrational_data = VibrationalFrozenPhononData(preprocess_data=preprocess_data)
+
+        if dielectric is not None:
+            vibrational_data.set_dielectric(dielectric)
+        else:
+            vibrational_data.set_dielectric(numpy.eye(3))
+
+        if born_charges is not None:
+            vibrational_data.set_born_charges(born_charges)
+        else:
+            becs = numpy.array([numpy.eye(3), -1*numpy.eye(3)])
+            vibrational_data.set_born_charges(becs)
+
+        if dph0 is not None:
+            vibrational_data.set_dph0_susceptibility(dph0_susceptibility=dph0)
+        else:
+            dph0 = numpy.zeros((2,3,3,3))
+            dph0[0][0][0][0] = +1
+            dph0[1][0][0][0] = -1
+            vibrational_data.set_dph0_susceptibility(dph0_susceptibility=dph0)
+
+        if nlo is not None:
+            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=nlo)
+        else:
+            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=numpy.zeros((3,3,3)))
+
+        if forces is not None:
+            vibrational_data.set_forces(forces)
+        else:
+            vibrational_data.set_forces( [ [[1,0,0],[-1,0,0]], [[2,0,0],[-2,0,0]] ] )
+
+        return vibrational_data
+
+    return _generate_vibrational_data

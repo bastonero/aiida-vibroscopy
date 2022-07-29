@@ -6,62 +6,25 @@ from aiida import orm
 
 
 @pytest.fixture
-def generate_inputs_pw_base(generate_inputs_pw, generate_structure):
-    """Generate default inputs for a `PwBaseWorkChain`."""
-
-    def _generate_inputs_pw_base():
-        """Generate default inputs for a `PwBaseWorkChain`."""
-        structure = generate_structure()
-        inputs_scf = generate_inputs_pw(structure=structure)
-
-        kpoints = inputs_scf.pop('kpoints')
-
-        inputs = {
-            'pw': inputs_scf,
-            'kpoints': kpoints,
-        }
-
-        return inputs
-
-    return _generate_inputs_pw_base
-
-
-@pytest.fixture
-def generate_base_scf_workchain_node(fixture_localhost):
-    """Generate an instance of `WorkflowNode`."""
-
-    def _generate_base_scf_workchain_node():
-        from aiida.common import LinkType
-
-        node = orm.WorkflowNode().store()
-
-        parameters = orm.Dict(dict={'number_of_bands': 5}).store()
-        parameters.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
-
-        remote_folder = orm.RemoteData(computer=fixture_localhost, remote_path='/tmp').store()
-        remote_folder.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
-        remote_folder.store()
-
-        return node
-
-    return _generate_base_scf_workchain_node
-
-
-@pytest.fixture
 def generate_workchain_harmonic(generate_workchain, generate_inputs_pw_base):
     """Generate an instance of a `HarmonicWorkChain`."""
 
-    def _generate_workchain_harmonic(append_inputs=None, return_inputs=False):
+    def _generate_workchain_harmonic(append_inputs=None, phonon_inputs=None, return_inputs=False):
         entry_point = 'quantumespresso.vibroscopy.phonons.harmonic'
         scf_inputs = generate_inputs_pw_base()
         scf_inputs['pw'].pop('structure')
 
         inputs = {
-            'scf': scf_inputs,
+            'phonon_workchain':{
+                'scf': scf_inputs,
             }
+        }
 
         if return_inputs:
             return inputs
+
+        if phonon_inputs is not None:
+            inputs['phonon_workchain'].update(phonon_inputs)
 
         if append_inputs is not None:
             inputs.update(append_inputs)
@@ -143,15 +106,20 @@ def test_invalid_inputs(generate_workchain_harmonic, generate_inputs_dielectric,
             parameters.update({'structure':generate_structure()})
 
     if 'supercell_matrix' in parameters:
-        parameters.update({'supercell_matrix':orm.List(list=parameters['supercell_matrix'])})
+        inputs = generate_workchain_harmonic(return_inputs=True)
+        inputs['phonon_workchain'].update({'supercell_matrix':orm.List(list=parameters['supercell_matrix'])})
+        parameters = inputs
 
     if 'displacement_generator' in parameters:
-        parameters.update({'displacement_generator':orm.Dict(dict=parameters['displacement_generator'])})
+        inputs = generate_workchain_harmonic(return_inputs=True)
+        inputs['phonon_workchain'].update({'displacement_generator':orm.Dict(dict=parameters['displacement_generator'])})
+        parameters = inputs
 
     with pytest.raises(ValueError) as exception:
         generate_workchain_harmonic(append_inputs=parameters)
 
     assert message in str(exception.value)
+
 
 @pytest.mark.parametrize( ('parameters'), ( (True), (False), ), )
 @pytest.mark.usefixtures('aiida_profile')
@@ -177,6 +145,7 @@ def test_setup(generate_workchain_harmonic, generate_preprocess_data, generate_s
     assert process.ctx.is_magnetic == False
     assert process.ctx.plus_hubbard == False
 
+
 @pytest.mark.usefixtures('aiida_profile')
 def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, generate_inputs_dielectric):
     """Test `HarmonicWorkChain` setep method."""
@@ -192,9 +161,13 @@ def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, 
 
     assert process.ctx.run_parallel == True
 
+
 def test_run_forces(generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node):
     """Test `HarmonicWorkChain.run_forces` method."""
-    append_inputs = {'structure':generate_structure()}
+    append_inputs = {
+        'structure':generate_structure(),
+        'options':{'sleep_submission_time':0.1}
+    }
     process = generate_workchain_harmonic(append_inputs=append_inputs)
 
     process.setup()
@@ -208,3 +181,57 @@ def test_run_forces(generate_workchain_harmonic, generate_structure, generate_ba
     assert 'supercells' in process.outputs
     assert 'supercell_1' in process.outputs['supercells']
     assert 'scf_supercell_1' in process.ctx
+
+
+def test_run_dielectric(generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node, generate_inputs_dielectric):
+    """Test `HarmonicWorkChain.run_dielectric` method."""
+    dielectric_inputs = generate_inputs_dielectric(electric_field_scale=1.0)
+    dielectric_inputs['scf']['pw'].pop('structure')
+    dielectric_inputs.pop('clean_workdir')
+    append_inputs = {
+        'structure':generate_structure(),
+        'dielectric_workchain': dielectric_inputs,
+        'options':{'sleep_submission_time':0.1},
+    }
+    process = generate_workchain_harmonic(append_inputs=append_inputs)
+
+    process.setup()
+    process.run_base_supercell()
+    process.ctx.scf_supercell_0 = generate_base_scf_workchain_node()
+
+    process.run_dielectric()
+
+    assert 'dielectric_workchain' in process.ctx
+
+
+@pytest.mark.parametrize( ('is_magnetic'), ( (True), (False) ), )
+def test_run_results(generate_workchain_harmonic, generate_structure, generate_dielectric_workchain_node, generate_inputs_dielectric, is_magnetic):
+    """Test `HarmonicWorkChain.run_results` method."""
+    import numpy
+    from aiida import orm
+
+    dielectric_inputs = generate_inputs_dielectric(electric_field_scale=1.0)
+    dielectric_inputs['scf']['pw'].pop('structure')
+    dielectric_inputs.pop('clean_workdir')
+    append_inputs = {
+        'structure':generate_structure(),
+        'dielectric_workchain': dielectric_inputs,
+        'options':{'sleep_submission_time':0.1},
+    }
+    process = generate_workchain_harmonic(append_inputs=append_inputs)
+
+    process.setup()
+    process.ctx.dielectric_workchain = generate_dielectric_workchain_node(raman=False)
+    process.ctx.is_magnetic = is_magnetic
+
+    forces_1 = orm.ArrayData()
+    forces_1.set_array('forces', numpy.full((2,3), 1))
+    forces_2 = orm.ArrayData()
+    forces_2.set_array('forces', numpy.full((2,3), -1))
+
+    process.out(f'supercells_forces.scf_supercell_1', forces_1)
+    process.out(f'supercells_forces.scf_supercell_2', forces_2)
+
+    process.run_results()
+
+    assert 'phonopy_data' in process.outputs

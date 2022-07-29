@@ -26,9 +26,7 @@
             "quantumespresso.vibroscopy.spectra.intensities_average = aiida_quantumespresso_vibroscopy.workflows.spectra.intensities_average: IntensitiesAverageWorkChain"
         ]
     },
-    "include_package_data": true,
     "setup_requires": ["reentry"],
-    "reentry_register": true,
     "install_requires": [
         "aiida-core>=1.6.0",
         "aiida-quantumespresso>=3.4.0",
@@ -46,6 +44,13 @@
         "pre-commit": [
             "pre-commit~=2.2",
             "pylint>=2.5.0,<2.9"
+        ],
+        "docs": [
+            "Sphinx",
+            "docutils",
+            "sphinx-copybutton~=0.3.0",
+            "sphinx-book-theme~=0.1.0",
+            "sphinx-click~=2.7.1"
         ]
     }
 }
