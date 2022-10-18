@@ -39,6 +39,7 @@ def compute_active_modes(
     """Get frequencies, normalized eigenvectors and irreducible representation labels of active modes
     for calculation of polarization vectors and Raman tensors.
 
+    :param nac_direction: (3,) shape list, indicating non analytical direction in fractional reciprocal space coordinates
     :param selection_rule: str, can be `raman` or `ir`; it uses symmetry in the selection of the modes
         for a specific type of process.
     :param sr_thr: float, threshold for selection rule (the analytical value is 0).
@@ -98,10 +99,10 @@ def compute_active_modes(
 
     # Step 3 - getting normalized eigenvectors
     masses = phonopy_instance.masses
-    inv_sqrt_masses = np.array([ [1./math.sqrt(mass)] for mass in masses])
-    eigvectors_active_modes = np.array( eigvectors_active_modes ).reshape(len(freq_active_modes), len(masses), 3)
+    sqrt_masses = np.array([ [math.sqrt(mass)] for mass in masses])
 
-    norm_eigvectors_active_modes = np.array( [eigv/inv_sqrt_masses for eigv in eigvectors_active_modes] )
+    eigvectors_active_modes = np.array( eigvectors_active_modes ).reshape(len(freq_active_modes), len(masses), 3)
+    norm_eigvectors_active_modes = np.array( [eigv/sqrt_masses for eigv in eigvectors_active_modes] )
 
     return (freq_active_modes, norm_eigvectors_active_modes, labels_active_modes)
 
@@ -130,27 +131,6 @@ def compute_raman_space_average(raman_tensors):
         )
         intensities_hh.append(a2 +4*b2/45)
         intensities_hv.append(3*b2/45)
-        # G0 = ( R[0][0]**2 + R[1][1]**2 + R[2][2]**2 )/3.
-        # G1 = 0.5*(
-        #     (R[0][1]-R[1][0])**2 +
-        #     (R[0][2]-R[2][0])**2 +
-        #     (R[1][2]-R[2][1])**2
-        # )
-        # G2 = (
-        #     0.5*(
-        #         (R[0][1]+R[1][0])**2 +
-        #         (R[0][2]+R[2][0])**2 +
-        #         (R[1][2]+R[2][1])**2
-        #     )
-        #     +
-        #     (1/3)*(
-        #         (R[0][0]-R[1][1])**2 +
-        #         (R[0][0]-R[2][2])**2 +
-        #         (R[1][1]-R[2][2])**2
-        #     )
-        # )
-        # intensities_hh.append((10*G0+4*G1)/30)
-        # intensities_hv.append((5*G1+3*G2)/30)
 
     return ( np.array(intensities_hh), np.array(intensities_hv) )
 
@@ -185,7 +165,7 @@ def compute_raman_tensors(
     if not nac_direction.shape == (3,):
         raise ValueError('the array is not of the correct shape')
 
-    rcell = 2*np.pi*np.linalg.inv(phonopy_instance.primitive.get_cell())
+    rcell = np.linalg.inv(phonopy_instance.primitive.cell)
     q_direction = np.dot(rcell, nac_direction) # in Cartesian coordinates
 
     selection_rule = 'raman' if use_irreps else None
@@ -206,7 +186,7 @@ def compute_raman_tensors(
     # The contraction is performed over I and k, resulting in (n, i, j) Raman tensors.
     raman_tensors = np.tensordot(neigvs, dph0_susceptibility, axes=([1,2],[0,1]))
 
-    if nlo_susceptibility is not None:
+    if nlo_susceptibility is not None and q_direction.nonzero()[0].tolist():
         borns = phonopy_instance.nac_params['born']
         dielectric = phonopy_instance.nac_params['dielectric']
         # -8 pi (Z.q/q.epsilon.q)[I,k] Chi(2).q [i,j] is the correction to dph0.
@@ -216,14 +196,17 @@ def compute_raman_tensors(
         # nlo    shape|indices = (3, 3, 3) | (i, j, k)
 
         # q.epsilon.q
+        # !!! ---------------------- !!!
+        #    Here we can extend to 1/2D models.
+        # !!! ---------------------- !!!
         dielectric_term = np.dot(np.dot(dielectric, q_direction), q_direction)
         # Z*.q
-        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(2,0)) # (num atoms, 3) | (I, k)
+        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(1,0)) # (num atoms, 3) | (I, k)
         borns_term = np.tensordot(borns_term_dph0, neigvs, axes=([0,1],[1,2])) # (num modes) | (n)
         # Chi(2).q
         nlo_term = np.dot(nlo_susceptibility, q_direction) # (3, 3) | (i, j)
 
-        nlo_correction = -(8.*math.pi/(100.*dielectric_term))*np.tensordot(borns_term, nlo_term, axes=0)
+        nlo_correction = -(UNITS_FACTORS.nlo_conversion/dielectric_term)*np.tensordot(borns_term, nlo_term, axes=0)
         raman_tensors = raman_tensors + nlo_correction
 
     return (raman_tensors, freqs, labels)
@@ -329,13 +312,63 @@ def elaborate_susceptibility_derivatives(
 
     return {'dph0_susceptibility':dph0_data, 'nlo_susceptibility':nlo_data}
 
+@calcfunction
+def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -> orm.ArrayData:
+    from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
+    from .symmetry import symmetrize_susceptibility_derivatives
+
+
+    ref_dielectric = tensors.get_array('dielectric')
+    ref_born_charges = tensors.get_array('born_charges')
+    try:
+        ref_dph0 = tensors.get_array('dph0_susceptibility')
+        ref_nlo = tensors.get_array('nlo_susceptibility')
+        is_third = True
+    except KeyError:
+        is_third = False
+
+    new_tensors =  orm.ArrayData()
+
+    # Non-analytical constants elaboration
+    bec_, eps_ = symmetrize_borns_and_epsilon(
+        # nac info
+        borns=ref_born_charges,
+        epsilon=ref_dielectric,
+        # preprocess info
+        ucell=preprocess_data.get_phonopy_instance().unitcell,
+        primitive_matrix=preprocess_data.primitive_matrix,
+        supercell_matrix=preprocess_data.supercell_matrix,
+        is_symmetry=preprocess_data.is_symmetry,
+        symprec=preprocess_data.symprec,
+    )
+
+    new_tensors.set_array('dielectric', eps_)
+    new_tensors.set_array('born_charges', bec_)
+
+    # Eventual susceptibility derivatives elaboration
+    if is_third:
+        dph0_, nlo_ = symmetrize_susceptibility_derivatives(
+            # tensors
+            dph0_susceptibility=ref_dph0,
+            nlo_susceptibility=ref_nlo,
+            # preprocess info
+            ucell=preprocess_data.get_phonopy_instance().unitcell,
+            primitive_matrix=preprocess_data.primitive_matrix,
+            supercell_matrix=preprocess_data.supercell_matrix,
+            is_symmetry=preprocess_data.is_symmetry,
+            symprec=preprocess_data.symprec,
+        )
+
+        new_tensors.set_array('dph0_susceptibility', dph0_)
+        new_tensors.set_array('nlo_susceptibility', nlo_)
+
+    return new_tensors
+
 
 @calcfunction
 def generate_vibrational_data(
     preprocess_data: PreProcessData,
-    nac_parameters: orm.ArrayData,
-    dph0_susceptibility = None,
-    nlo_susceptibility = None,
+    tensors: orm.ArrayData,
     **forces_dict):
     """Create a VibrationalFrozenPhononData node from a PreProcessData node, storing forces and dielectric properties
     for spectra calculation.
@@ -343,6 +376,7 @@ def generate_vibrational_data(
     `Forces` must be passed as **kwargs**, since we are calling a calcfunction with a variable
     number of supercells forces.
 
+    :param tensors: ArrayData with arraynames `dielectric`, `born_charges` and eventual `dph0_susceptibility`, `nlo_susceptibility`
     :param forces_dict: dictionary of supercells forces as ArrayData stored as `forces`, each Data
         labelled in the dictionary in the format `{prefix}_{suffix}`.
         The prefix is common and the suffix corresponds to the suffix number of the supercell with
@@ -386,11 +420,12 @@ def generate_vibrational_data(
     if forces_0 is not None:
         vibrational_data.set_residual_forces(forces=forces_0.get_array('forces'))
 
-    vibrational_data.set_dielectric(nac_parameters.get_array('dielectric'))
-    vibrational_data.set_born_charges(nac_parameters.get_array('born_charges'))
-    if dph0_susceptibility is not None:
-        vibrational_data.set_dph0_susceptibility(dph0_susceptibility.get_array('dph0_susceptibility'))
-    if nlo_susceptibility is not None:
-        vibrational_data.set_nlo_susceptibility(nlo_susceptibility.get_array('nlo_susceptibility'))
+    vibrational_data.set_dielectric(tensors.get_array('dielectric'))
+    vibrational_data.set_born_charges(tensors.get_array('born_charges'))
+    try:
+        vibrational_data.set_dph0_susceptibility(tensors.get_array('dph0_susceptibility'))
+        vibrational_data.set_nlo_susceptibility(tensors.get_array('nlo_susceptibility'))
+    except KeyError:
+        pass
 
     return vibrational_data

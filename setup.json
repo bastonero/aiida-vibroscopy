@@ -16,7 +16,7 @@
     "entry_points": {
         "aiida.data": [
             "quantumespresso.vibroscopy.fp = aiida_quantumespresso_vibroscopy.data.vibro_fp: VibrationalFrozenPhononData",
-            "quantumespresso.vibroscopy.lr = aiida_quantumespresso_vibroscopy.data.vibro_fp: VibrationalLinearResponseData"
+            "quantumespresso.vibroscopy.lr = aiida_quantumespresso_vibroscopy.data.vibro_lr: VibrationalLinearResponseData"
         ],
         "aiida.workflows": [
             "quantumespresso.vibroscopy.dielectric = aiida_quantumespresso_vibroscopy.workflows.dielectric.base: DielectricWorkChain",

@@ -8,8 +8,8 @@ from aiida.engine import if_
 
 from ..base import BaseWorkChain
 from aiida_quantumespresso_vibroscopy.data import VibrationalFrozenPhononData
-from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import elaborate_non_analytical_constants, extract_orders
-from aiida_quantumespresso_vibroscopy.calculations.spectra_utils import elaborate_susceptibility_derivatives, generate_vibrational_data
+from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import extract_symmetry_info
+from aiida_quantumespresso_vibroscopy.calculations.spectra_utils import elaborate_tensors, generate_vibrational_data
 from .intensities_average import IntensitiesAverageWorkChain
 from ..dielectric.base import DielectricWorkChain
 
@@ -90,6 +90,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         inputs.scf.pw.structure = self.ctx.supercell
         inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
         inputs.clean_workdir = self.inputs.clean_workdir
+        inputs.options = extract_symmetry_info(self.ctx.preprocess_data)
 
         key = 'dielectric_workchain'
         inputs.metadata.call_link_label = key
@@ -103,26 +104,12 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         self.ctx.vibrational_data = {}
         workchain = self.ctx.dielectric_workchain
         diel_out = self.exposed_outputs(workchain, DielectricWorkChain)
-        order_outputs = extract_orders(**diel_out)
+        tensors_dict = diel_out['tensors'] # remember it is a dictionary with the numerical accuracies
 
-        for key, value in order_outputs.items():
-            value['nac_parameters'] = elaborate_non_analytical_constants(
-                preprocess_data=self.ctx.preprocess_data,
-                nac_parameters=value['nac_parameters']
-            )
+        for key, tensors in tensors_dict.items():
 
-            try:
-                dchi = elaborate_susceptibility_derivatives(
-                    preprocess_data=self.ctx.preprocess_data,
-                    dph0_susceptibility=value['dph0_susceptibility'],
-                    nlo_susceptibility=value['nlo_susceptibility'],
-                )
-                value['dph0_susceptibility'] = dchi['dph0_susceptibility']
-                value['nlo_susceptibility'] = dchi['nlo_susceptibility']
-            except KeyError:
-                pass
-
-            kwargs = {**value, **self.outputs['supercells_forces']}
+            tensors = elaborate_tensors(self.ctx.preprocess_data, tensors)
+            kwargs = {'tensors':tensors, **self.outputs['supercells_forces']}
 
             vibrational_data = generate_vibrational_data(
                 preprocess_data=self.ctx.preprocess_data,

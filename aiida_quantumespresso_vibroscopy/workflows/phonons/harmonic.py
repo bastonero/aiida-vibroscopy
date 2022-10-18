@@ -9,9 +9,8 @@ from aiida.engine import if_
 from ..base import BaseWorkChain
 from ..dielectric.base import DielectricWorkChain
 from aiida_quantumespresso_vibroscopy.utils.validation import validate_matrix, validate_nac
-from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import (
-    get_non_analytical_constants, elaborate_non_analytical_constants, extract_max_order
-)
+from aiida_quantumespresso_vibroscopy.calculations.phonon_utils import extract_symmetry_info
+from aiida_quantumespresso_vibroscopy.calculations.spectra_utils import elaborate_tensors
 
 
 PreProcessData = DataFactory('phonopy.preprocess')
@@ -86,7 +85,7 @@ class HarmonicWorkChain(BaseWorkChain):
                     'symprec', 'is_symmetry', 'displacement_generator',
                     'distinguish_kinds'
                 ]:
-                if input in self.inputs:
+                if input in self.inputs.phonon_workchain:
                     preprocess_inputs.update({input:self.inputs.phonon_workchain[input]})
             preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
 
@@ -123,12 +122,13 @@ class HarmonicWorkChain(BaseWorkChain):
 
         if self.ctx.is_magnetic or (len(preprocess.get_unitcell().sites) != len(preprocess.get_primitive_cell().sites)):
             inputs.scf.pw.structure = self.ctx.supercell
-            base_key = f'{self._RUN_PREFIX}_0'
-            inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
+            # base_key = f'{self._RUN_PREFIX}_0'
+            # inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
         else:
             inputs.scf.pw.structure = self.ctx.preprocess_data.calcfunctions.get_primitive_cell()
 
         inputs.clean_workdir = self.inputs.clean_workdir
+        inputs.options = extract_symmetry_info(self.ctx.preprocess_data)
 
         key = 'dielectric_workchain'
         inputs.metadata.call_link_label = key
@@ -144,22 +144,21 @@ class HarmonicWorkChain(BaseWorkChain):
         if 'nac_parameters' in self.inputs:
             nac_parameters = self.inputs.nac_parameters
         if 'dielectric_workchain' in self.inputs:
-            diel_out = self.ctx.dielectric_workchain.outputs
-            input_nac = {
-                'dielectric':diel_out.dielectric,
-                'born_charges':diel_out.born_charges
-            }
-            nac = extract_max_order(**input_nac)
+            tensors_dict = self.ctx.dielectric_workchain.outputs.tensors
+
+            tensor_key = 'numerical_accuracy_2'
+            max_accuracy = 2
+            for key in tensors_dict.keys():
+                if int(key[-1]) > max_accuracy:
+                    max_accuracy = int(key[-1])
+                    tensor_key = key
+
+            tensors = tensors_dict[tensor_key]
+
             if not self.ctx.is_magnetic:
-                nac_parameters = get_non_analytical_constants(**nac)
+                nac_parameters = tensors
             else:
-                # Here we have to `elaborate` the nac parameters, since for magnetic insulators the nac are computed
-                # on the unitcell and not the primitive cell. For sanity check, we elaborate them.
-                nac_parameters = elaborate_non_analytical_constants(
-                    # ref_structure=self.inputs.structure,
-                    preprocess_data=self.ctx.preprocess_data,
-                    **nac
-                )
+                nac_parameters = elaborate_tensors(self.ctx.preprocess_data, tensors)
 
         full_phonopy_data = self.ctx.preprocess_data.calcfunctions.generate_full_phonopy_data(
             nac_parameters=nac_parameters,

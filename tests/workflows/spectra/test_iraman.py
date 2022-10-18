@@ -117,8 +117,10 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
 
     forces_1 = orm.ArrayData()
     forces_1.set_array('forces', numpy.full((2,3), 1))
+    forces_1.store()
     forces_2 = orm.ArrayData()
     forces_2.set_array('forces', numpy.full((2,3), -1))
+    forces_2.store()
 
     process.out(f'supercells_forces.scf_supercell_1', forces_1)
     process.out(f'supercells_forces.scf_supercell_2', forces_2)

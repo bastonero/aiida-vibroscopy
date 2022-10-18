@@ -125,3 +125,11 @@ def elaborate_non_analytical_constants(
     nac_parameters.set_array('born_charges', nacs[0])
 
     return nac_parameters
+
+@calcfunction
+def extract_symmetry_info(preprocess_data: PreProcessData):
+    return {
+        'symprec':orm.Float(preprocess_data.symprec),
+        'distinguish_kinds':orm.Bool(preprocess_data.distinguish_kinds),
+        'is_symmetry':orm.Bool(preprocess_data.is_symmetry),
+    }

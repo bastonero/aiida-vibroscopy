@@ -131,7 +131,7 @@ class BaseWorkChain(WorkChain):
                 'help': ('Inputs for the `DielectricWorkChain` that will be'
                     'used to calculate the non-analytical constants.')
             },
-            exclude=('clean_workdir','scf.pw.structure')
+            exclude=('clean_workdir','scf.pw.structure', 'options.symprec', 'options.distinguish_kinds', 'options.is_symmetry')
         )
         spec.input_namespace(
             'options',
@@ -142,7 +142,7 @@ class BaseWorkChain(WorkChain):
             help='Whether running dielectric workchain and forces calculations in parallel.',
         )
         spec.input(
-            'options.sleep_submission_time', valid_type=float, non_db=True, default=3.0,
+            'options.sleep_submission_time', valid_type=(int, float), non_db=True, default=3.0,
             help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
         )
         spec.input('clean_workdir', valid_type=orm.Bool, default=lambda: orm.Bool(False),

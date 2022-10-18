@@ -147,12 +147,18 @@ def test_setup(generate_workchain_dielectric, generate_inputs_dielectric, parame
     process = generate_workchain_dielectric(inputs=inputs)
     process.setup()
 
-    assert process.ctx.should_run_base_scf == True
+    # assert process.ctx.should_run_base_scf == True
     assert process.ctx.should_estimate_electric_field == values[0]
     assert ('electric_field' in process.ctx) == values[1]
-    assert process.ctx.numbers == values[2]
+    assert 'numbers' in process.ctx
+    assert 'signs' in process.ctx
     assert process.ctx.is_magnetic == False
     assert process.ctx.clean_workdir == values[3]
+    # The followings are True only for MgO or equivalent symmetric systems
+    if values[2]==6:
+        assert process.ctx.numbers == [2,3]
+    else:
+        assert process.ctx.numbers == [2]
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -216,14 +222,54 @@ def test_run_electric_field_scfs(generate_workchain_dielectric, generate_inputs_
 
     # First iteration faked simulation
     process.run_electric_field_scfs()
-    for i in range(6):
+    for i in [2,3]: # This is for MgO or equivalent
         key = f'field_index_{i}'
         assert key in process.ctx
         assert type(process.ctx[key])==list
+        assert len(process.ctx[key]) == 1
+        process.ctx[key] = [
+            generate_base_scf_workchain_node(),
+        ]
+
+    assert process.ctx.iteration == 1
+
+    # Second iteration faked simulation
+    process.run_electric_field_scfs()
+    for i in [2,3]: # This is for MgO or equivalent
+        key = f'field_index_{i}'
+        assert key in process.ctx
+        assert len(process.ctx[key]) == 2
+
+    assert process.ctx.iteration == 2
+
+@pytest.mark.usefixtures('aiida_profile')
+def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node):
+    """Test `DielectricWorkChain.run_null_field_scf`."""
+    from aiida.orm import Bool
+    inputs = generate_inputs_dielectric(electric_field=1.0, accuracy=4)
+    inputs['options']['is_symmetry'] = Bool(False)
+    process = generate_workchain_dielectric(inputs=inputs)
+
+    process.setup()
+    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.run_null_field_scf()
+    process.ctx.null_field = generate_base_scf_workchain_node()
+
+    assert len(process.ctx.numbers)==6
+
+    for bool_signs in process.ctx.signs:
+        assert bool_signs==[True,True]
+
+    # First iteration faked simulation
+    process.run_electric_field_scfs()
+    for i in range(6):
+        key = f'field_index_{i}'
+        assert key in process.ctx
+        assert isinstance(process.ctx[key], list)
         assert len(process.ctx[key]) == 2
         process.ctx[key] = [
             generate_base_scf_workchain_node(),
-            generate_base_scf_workchain_node()
+            generate_base_scf_workchain_node(),
         ]
 
     assert process.ctx.iteration == 1
@@ -232,20 +278,17 @@ def test_run_electric_field_scfs(generate_workchain_dielectric, generate_inputs_
     process.run_electric_field_scfs()
     for i in range(1):
         key = f'field_index_{i}'
-        assert key in process.ctx
         assert len(process.ctx[key]) == 4
 
     assert process.ctx.iteration == 2
 
-
 @pytest.mark.usefixtures('aiida_profile')
-def test_run_numerical_derivatives(generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node):
+def test_inspect(generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node):
     """Test `DielectricWorkChain.run_numerical_derivatives`."""
-    from aiida.orm import Int
     inputs = generate_inputs_dielectric(electric_field=1.0, accuracy=2)
     process = generate_workchain_dielectric(inputs=inputs)
     process.setup()
-    process.ctx.accuracy = Int(2)
+    process.ctx.accuracy = process.inputs.central_difference.accuracy
 
     process.ctx.null_field = generate_elfield_scf_workchain_node()
     for i in range(6):
@@ -254,5 +297,27 @@ def test_run_numerical_derivatives(generate_workchain_dielectric, generate_input
             generate_elfield_scf_workchain_node(),
         ]
 
+    process.inspect_electric_field_scfs()
+    assert 'data' in process.ctx
+
+@pytest.mark.usefixtures('aiida_profile')
+def test_run_numerical_derivatives(generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node):
+    """Test `DielectricWorkChain.run_numerical_derivatives`."""
+    from aiida.orm import Int
+    inputs = generate_inputs_dielectric(electric_field=1.0, accuracy=2)
+    process = generate_workchain_dielectric(inputs=inputs)
+    process.setup()
+
+    process.ctx.accuracy = Int(2)
+    process.ctx.electric_field_step = process.ctx.electric_field
+
+    process.ctx.null_field = generate_elfield_scf_workchain_node()
+    for i in range(6):
+        process.ctx[f'field_index_{i}'] = [
+            generate_elfield_scf_workchain_node(),
+            generate_elfield_scf_workchain_node(),
+        ]
+
+    process.inspect_electric_field_scfs()
     process.run_numerical_derivatives()
     assert 'numerical_derivatives' in process.ctx

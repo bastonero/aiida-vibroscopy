@@ -11,12 +11,14 @@ from aiida.orm.nodes.data.array.bands import find_bandgap
 
 import numpy as np
 
+from aiida_phonopy.data import PreProcessData
+
 from aiida_quantumespresso_vibroscopy.utils.validation import validate_tot_magnetization, validate_positive
 from aiida_quantumespresso_vibroscopy.utils.elfield_cards_functions import get_vector_from_number
+from aiida_quantumespresso_vibroscopy.calculations.symmetry import get_irreducible_numbers_and_signs
 from aiida_quantumespresso_vibroscopy.common import UNITS_FACTORS
 
 from .numerical_derivatives import NumericalDerivativesWorkChain
-
 
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 PwCalculation = CalculationFactory('quantumespresso.pw')
@@ -83,7 +85,7 @@ class DielectricWorkChain(WorkChain):
     using finite fields in the electric enthalpy.
     """
 
-    _DEFAULT_NBERRYCYC = 3
+    _DEFAULT_NBERRYCYC = 1
     _AVAILABLE_PROPERTIES = (
         'ir','born-charges','dielectric','nac','bec',
         'raman','susceptibility-derivative','non-linear-susceptibility'
@@ -94,7 +96,8 @@ class DielectricWorkChain(WorkChain):
         super().define(spec)
         # yapf: disable
         spec.input('electric_field', valid_type=orm.Float, required=False, validator=validate_positive,
-            help='Electric field value in Ry atomic units. Only positive value. If not specified, '
+            help='Electric field value in Ry atomic units, referred as the maximum step size'
+            'used in the numerical differenciation. Only positive value. If not specified, '
             'an nscf is run in order to get the best possible value under the critical field (recommended).',
         )
         spec.input('electric_field_scale', valid_type=orm.Float, required=False, validator=validate_positive,
@@ -133,8 +136,20 @@ class DielectricWorkChain(WorkChain):
             help='Options for how to run the workflow.',
         )
         spec.input(
-            'options.sleep_submission_time', valid_type=float, non_db=True, default=3.0,
+            'options.sleep_submission_time', valid_type=(int, float), non_db=True, default=3.0,
             help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
+        )
+        spec.input(
+            'options.symprec', valid_type=orm.Float, default=lambda:orm.Float(1e-5),
+            help='Symmetry tolerance for space group analysis on the input structure.',
+        )
+        spec.input(
+            'options.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            help='Whether or not to distinguish atom with same species but different names with symmetries.',
+        )
+        spec.input(
+            'options.is_symmetry', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            help='Whether using or not the space group symmetries.',
         )
         spec.inputs.validator = validate_inputs
 
@@ -159,6 +174,19 @@ class DielectricWorkChain(WorkChain):
 
         spec.expose_outputs(NumericalDerivativesWorkChain)
         spec.output('estimated_electric_field', valid_type = orm.Float, required=False)
+        spec.output('electric_field_step', valid_type = orm.Float, required=False)
+        spec.output('accuracy_order', valid_type = orm.Int, required=False)
+        spec.output_namespace(
+            'fields_data',
+            help='Namespace for passing TrajectoryData containing forces and polarization.',
+        )
+        spec.output('fields_data.null_field', valid_type=orm.TrajectoryData, required=True)
+        spec.output_namespace('fields_data.field_index_0', valid_type=orm.TrajectoryData, required=False)
+        spec.output_namespace('fields_data.field_index_1', valid_type=orm.TrajectoryData, required=False)
+        spec.output_namespace('fields_data.field_index_2', valid_type=orm.TrajectoryData, required=False)
+        spec.output_namespace('fields_data.field_index_3', valid_type=orm.TrajectoryData, required=False)
+        spec.output_namespace('fields_data.field_index_4', valid_type=orm.TrajectoryData, required=False)
+        spec.output_namespace('fields_data.field_index_5', valid_type=orm.TrajectoryData, required=False)
 
         spec.exit_code(400, 'ERROR_FAILED_BASE_SCF',
             message='The initial scf work chain failed.')
@@ -189,6 +217,13 @@ class DielectricWorkChain(WorkChain):
         """Set up the context and the outline."""
         self.ctx.clean_workdir = self.inputs.clean_workdir.value
 
+        preprocess_data = PreProcessData(
+            structure=self.inputs.scf.pw.structure,
+            symprec=self.inputs.options.symprec.value,
+            is_symmetry=self.inputs.options.is_symmetry.value,
+            distinguish_kinds=self.inputs.options.distinguish_kinds.value
+        )
+
         if 'electric_field' in self.inputs:
             self.ctx.should_estimate_electric_field = False
             self.ctx.electric_field = self.inputs.electric_field
@@ -196,9 +231,10 @@ class DielectricWorkChain(WorkChain):
             self.ctx.should_estimate_electric_field = True
 
         if self.inputs.property in ('ir','nac','born-charges','bec','dielectric'):
-            self.ctx.numbers = 3
+            self.ctx.numbers, self.ctx.signs = get_irreducible_numbers_and_signs(preprocess_data, 3)
         elif self.inputs.property in ('raman','susceptibility-derivative','non-linear-susceptibility'):
-            self.ctx.numbers = 6
+            self.ctx.numbers, self.ctx.signs = get_irreducible_numbers_and_signs(preprocess_data, 6)
+
         else: # it is impossible to get here due to input validation
             raise NotImplementedError(f'calculation of {self.inputs.property} not available')
 
@@ -278,7 +314,7 @@ class DielectricWorkChain(WorkChain):
         inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='scf'))
         parameters = inputs.pw.parameters.get_dict()
 
-        for key in ('nberrycyc, lelfield', 'efield_cart'):
+        for key in ('nberrycyc', 'lelfield', 'efield_cart'):
             parameters['CONTROL'].pop(key, None)
             parameters['ELECTRONS'].pop(key, None)
 
@@ -384,41 +420,61 @@ class DielectricWorkChain(WorkChain):
 
     def run_electric_field_scfs(self):
         """Running scf with different electric fields for central difference."""
-        for number in range(self.ctx.numbers):
+        # Here we can already truncate `numbers`` from the very beginning using symmetry analysis
+
+
+        signs = [1.0,-1.0]
+        for number, bool_signs in zip(self.ctx.numbers, self.ctx.signs):
             norm = self.ctx.electric_field.value*(self.ctx.iteration +1)/self.ctx.steps
             if number in (3,4,5):
                 norm = norm*self.inputs.central_difference.diagonal_scale
 
-            for sign in [1.0,-1.0]:
-                electric_field_vector = get_vector_from_number(number=number, value=sign*norm)
-                inputs = self.get_inputs(electric_field_vector=electric_field_vector)
+            # Here we can put a zip with True or False, but it depends on numbers, so even before check
+            for sign, bool_sign in zip(signs, bool_signs):
+                if bool_sign:
+                    electric_field_vector = get_vector_from_number(number=number, value=sign*norm)
+                    inputs = self.get_inputs(electric_field_vector=electric_field_vector)
 
-                # Here I label:
-                # * 0,1,2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
-                # * 0,1,2,3,4,5 for second order derivatives: l <--> ij --> {ij}k ;
-                #   precisely 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2
-                key =  f'field_index_{number}'
-                inputs.metadata.call_link_label = key
+                    # Here I label:
+                    # * 0,1,2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
+                    # * 0,1,2,3,4,5 for second order derivatives: l <--> ij --> {ij}k ;
+                    #   precisely 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2
+                    key =  f'field_index_{number}' # adding the iteration as well?
+                    inputs.metadata.call_link_label = key
 
-                if self.ctx.iteration == 0:
-                    inputs.pw.parent_folder = self.ctx.null_field.outputs.remote_folder
-                else:
-                    inputs.pw.parent_folder = self.ctx[key][-2].outputs.remote_folder
+                    if self.ctx.iteration == 0:
+                        inputs.pw.parent_folder = self.ctx.null_field.outputs.remote_folder
+                    else:
+                        index_folder = -2 if bool_signs[1] else -1
+                        inputs.pw.parent_folder = self.ctx[key][index_folder].outputs.remote_folder
 
-                # We fill in the ctx arrays in order to have at the end something like:
-                # field_index_0 = [+1,-1,+2,-2] (e.g. for accuracy = 4)
-                # where the numbers refers to the multiplication factor to the base electric field E/accuracy,
-                # since in central finite differences we always have a number of evaluations equal to the accuracy,
-                # half for positive and half for negative evaluation of the function.
-                node = self.submit(PwBaseWorkChain, **inputs)
-                self.to_context(**{key: append_(node)})
-                self.report(f'launched PwBaseWorkChain<{node.pk}> with electric field index {number}')
-                time.sleep(self.inputs.options.sleep_submission_time)
+                    # We fill in the ctx arrays in order to have at the end something like:
+                    # field_index_0 = [+1,-1,+2,-2] (e.g. for accuracy = 4, no symmetry)
+                    # field_index_0 = [+1, +2] (e.g. for accuracy = 4, with e.g. inversion symmetry)
+                    # where the numbers refers to the multiplication factor to the base electric field E/accuracy,
+                    # since in central finite differences we always have a number of evaluations equal to the accuracy,
+                    # half for positive and half for negative evaluation of the function.
+                    # Symmetries can reduce this.
+                    node = self.submit(PwBaseWorkChain, **inputs)
+                    self.to_context(**{key: append_(node)})
+                    self.report(f'launched PwBaseWorkChain<{node.pk}> with electric field index {number}')
+                    time.sleep(self.inputs.options.sleep_submission_time)
 
         self.ctx.iteration = self.ctx.iteration +1
 
     def inspect_electric_field_scfs(self):
         """Inspect all previous pw workchains with electric fields."""
+        self.ctx.electric_field_step = get_electric_field_step(self.ctx.electric_field, self.ctx.accuracy)
+        self.out('electric_field_step', self.ctx.electric_field_step)
+
+        self.ctx.data = {'null_field': self.ctx.null_field.outputs.output_trajectory}
+
+        for label, workchains in self.ctx.items():
+            if label.startswith('field_index_'):
+                field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains)}
+                self.ctx.data.update({label:field_data})
+        self.out_many({'fields_data':self.ctx.data})
+
         for key, workchains in self.ctx.items():
             if key.startswith('field_index_'):
                 for workchain in workchains:
@@ -428,27 +484,21 @@ class DielectricWorkChain(WorkChain):
 
     def run_numerical_derivatives(self):
         """Compute numerical derivatives from previous calculations."""
-        data = {'null_field': self.ctx.null_field.outputs.output_trajectory}
-
-        for label, workchains in self.ctx.items():
-            if label.startswith('field_index_'):
-                field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains)}
-                data.update({label:field_data})
-
-        electric_field = get_electric_field_step(self.ctx.electric_field, self.ctx.accuracy)
-        structure = self.inputs.scf.pw.structure
         key = 'numerical_derivatives'
 
         inputs = {
-            'data':data,
-            'electric_field':electric_field,
-            'structure':structure,
+            'data':self.ctx.data,
+            'electric_field_step':self.ctx.electric_field_step,
+            'structure':self.inputs.scf.pw.structure,
+            'accuracy_order':self.ctx.accuracy,
+            'diagonal_scale':self.inputs.central_difference.diagonal_scale,
+            'options':{
+                'symprec':self.inputs.options.symprec,
+                'is_symmetry':self.inputs.options.is_symmetry,
+                'distinguish_kinds':self.inputs.options.distinguish_kinds,
+            },
             'metadata':{'call_link_label':key}
         }
-
-        if len(data)==7:
-            diagonal_scale = self.inputs.central_difference.diagonal_scale
-            inputs.update({'diagonal_scale':diagonal_scale})
 
         node = self.submit(NumericalDerivativesWorkChain, **inputs)
         self.to_context(**{key: node})

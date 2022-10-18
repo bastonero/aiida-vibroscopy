@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Functions helping in the generation of the multiple direction electric field cards."""
 
-__all__ = ('get_vector_from_number',)
+__all__ = ('get_vector_from_number', 'get_tuple_from_vector')
 
 
-def get_vector_from_number(number, value):
+def get_vector_from_number(number: int, value: float) -> list:
     """Get the electric field vector from the number for finite differences.
 
     The Voigt notation is used:
@@ -21,16 +21,37 @@ def get_vector_from_number(number, value):
         raise ValueError('Only numbers from 0 to 5 are accepted')
 
     if number == 0:
-        vector = [value, 0, 0]
+        return [value, 0, 0]
     if number == 1:
-        vector = [0, value, 0]
+        return [0, value, 0]
     if number == 2:
-        vector = [0, 0, value]
+        return [0, 0, value]
     if number == 3:
-        vector = [0, value, value]
+        return [0, value, value]
     if number == 4:
-        vector = [value, 0, value]
+        return [value, 0, value]
     if number == 5:
-        vector = [value, value, 0]
+        return [value, value, 0]
 
-    return vector
+def get_tuple_from_vector(vector: list) -> tuple:
+    """Return a tuple referring to the Voigt number and the sing of the direction.
+
+    :return: tuple(Voigt number, sign), the number is between 0 and 5, the sign 1 or -1."""
+    import numpy as np
+
+    sign = 1 if (np.array(vector) >= 0).all() else -1
+    direction = np.abs(vector)
+    direction = np.array(direction, dtype='int').tolist()
+
+    if direction==[1,0,0]:
+        return 0, sign
+    if direction==[0,1,0]:
+        return 1, sign
+    if direction==[0,0,1]:
+        return 2, sign
+    if direction==[0,1,1]:
+        return 3, sign
+    if direction==[1,0,1]:
+        return 4, sign
+    if direction==[1,1,0]:
+        return 5, sign

@@ -4,20 +4,19 @@ from aiida import orm
 from aiida.engine import WorkChain
 
 from aiida_quantumespresso_vibroscopy.calculations.numerical_derivatives_utils import (
-    compute_nac_parameters, compute_susceptibility_derivatives
+    compute_nac_parameters, compute_susceptibility_derivatives, join_tensors
 )
+
 from aiida_quantumespresso_vibroscopy.utils.validation import validate_positive
+
+from aiida_phonopy.data import PreProcessData
 
 
 def validate_data(data, _):
     """
     Validate the `data` namespace inputs.
     """
-    length = len(data)  # must be 4 or 7
     control_null_namespace = 0  # must be 1
-
-    if not length in [4, 7]:
-        return f'invalid total number of inputs for namespace `data`: expected 4 or 7, given {length}'
 
     for label, trajectory in data.items():
         # first, control if `null`
@@ -86,41 +85,45 @@ class NumericalDerivativesWorkChain(WorkChain):
             help='Namespace for passing TrajectoryData containing forces and polarization.',
         )
         spec.input('data.null_field', valid_type=orm.TrajectoryData, required=True)
-        spec.input_namespace('data.field_index_0', valid_type=orm.TrajectoryData, required=True)
-        spec.input_namespace('data.field_index_1', valid_type=orm.TrajectoryData, required=True)
-        spec.input_namespace('data.field_index_2', valid_type=orm.TrajectoryData, required=True)
+        spec.input_namespace('data.field_index_0', valid_type=orm.TrajectoryData, required=False)
+        spec.input_namespace('data.field_index_1', valid_type=orm.TrajectoryData, required=False)
+        spec.input_namespace('data.field_index_2', valid_type=orm.TrajectoryData, required=False)
         spec.input_namespace('data.field_index_3', valid_type=orm.TrajectoryData, required=False)
         spec.input_namespace('data.field_index_4', valid_type=orm.TrajectoryData, required=False)
         spec.input_namespace('data.field_index_5', valid_type=orm.TrajectoryData, required=False)
 
-        spec.input('electric_field', valid_type=orm.Float, validator=validate_positive)
+        spec.input('accuracy_order', valid_type=orm.Int, validator=validate_positive)
+        spec.input('electric_field_step', valid_type=orm.Float, validator=validate_positive,
+            help='The electric field step.')
         spec.input('diagonal_scale', valid_type=orm.Float, required=False, validator=validate_positive)
         spec.input('structure', valid_type=orm.StructureData)
+        spec.input_namespace(
+            'options',
+            help='Symmetry analysis options.',
+        )
+        spec.input(
+            'options.symprec', valid_type=orm.Float, default=lambda:orm.Float(1e-5),
+            help='Symmetry tolerance for space group analysis on the input structure.',
+        )
+        spec.input(
+            'options.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            help='Whether or not to distinguish atom with same species but different names with symmetries.',
+        )
+        spec.input(
+            'options.is_symmetry', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            help='Whether using or not the space group symmetries.',
+        )
 
         spec.outline(
             cls.run_results,
         )
 
-        spec.output(
-            'dielectric',
+        spec.output_namespace(
+            'tensors',
             valid_type=orm.ArrayData,
-            help='Contains high frequency dielectric tensor computed in Cartesian coordinates.',
-        )
-        spec.output(
-            'born_charges',
-            valid_type=orm.ArrayData,
-            help='Contains Born effective charges tensors computed in Cartesian coordinates.',
-        )
-        spec.output(
-            'dph0_susceptibility',
-            valid_type=orm.ArrayData,
-            help=('Contains the derivatives of the susceptibility in respect'
-                'to the atomic positions in Cartesian coordinates.'),
-        )
-        spec.output(
-            'nlo_susceptibility',
-            valid_type=orm.ArrayData,
-            help='Contains the non linear optical susceptibility tensor in Cartesian coordinates.',
+            help=('Contains high frequency dielectric and Born effective charges tensors computed in Cartesian coordinates.'
+            'Depending on the inputs, it can also contain the derivatives of the susceptibility in respect'
+            'to the atomic positions (often called `Raman tensors`) and the non linear optical susceptibility, always expressed in Cartesian coordinates.'),
         )
         spec.output(
             'units',
@@ -130,21 +133,42 @@ class NumericalDerivativesWorkChain(WorkChain):
 
     def run_results(self):
         """Wrap up results from previous calculations."""
+        preprocess_data = PreProcessData(
+            structure=self.inputs.scf.pw.structure,
+            symprec=self.inputs.options.symprec.value,
+            is_symmetry=self.inputs.options.is_symmetry.value,
+            distinguish_kinds=self.inputs.options.distinguish_kinds.value
+        )
+
+        preprocess_data.delete_attribute('displacement_dataset') # we do not want to store this data
 
         # Non analytical constants
         out_nac_parameters = compute_nac_parameters(
-            structure=self.inputs.structure, electric_field=self.inputs.electric_field, **self.inputs.data
+            preprocess_data=preprocess_data,
+            electric_field=self.inputs.electric_field_step,
+            accuracy_order=self.inputs.accuracy_order,
+            **self.inputs.data
         )
-        for key, output in out_nac_parameters.items():
-            self.out(key, output)
 
         # Derivatives of the susceptibility
-        if len(self.inputs.data) == 7:
+        mixed_indecis = [f'field_index_{i}' for i in ['3','4','5']]
+        which_mixed = [mixed_index in self.inputs.data for mixed_index in mixed_indecis]
+
+        if any(which_mixed):
             out_dchis = compute_susceptibility_derivatives(
-                structure=self.inputs.structure,
-                electric_field=self.inputs.electric_field,
+                preprocess_data=preprocess_data,
+                electric_field=self.inputs.electric_field_step,
                 diagonal_scale=self.inputs.diagonal_scale,
+                accuracy_order=self.inputs.accuracy_order,
                 **self.inputs.data,
             )
-            for key, output in out_dchis.items():
-                self.out(key, output)
+
+            self.out('units', out_dchis['units'])
+
+        for key in out_nac_parameters.keys():
+            if any(which_mixed):
+                tensors = join_tensors(out_nac_parameters[key], out_dchis[key])
+            else:
+                tensors = out_nac_parameters[key]
+
+            self.out(f'tensors.{key}', tensors)

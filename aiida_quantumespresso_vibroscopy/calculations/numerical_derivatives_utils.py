@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Calcfunctions utils for numerical derivatives workchain."""
+from copy import deepcopy
 from math import pi, sqrt
+
+from aiida_quantumespresso_vibroscopy.calculations.symmetry import get_trajectories_from_symmetries, symmetrize_susceptibility_derivatives
+from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -9,6 +13,7 @@ import numpy as np
 from qe_tools import CONSTANTS
 
 from aiida_quantumespresso_vibroscopy.common import UNITS_FACTORS
+from aiida_phonopy.data import PreProcessData
 
 # Local constants
 eVinv_to_ang = UNITS_FACTORS.eVinv_to_ang
@@ -127,7 +132,11 @@ def _build_tensor_from_voigt(voigt, order, index=None):
 
 @calcfunction
 def compute_susceptibility_derivatives(
-    structure: orm.StructureData, electric_field: orm.Float, diagonal_scale: orm.Float, **kwargs
+    preprocess_data: PreProcessData,
+    electric_field: orm.Float,
+    diagonal_scale: orm.Float,
+    accuracy_order: orm.Int,
+    **kwargs
 ):
     """
     Return the third derivative of the total energy in respect to
@@ -135,22 +144,33 @@ def compute_susceptibility_derivatives(
 
     :note: the number of arrays depends on the accuracy.
 
-    :return: dictionary with the following keys:
-        * `dph0_susceptibility` as orm.ArrayData containing (num_atoms, 3, 3, 3) arrays (third index refers to forces);
-        * `nlo_susceptibility` as orm.ArrayData containing (3, 3, 3) arrays;
-        * `units` as orm.Dict containing the units of the tensors.
+    :return: dictionary with ArrayData having arraynames:
+        * `dph0_susceptibility` containing (num_atoms, 3, 3, 3) arrays (third index refers to forces);
+        * `nlo_susceptibility` containing (3, 3, 3) arrays;
+        And a key `units` as orm.Dict containing the units of the tensors.
     """
+    structure = preprocess_data.get_unitcell()
     volume = structure.get_cell_volume()  # angstrom^3
     volume_au_units = volume / (CONSTANTS.bohr_to_ang**3)  # bohr^3
 
-    data = {}
+    raw_data = {}
     for key, value in kwargs.items():
         if key == 'null_field':
-            data.update({key: value})
+            raw_data.update({key: value})
         else:
-            data.update({key: {}})
-            for subkey, subvalue in value.items():
-                data[key].update({subkey: subvalue})
+            raw_data.update({key: {}})
+            if key.startswith('field_index_'):
+                for subkey, subvalue in value.items():
+                    raw_data[key].update({subkey: subvalue})
+
+    data_0 = data.pop('null_field')
+
+    # Taking the missing data from symmetry
+    data = get_trajectories_from_symmetries(
+        preprocess_data=preprocess_data,
+        data=raw_data,
+        accuracy_order=accuracy_order
+        )
 
     # Conversion factors
     dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
@@ -159,24 +179,20 @@ def compute_susceptibility_derivatives(
     # Variables
     field_step = electric_field.value
     scale = diagonal_scale.value
-    num_atoms = len(structure.sites)
-    max_accuracy = len(data['field_index_0'])
-    data_0 = data.pop('null_field')
+    max_accuracy = accuracy_order.value
 
-    dchi_data = orm.ArrayData()
-    chi2_data = orm.ArrayData()
+    num_atoms = len(structure.sites)
+
+    chis_data = {}
 
     # First, I calculate all possible second order accuracy tensors with all possible steps.
     if max_accuracy > 2:
         accuracies = np.arange(2, max_accuracy + 2, 2)[::-1].tolist()
     else:
         accuracies = []
-
-    for accuracy in accuracies:
-        # This is the dChi/dR tensor, where Chi is the electronic susceptibility.
-        # It is a tensor of the shape (num_atoms, k, i, j), k is the index relative to forces,
-        # while i,j relative to the electric field (i.e. to Chi)
-        dchi_tensor = []
+# ...
+        # ...
+        # ...
         # This is the Chi2 tensor, where Chi2 is the non linear optical susceptibility.
         # It is a tensor of the shape (k, i, j), i,j,k relative to the electric field direction.
         chi2_tensor = np.zeros((3, 3, 3))
@@ -190,36 +206,26 @@ def compute_susceptibility_derivatives(
         # i.e. {'field_index_0':{'0':Traj,'1':Traj, ...}, 'field_index_1':{...}, ..., 'field_index_5':{...} }
         for key, value in data.items():
             step_value = {'0': value[str(accuracy - 2)], '1': value[str(accuracy - 1)]}
+
             if int(key[-1]) in (0, 1, 2):
-                dchi_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale_step * field_step,
-                    order=2,
-                    vector_name='forces',
-                    data_0=data_0,
-                    **step_value
-                )
-                chi2_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale_step * field_step,
-                    order=2,
-                    vector_name='electronic_dipole_cartesian_axes',
-                    data_0=data_0,
-                    **step_value,
-                )
+                applied_scale = 1.0
             else:
-                dchi_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale_step * scale * field_step,
-                    order=2,
-                    vector_name='forces',
-                    data_0=data_0,
-                    **step_value
-                )
-                chi2_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale_step * scale * field_step,
-                    order=2,
-                    vector_name='electronic_dipole_cartesian_axes',
-                    data_0=data_0,
-                    **step_value,
-                )
+                applied_scale = scale
+
+            dchi_voigt[int(key[-1])] = central_derivatives_calculator(
+                step_size=scale_step * applied_scale * field_step,
+                order=2,
+                vector_name='forces',
+                data_0=data_0,
+                **step_value
+            )
+            chi2_voigt[int(key[-1])] = central_derivatives_calculator(
+                step_size=scale_step * applied_scale * field_step,
+                order=2,
+                vector_name='electronic_dipole_cartesian_axes',
+                data_0=data_0,
+                **step_value,
+            )
 
         # Now we build the actual tensor, using the symmetry properties of i <--> j .
         # Building dChi[I,k;i,j] from dChi[I,k;l]
@@ -231,9 +237,22 @@ def compute_susceptibility_derivatives(
         # Building Chi2[k;i,j] from Chi2[k;l]
         chi2_tensor = _build_tensor_from_voigt(voigt=chi2_voigt, order=2)
 
+        # Doing the symmetrization in case
+        dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
+            dph0_susceptibility=dchi_tensor,
+            nlo_susceptibility=chi2_tensor,
+            ucell=preprocess_data.get_phonopy_instance().unitcell,
+            symprec=preprocess_data.symprec,
+            is_symmetry=preprocess_data.is_symmetry
+        )
+
         # Setting arrays
-        dchi_data.set_array(f'numerical_accuracy_2_step_{int(scale_step)}', dchi_tensor * dchi_factor)
-        chi2_data.set_array(f'numerical_accuracy_2_step_{int(scale_step)}', chi2_tensor * chi2_factor)
+        chis_array_data = orm.ArrayData()
+        chis_array_data.set_array('dph0_susceptibility', dchi_tensor * dchi_factor)
+        chis_array_data.set_array('nlo_susceptibility', chi2_tensor * chi2_factor)
+
+        key_order = f'numerical_accuracy_2_step_{int(scale_step)}'
+        chis_data.update({key_order:deepcopy(chis_array_data)})
 
     # Second, I calculate all possible accuracy tensors.
     if max_accuracy > 2:
@@ -250,35 +269,25 @@ def compute_susceptibility_derivatives(
 
         for key, value in data.items():
             if int(key[-1]) in (0, 1, 2):
-                dchi_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=field_step,
-                    order=2,
-                    vector_name='forces',
-                    data_0=data_0,
-                    **value
-                )
-                chi2_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=field_step,
-                    order=2,
-                    vector_name='electronic_dipole_cartesian_axes',
-                    data_0=data_0,
-                    **value
-                )
+                applied_scale = 1.0
             else:
-                dchi_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale * field_step,
-                    order=2,
-                    vector_name='forces',
-                    data_0=data_0,
-                    **value
-                )
-                chi2_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale * field_step,
-                    order=2,
-                    vector_name='electronic_dipole_cartesian_axes',
-                    data_0=data_0,
-                    **value,
-                )
+                applied_scale = scale
+
+            dchi_voigt[int(key[-1])] = central_derivatives_calculator(
+                step_size=field_step * applied_scale,
+                order=2,
+                vector_name='forces',
+                data_0=data_0,
+                **value
+            )
+            chi2_voigt[int(key[-1])] = central_derivatives_calculator(
+                step_size=field_step * applied_scale,
+                order=2,
+                vector_name='electronic_dipole_cartesian_axes',
+                data_0=data_0,
+                **value
+            )
+
             data[key].pop(str(accuracy - 1))
             data[key].pop(str(accuracy - 2))
 
@@ -288,9 +297,22 @@ def compute_susceptibility_derivatives(
 
         chi2_tensor = _build_tensor_from_voigt(voigt=chi2_voigt, order=2)
 
+        # Doing the symmetrization in case
+        dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
+            dph0_susceptibility=dchi_tensor,
+            nlo_susceptibility=chi2_tensor,
+            ucell=preprocess_data.get_phonopy_instance().unitcell,
+            symprec=preprocess_data.symprec,
+            is_symmetry=preprocess_data.is_symmetry
+        )
+
         # Setting arrays
-        dchi_data.set_array(f'numerical_accuracy_{accuracy}', dchi_tensor * dchi_factor)
-        chi2_data.set_array(f'numerical_accuracy_{accuracy}', chi2_tensor * chi2_factor)
+        chis_array_data = orm.ArrayData()
+        chis_array_data.set_array('dph0_susceptibility', dchi_tensor * dchi_factor)
+        chis_array_data.set_array('nlo_susceptibility', chi2_tensor * chi2_factor)
+
+        key_order = f'numerical_accuracy_{accuracy}'
+        chis_data.update({key_order:deepcopy(chis_array_data)})
 
     units_data = orm.Dict(
         dict={
@@ -299,30 +321,46 @@ def compute_susceptibility_derivatives(
         }
     )
 
-    return {'nlo_susceptibility': chi2_data, 'dph0_susceptibility': dchi_data, 'units': units_data}
+    return {**chis_data, 'units': units_data}
 
 
 @calcfunction
-def compute_nac_parameters(structure: orm.StructureData, electric_field: orm.Float, **kwargs):
+def compute_nac_parameters(
+    preprocess_data: PreProcessData,
+    electric_field: orm.Float,
+    accuracy_order: orm.Int,
+    **kwargs) -> dict:
     """
     Return epsilon and born charges to second order in finite electric fields (central difference).
 
     :note: the number of arrays depends on the accuracy.
 
-    :return: dictionary with keys:
-        * `born_charges` as ArrayData containing (num_atoms, 3, 3) arrays (third index refers to forces);
-        * `dielectric` as ArrayData containing (3, 3) arrays.
+    :return: dictionary with ArrayData having arraynames:
+        * `born_charges` as containing (num_atoms, 3, 3) arrays (third index refers to forces);
+        * `dielectric` as containing (3, 3) arrays.
     """
+    structure = preprocess_data.get_unitcell()
     volume_au_units = structure.get_cell_volume() / (CONSTANTS.bohr_to_ang**3)  # in bohr^3
 
-    data = {}
+    # Loading the data
+    raw_data = {}
     for key, value in kwargs.items():
         if key == 'null_field':
-            data.update({key: value})
+            raw_data.update({key: value})
         else:
-            data.update({key: {}})
-            for subkey, subvalue in value.items():
-                data[key].update({subkey: subvalue})
+            if key.startswith('field_index_'):
+                raw_data.update({key: {}})
+                for subkey, subvalue in value.items():
+                    raw_data[key].update({subkey: subvalue})
+
+    data_0 = raw_data.pop('null_field')
+
+    # Taking the missing data from symmetry
+    data = get_trajectories_from_symmetries(
+        preprocess_data=preprocess_data,
+        data=raw_data,
+        accuracy_order=accuracy_order
+        )
 
     # Conversion factors
     bec_factor = forces_si_to_au / sqrt(2)
@@ -330,12 +368,10 @@ def compute_nac_parameters(structure: orm.StructureData, electric_field: orm.Flo
 
     # Variables
     field_step = electric_field.value
+    max_accuracy = accuracy_order.value
     num_atoms = len(structure.sites)
-    max_accuracy = len(data['field_index_0'])
-    data_0 = data.pop('null_field')
 
-    dielectric_data = orm.ArrayData()
-    bec_data = orm.ArrayData()
+    nac_data = {}
 
     # First, I calculate all possible second order accuracy tensors with all possible steps.
     if max_accuracy > 2:
@@ -377,8 +413,23 @@ def compute_nac_parameters(structure: orm.StructureData, electric_field: orm.Flo
             bec_tensor.append(bec_.T)
         bec_tensor = np.array(bec_tensor)
 
-        dielectric_data.set_array(f'numerical_accuracy_2_step_{int(scale_step)}', eps_tensor)
-        bec_data.set_array(f'numerical_accuracy_2_step_{int(scale_step)}', bec_tensor * bec_factor)
+        # Doing the symmetrization in case
+        chi_tensor, bec_tensor = symmetrize_borns_and_epsilon(
+            borns=bec_tensor,
+            epsilon=chi_tensor,
+            ucell=preprocess_data.get_phonopy_instance().unitcell,
+            symprec=preprocess_data.symprec,
+            is_symmetry=preprocess_data.is_symmetry
+        )
+
+        # Settings arrays
+        array_data = orm.ArrayData()
+
+        array_data.set_array('dielectric', eps_tensor)
+        array_data.set_array('born_charges', bec_tensor * bec_factor)
+
+        key_order = f'numerical_accuracy_2_step_{int(scale_step)}'
+        nac_data.update({key_order:deepcopy(array_data)})
 
     # Second, I calculate all possible accuracy tensors.
     if max_accuracy > 2:
@@ -423,7 +474,37 @@ def compute_nac_parameters(structure: orm.StructureData, electric_field: orm.Flo
             bec_tensor.append(bec_.T)
         bec_tensor = np.array(bec_tensor)
 
-        dielectric_data.set_array(f'numerical_accuracy_{accuracy}', eps_tensor)
-        bec_data.set_array(f'numerical_accuracy_{accuracy}', bec_tensor * bec_factor)
+        # Doing the symmetrization in case
+        bec_tensor, eps_tensor = symmetrize_borns_and_epsilon(
+            borns=bec_tensor,
+            epsilon=chi_tensor,
+            ucell=preprocess_data.get_phonopy_instance().unitcell,
+            symprec=preprocess_data.symprec,
+            is_symmetry=preprocess_data.is_symmetry
+        )
 
-    return {'dielectric': dielectric_data, 'born_charges': bec_data}
+        # Settings arrays
+        array_data = orm.ArrayData()
+
+        array_data.set_array('dielectric', eps_tensor)
+        array_data.set_array('born_charges', bec_tensor * bec_factor)
+
+        key_order = f'numerical_accuracy_{accuracy}'
+        nac_data.update({key_order:deepcopy(array_data)})
+
+    return nac_data
+
+@calcfunction
+def join_tensors(nac_parameters: orm.ArrayData, susceptibilities: orm.ArrayData) -> orm.ArrayData:
+    """Join the NAC and susceptibilities tensors under a unique ArrayData."""
+    tensors = orm.ArrayData()
+
+    keys = ['dielectric', 'born_charges']
+    for key in keys:
+        tensors.set_array(key, nac_parameters.get_array(key))
+
+    keys = ['dph0_susceptibility', 'nlo_susceptibility']
+    for key in keys:
+        tensors.set_array(key, susceptibilities.get_array(key))
+
+    return tensors

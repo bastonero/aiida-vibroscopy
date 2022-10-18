@@ -37,13 +37,13 @@ class VibrationalMixin:
 
         .. note: it is assumed that the reference system is the same (if not the one) of the primitive cell.
 
-        :param dph0_susceptibility: (number of atoms in the primitive cell, 3, 3, 3) array like
+        :param dph0_susceptibility: (number of atoms in the primitive cell, 3, 3, 3) array like (first index refers to forces);
 
         :raises:
             * TypeError: if the format is not compatible or of the correct type
             * ValueError: if the format is not compatible or of the correct type
         """
-        self._if_can_modify()
+        # self._if_can_modify()
 
         if not isinstance(dph0_susceptibility, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -71,7 +71,7 @@ class VibrationalMixin:
 
         .. note: it is assumed that the reference system is the same (if not the one) of the primitive cell.
 
-        :param dielectric: (3 3, 3) array like
+        :param dielectric: (3, 3, 3) array like
 
         :raises:
             * TypeError: if the format is not compatible or of the correct type
@@ -119,7 +119,7 @@ class VibrationalMixin:
             sr_thr=sr_thr
         )
 
-    def run_raman_tensors(self, nac_direction=[0,0,0], with_nlo=False, use_irreps=True, degeneracy_tolerance=1e-5, sum_rules=False, **kwargs):
+    def run_raman_tensors(self, nac_direction=[0,0,0], with_nlo=True, use_irreps=True, degeneracy_tolerance=1e-5, sum_rules=False, **kwargs):
         """Return the Raman tensors (in angstrom^2/sqrt(AMU)) for each phonon mode, along with frequencies (cm-1) and irreps labels.
 
         :param nac_direction: non-analytical direction
@@ -200,24 +200,28 @@ class VibrationalMixin:
     def run_polarized_raman_intensities(self, pol_incoming, pol_outgoing, **kwargs):
         """Return polarized Raman intensities (in angstrom^4/AMU) with frequencies (cm-1) and irreps labels.
 
-        :param pol_incoming: light polarization vector of the incoming light (laser)
+        :param pol_incoming: light polarization vector of the incoming light (laser) in crystal/fractional coordinates
         :type pol_incoming: list or numpy.ndarray of shape (3,)
-        :param pol_outgoing: light polarization vector of the outgoing light
+        :param pol_outgoing: light polarization vector of the outgoing light (scattered) in crystal/fractional coordinates
         :type pol_outgoing: list or numpy.ndarray of shape (3,)
         :param kwargs: keys of :func:`~aiida_quantumespresso_vibroscopy.calculations.spectra_utils.compute_raman_tensors` method
         """
         if not isinstance(pol_incoming, (list, np.ndarray)) or not isinstance(pol_outgoing, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
 
-        pol_incoming = np.array(pol_incoming)
-        pol_outgoing = np.array(pol_outgoing)
+        pol_incoming_crystal = np.array(pol_incoming)
+        pol_outgoing_crystal = np.array(pol_outgoing)
 
-        if not pol_incoming.shape == (3,) or not pol_outgoing.shape == (3,):
+        cell = self.get_phonopy_instance().primitive.get_cell()
+        pol_incoming_cart = np.dot(cell, pol_incoming_crystal) # in Cartesian coordinates
+        pol_outgoing_cart = np.dot(cell, pol_outgoing_crystal) # in Cartesian coordinates
+
+        if not pol_incoming_crystal.shape == (3,) or not pol_outgoing_crystal.shape == (3,):
             raise ValueError('the array is not of the correct shape')
 
         raman_tensors, freqs, labels = self.run_raman_tensors(**kwargs)
 
-        raman_intensities = [np.dot(np.dot(tensor, pol_outgoing), pol_incoming) for tensor in raman_tensors]
+        raman_intensities = [np.dot(pol_incoming_cart, np.dot(tensor, pol_outgoing_cart)) for tensor in raman_tensors]
         raman_intensities = [intensity**2 for intensity in raman_intensities]
 
         return (raman_intensities, freqs, labels)
@@ -230,7 +234,6 @@ class VibrationalMixin:
         .. note: to obtain the total unpolarized intensities, sum the two returned arrays of the intensities.
 
         :param quadrature_order: algebraic order to perform the integration on the sphere of nac directions
-        :type pol_incoming: int, optional
         :param kwargs: keys of :func:`~aiida_quantumespresso_vibroscopy.calculations.spectra_utils.compute_raman_tensors` method
 
         :return: (Raman intensities HH, Raman intensities HV, frequencies, labels)
@@ -250,11 +253,13 @@ class VibrationalMixin:
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip (points, weights):
-                q_tensors, q_freqs, q_labels = self.run_raman_tensors(**kwargs, **{'nac_direction':q})
+                cell = self.get_phonopy_instance().primitive.cell
+                q_crystal = np.dot(cell, q) # in reciprocal fractional/crystal coordinates
+                q_tensors, q_freqs, q_labels = self.run_raman_tensors(**kwargs, **{'nac_direction':q_crystal})
 
                 q_raman_hh, q_raman_hv = compute_raman_space_average(raman_tensors=q_tensors)
-                raman_hh.append(4*pi*ws*q_raman_hh)
-                raman_hv.append(4*pi*ws*q_raman_hv)
+                raman_hh.append(ws*q_raman_hh)
+                raman_hv.append(ws*q_raman_hv)
                 freqs  += q_freqs.tolist()
                 labels += q_labels
 
@@ -264,21 +269,24 @@ class VibrationalMixin:
     def run_polarized_ir_intensities(self, pol_incoming, **kwargs):
         """Return polarized IR intensities (in (debey/angstrom)^2/AMU) with frequencies (cm-1) and irreps labels.
 
-        :param pol_incoming: light polarization vector of the incident beam light
+        :param pol_incoming: light polarization vector of the incident beam light in crystal coordinates
         :type pol_incoming: list or numpy.ndarray of shape (3,)
         :param kwargs: keys of `.run_polarization_vectors` method
         """
         if not isinstance(pol_incoming, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
 
-        pol_incoming = np.array(pol_incoming)
+        pol_incoming_crystal = np.array(pol_incoming)
 
-        if not pol_incoming.shape == (3,):
+        if not pol_incoming_crystal.shape == (3,):
             raise ValueError('the array is not of the correct shape')
+
+        cell = self.get_phonopy_instance().primitive.get_cell()
+        pol_incoming_cart = np.dot(cell, pol_incoming_crystal) # in Cartesian coordinates
 
         pol_vectors, freqs, labels = self.run_polarization_vectors(**kwargs)
 
-        ir_intensities = [ np.dot(vector, pol_incoming)  for vector in pol_vectors]
+        ir_intensities = [ np.dot(vector, pol_incoming_cart)  for vector in pol_vectors]
         ir_intensities = [intensity**2 for intensity in ir_intensities]
 
         return (ir_intensities, freqs, labels)
@@ -309,14 +317,16 @@ class VibrationalMixin:
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip (points, weights):
-                q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction':q})
+                cell = self.get_phonopy_instance().primitive.cell
+                q_crystal = np.dot(cell, q) # in reciprocal fractional/Crystal coordinates
+                q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction':q_crystal})
 
                 for pol, f, l in zip(q_pol, q_freqs, q_labels):
-                    ir_intensities.append(4*pi*ws*np.dot(pol,pol))
+                    ir_intensities.append(ws*np.dot(pol,pol))
                     freqs.append(f)
                     labels.append(l)
 
-        return (4*pi*np.array(ir_intensities), np.array(freqs), labels)
+        return (np.array(ir_intensities), np.array(freqs), labels)
 
     @staticmethod
     def get_available_quadrature_order_schemes():

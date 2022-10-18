@@ -338,7 +338,14 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
         from aiida.orm.nodes.data.upf import get_pseudos_from_structure
         from aiida_quantumespresso.utils.resources import get_default_options
 
-        parameters_base = {'CONTROL': {'calculation': 'scf'}, 'SYSTEM': {'ecutrho': 400.0, 'ecutwfc': 50.0}}
+        parameters_base = {
+            'CONTROL':
+                {'calculation': 'scf'},
+            'SYSTEM':
+                {'ecutrho': 400.0, 'ecutwfc': 50.0},
+            'ELECTRONS':
+                {'mixing_beta': 0.4},
+            }
 
         if parameters is not None:
             parameters_base.update(parameters)
@@ -388,6 +395,7 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
                 'kpoints': kpoints,
             },
             'clean_workdir': Bool(clean_workdir),
+            'options': {'sleep_submission_time':0}
         }
 
         if electric_field is not None:
@@ -559,42 +567,32 @@ def generate_dielectric_workchain_node():
         from aiida import orm
         from aiida.common import LinkType
 
-        label_1 = 'numerical_accuracy_2_step_1'
-        label_2 = 'numerical_accuracy_4'
+        labels = ['numerical_accuracy_2_step_1','numerical_accuracy_4']
 
         node = orm.WorkflowNode().store()
 
-        dielectric = orm.ArrayData()
-        dielectric_array = numpy.eye(3)
-        dielectric.set_array(label_1, dielectric_array)
-        dielectric.set_array(label_2, dielectric_array)
-        dielectric.store()
-        dielectric.add_incoming(node, link_type=LinkType.RETURN, link_label='dielectric')
+        for label in labels:
+            tensors = orm.ArrayData()
 
-        born_charges = orm.ArrayData()
-        b = numpy.eye(3)
-        born_charges_array = numpy.array( [b, -b] )
-        born_charges.set_array(label_1, born_charges_array)
-        born_charges.set_array(label_2, born_charges_array)
-        born_charges.store()
-        born_charges.add_incoming(node, link_type=LinkType.RETURN, link_label='born_charges')
+            dielectric_array = numpy.eye(3)
+            tensors.set_array('dielectric', dielectric_array)
 
-        if raman:
-            dph0_susceptibility = orm.ArrayData()
-            r = numpy.zeros((3,3,3))
-            numpy.fill_diagonal(r,1)
-            dph0_array = numpy.array( [r, -r] )
-            dph0_susceptibility.set_array(label_1, dph0_array)
-            dph0_susceptibility.set_array(label_2, dph0_array)
-            dph0_susceptibility.store()
-            dph0_susceptibility.add_incoming(node, link_type=LinkType.RETURN, link_label='dph0_susceptibility')
+            b = numpy.eye(3)
+            born_charges_array = numpy.array( [b, -b] )
+            tensors.set_array('born_charges', born_charges_array)
 
-            nlo_susceptibility = orm.ArrayData()
-            nlo_array = numpy.zeros((3,3,3))
-            nlo_susceptibility.set_array(label_1, nlo_array)
-            nlo_susceptibility.set_array(label_2, nlo_array)
-            nlo_susceptibility.store()
-            nlo_susceptibility.add_incoming(node, link_type=LinkType.RETURN, link_label='nlo_susceptibility')
+            if raman:
+                r = numpy.zeros((3,3,3))
+                numpy.fill_diagonal(r,1)
+                dph0_array = numpy.array( [r, -r] )
+                tensors.set_array('dph0_susceptibility', dph0_array)
+
+                nlo_array = numpy.zeros((3,3,3))
+                tensors.set_array('nlo_susceptibility', nlo_array)
+
+            tensors.store()
+
+            tensors.add_incoming(node, link_type=LinkType.RETURN, link_label=f'tensors__{label}')
 
         return node
 
