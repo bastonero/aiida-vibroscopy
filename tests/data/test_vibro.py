@@ -11,10 +11,11 @@ def test_methods(generate_vibrational_data):
 
     vibrational_data.run_raman_tensors()
     vibrational_data.run_polarization_vectors()
-    vibrational_data.run_polarized_raman_intensities([1,0,0],[-1,0,0])
+    vibrational_data.run_polarized_raman_intensities([1, 0, 0], [-1, 0, 0])
     vibrational_data.run_powder_raman_intensities()
-    vibrational_data.run_polarized_ir_intensities([1,0,0])
+    vibrational_data.run_polarized_ir_intensities([1, 0, 0])
     vibrational_data.run_powder_ir_intensities()
+
 
 @pytest.mark.usefixtures('aiida_profile')
 def test_powder_methods(generate_vibrational_data):

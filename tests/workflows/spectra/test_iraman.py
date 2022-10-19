@@ -4,11 +4,13 @@ import pytest
 
 
 @pytest.fixture
-def generate_workchain_iraman(generate_workchain, generate_structure, generate_inputs_pw_base, generate_inputs_dielectric):
+def generate_workchain_iraman(
+    generate_workchain, generate_structure, generate_inputs_pw_base, generate_inputs_dielectric
+):
     """Generate an instance of a `IRamanSpectraWorkChain`."""
 
     def _generate_workchain_iraman(append_inputs=None, return_inputs=False):
-        entry_point = 'quantumespresso.vibroscopy.spectra.iraman'
+        entry_point = 'vibroscopy.spectra.iraman'
 
         structure = generate_structure()
 
@@ -21,7 +23,9 @@ def generate_workchain_iraman(generate_workchain, generate_structure, generate_i
 
         inputs = {
             'structure': structure,
-            'phonon_workchain': {'scf': phonon_inputs},
+            'phonon_workchain': {
+                'scf': phonon_inputs
+            },
             'dielectric_workchain': dielectric_inputs
         }
 
@@ -44,7 +48,7 @@ def generate_intensities_workchain_node():
 
     def _generate_intensities_workchain_node():
         from aiida.common import LinkType
-        from aiida.orm import WorkflowNode, ArrayData
+        from aiida.orm import ArrayData, WorkflowNode
 
         node = WorkflowNode().store()
 
@@ -73,7 +77,7 @@ def test_setup(generate_workchain_iraman):
 
 def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_forces` method."""
-    append_inputs = {'options':{'sleep_submission_time':0.1}}
+    append_inputs = {'options': {'sleep_submission_time': 0.1}}
     process = generate_workchain_iraman(append_inputs=append_inputs)
 
     process.setup()
@@ -92,7 +96,7 @@ def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node)
 
 def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_dielectric` method."""
-    append_inputs = {'options':{'sleep_submission_time':0.1}}
+    append_inputs = {'options': {'sleep_submission_time': 0.1}}
     process = generate_workchain_iraman(append_inputs=append_inputs)
 
     process.setup()
@@ -104,11 +108,14 @@ def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_n
     assert 'dielectric_workchain' in process.ctx
 
 
-@pytest.mark.parametrize( ('raman'), ( (True), (False) ), )
+@pytest.mark.parametrize(
+    ('raman'),
+    ((True), (False)),
+)
 def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchain_node, raman):
     """Test `IRamanSpectraWorkChain.run_raw_results` method."""
-    import numpy
     from aiida import orm
+    import numpy
 
     process = generate_workchain_iraman()
 
@@ -116,10 +123,10 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
     process.ctx.dielectric_workchain = generate_dielectric_workchain_node(raman=raman)
 
     forces_1 = orm.ArrayData()
-    forces_1.set_array('forces', numpy.full((2,3), 1))
+    forces_1.set_array('forces', numpy.full((2, 3), 1))
     forces_1.store()
     forces_2 = orm.ArrayData()
-    forces_2.set_array('forces', numpy.full((2,3), -1))
+    forces_2.set_array('forces', numpy.full((2, 3), -1))
     forces_2.store()
 
     process.out(f'supercells_forces.scf_supercell_1', forces_1)
@@ -153,7 +160,7 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
     assert 'intensities_average.numerical_order_4' in process.ctx
 
     for key, value in process.ctx.intensities_average.items():
-        assert key in ['numerical_order_2_step_1','numerical_order_4']
+        assert key in ['numerical_order_2_step_1', 'numerical_order_4']
         assert isinstance(value, WorkflowNode)
 
 

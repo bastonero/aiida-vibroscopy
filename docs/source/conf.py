@@ -13,18 +13,20 @@
 # serve to show the default.
 import time
 
+# ensure plugins are loaded
+from reentry import manager
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-import aiida_quantumespresso_vibroscopy
+import aiida_vibroscopy
 
-# ensure plugins are loaded
-from reentry import manager
 manager.scan()
 
 # Load the dummy profile even if we are running locally, this way the documentation will succeed even if the current
 # default profile of the AiiDA installation does not use a Django backend.
 from aiida.manage.configuration import load_documentation_profile
+
 load_documentation_profile()
 
 # -- Project information -----------------------------------------------------
@@ -34,9 +36,9 @@ copyright = '2022-{}, UNIVERSITY OF BREMEN (U Bremen Excellence Chair and MAPEX)
     time.localtime().tm_year
 )
 # The full version, including alpha/beta/rc tags.
-release = aiida_quantumespresso_vibroscopy.__version__
+release = aiida_vibroscopy.__version__
 # The short X.Y version.
-version = '.'.join(aiida_quantumespresso_vibroscopy.__version__.split('.')[:2])
+version = '.'.join(aiida_vibroscopy.__version__.split('.')[:2])
 
 # -- General configuration ------------------------------------------------
 
@@ -92,15 +94,24 @@ html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
 html_css_files = ['aiida-custom.css', 'aiida-qe-custom.css']
 html_theme_options = {
-    'home_page_in_toc': True,
-    'repository_url': 'https://github.com/bastonero/aiida-quantumespresso-vibroscopy',
-    'repository_branch': 'develop',
-    'use_repository_button': True,
-    'use_issues_button': True,
-    'use_fullscreen_button': False,
-    'path_to_docs': 'docs/source',
-    'use_edit_page_button': True,
-    'extra_navbar': '<p>Made possible by the support of <a href="https://www.uni-bremen.de/u-bremen-excellence-chairs" target="_blank"> U Bremen Excellence Chairs</a> and <a href="https://www.uni-bremen.de/en/mapex" target="_blank"> MAPEX</a>.</p>'
+    'home_page_in_toc':
+    True,
+    'repository_url':
+    'https://github.com/bastonero/aiida-quantumespresso-vibroscopy',
+    'repository_branch':
+    'develop',
+    'use_repository_button':
+    True,
+    'use_issues_button':
+    True,
+    'use_fullscreen_button':
+    False,
+    'path_to_docs':
+    'docs/source',
+    'use_edit_page_button':
+    True,
+    'extra_navbar':
+    '<p>Made possible by the support of <a href="https://www.uni-bremen.de/u-bremen-excellence-chairs" target="_blank"> U Bremen Excellence Chairs</a> and <a href="https://www.uni-bremen.de/en/mapex" target="_blank"> MAPEX</a>.</p>'
 }
 html_domain_indices = True
 html_logo = '_static/logo.png'

@@ -6,8 +6,8 @@ import os
 import shutil
 import tempfile
 
-import pytest
 from aiida.manage.fixtures import fixture_manager
+import pytest
 
 pytest_plugins = ['aiida.manage.tests.pytest_fixtures']  # pylint: disable=invalid-name
 
@@ -228,8 +228,7 @@ def generate_structure():
         from aiida.orm import StructureData
 
         if sites is None:
-            cell = [[3.9625313477, -3.9625313477, 0.0],
-                    [-3.9625313477, 0.0, 3.9625313477],
+            cell = [[3.9625313477, -3.9625313477, 0.0], [-3.9625313477, 0.0, 3.9625313477],
                     [0.0, -3.9625313477, -3.9625313477]]
             structure = StructureData(cell=cell)
         else:
@@ -259,14 +258,12 @@ def generate_preprocess_data(generate_structure):
         structure = generate_structure()
 
         if supercell_matrix is None:
-            supercell_matrix = [1,1,1]
+            supercell_matrix = [1, 1, 1]
         if primitive_matrix is None:
             primitive_matrix = 'auto'
 
-        preprocess_data =  PreProcessData(
-            structure=structure,
-            supercell_matrix=supercell_matrix,
-            primitive_matrix=primitive_matrix
+        preprocess_data = PreProcessData(
+            structure=structure, supercell_matrix=supercell_matrix, primitive_matrix=primitive_matrix
         )
 
         return preprocess_data
@@ -289,6 +286,7 @@ def generate_kpoints_mesh():
 
     return _generate_kpoints_mesh
 
+
 @pytest.fixture
 def generate_trajectory():
     """Return a `TrajectoryData` node."""
@@ -300,17 +298,18 @@ def generate_trajectory():
 
         if trajectory is None:
             node = TrajectoryData()
-            node.set_array('electronic_dipole_cartesian_axes',np.array([[[0.,0.,0.]]]))
-            node.set_array('forces',np.array([[[0.,0.,0.],[0.,0.,0.]]]) )
+            node.set_array('electronic_dipole_cartesian_axes', np.array([[[0., 0., 0.]]]))
+            node.set_array('forces', np.array([[[0., 0., 0.], [0., 0., 0.]]]))
             stepids = np.array([1])
             times = stepids * 0.0
             cells = np.array([[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]])
-            positions = np.array([[[0., 0., 0.],[0.,0.,0.]]])
-            node.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg','O'], positions=positions, times=times)
+            positions = np.array([[[0., 0., 0.], [0., 0., 0.]]])
+            node.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg', 'O'], positions=positions, times=times)
 
         return node.store()
 
     return _generate_trajectory
+
 
 @pytest.fixture
 def generate_parser():
@@ -339,13 +338,17 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
         from aiida_quantumespresso.utils.resources import get_default_options
 
         parameters_base = {
-            'CONTROL':
-                {'calculation': 'scf'},
-            'SYSTEM':
-                {'ecutrho': 400.0, 'ecutwfc': 50.0},
-            'ELECTRONS':
-                {'mixing_beta': 0.4},
-            }
+            'CONTROL': {
+                'calculation': 'scf'
+            },
+            'SYSTEM': {
+                'ecutrho': 400.0,
+                'ecutwfc': 50.0
+            },
+            'ELECTRONS': {
+                'mixing_beta': 0.4
+            },
+        }
 
         if parameters is not None:
             parameters_base.update(parameters)
@@ -373,15 +376,15 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
     """Generate default inputs for a `DielectricWorkChain`."""
 
     def _generate_inputs_dielectric(
-            property='raman',
-            clean_workdir=True,
-            electric_field=None,
-            electric_field_scale=None,
-            accuracy=None,
-            diagonal_scale=None
-        ):
+        property='raman',
+        clean_workdir=True,
+        electric_field=None,
+        electric_field_scale=None,
+        accuracy=None,
+        diagonal_scale=None
+    ):
         """Generate default inputs for a `DielectricWorkChain`."""
-        from aiida.orm import Float, Int, Bool
+        from aiida.orm import Bool, Float, Int
 
         structure = generate_structure()
         inputs_scf = generate_inputs_pw(structure=structure)
@@ -389,27 +392,30 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
         kpoints = inputs_scf.pop('kpoints')
 
         inputs = {
-            'property':property,
+            'property': property,
             'scf': {
                 'pw': inputs_scf,
                 'kpoints': kpoints,
             },
             'clean_workdir': Bool(clean_workdir),
-            'options': {'sleep_submission_time':0}
+            'options': {
+                'sleep_submission_time': 0
+            }
         }
 
         if electric_field is not None:
-            inputs['electric_field']=Float(electric_field)
+            inputs['electric_field'] = Float(electric_field)
         if electric_field_scale is not None:
-            inputs['electric_field_scale']=Float(electric_field_scale)
+            inputs['electric_field_scale'] = Float(electric_field_scale)
         if accuracy is not None:
-            inputs['central_difference']={'accuracy':Int(accuracy)}
+            inputs['central_difference'] = {'accuracy': Int(accuracy)}
         if diagonal_scale is not None:
-            inputs['central_difference']={'diagonal_scale':Float(diagonal_scale)}
+            inputs['central_difference'] = {'diagonal_scale': Float(diagonal_scale)}
 
         return inputs
 
     return _generate_inputs_dielectric
+
 
 @pytest.fixture
 def generate_inputs_second_derivatives(generate_trajectory):
@@ -421,37 +427,37 @@ def generate_inputs_second_derivatives(generate_trajectory):
 
         if trial is None:
             data = {
-                'null':generate_trajectory(),
-                'field0':generate_trajectory(),
-                'field1':generate_trajectory(),
-                'field2':generate_trajectory(),
+                'null': generate_trajectory(),
+                'field0': generate_trajectory(),
+                'field1': generate_trajectory(),
+                'field2': generate_trajectory(),
             }
-        elif trial==0:
+        elif trial == 0:
             data = {
-                'null':generate_trajectory(),
-                'field1':generate_trajectory(),
+                'null': generate_trajectory(),
+                'field1': generate_trajectory(),
             }
-        elif trial==1:
+        elif trial == 1:
             data = {
-                'field1':generate_trajectory(),
+                'field1': generate_trajectory(),
             }
-        elif trial==2:
+        elif trial == 2:
             data = {
-                'null':generate_trajectory(),
+                'null': generate_trajectory(),
             }
 
         inputs = {
-            'data':data,
+            'data': data,
         }
 
         if not volume is None:
-            inputs['volume']=Float(volume)
+            inputs['volume'] = Float(volume)
         else:
-            inputs['volume']=Float(1.0)
+            inputs['volume'] = Float(1.0)
         if not elfield is None:
-            inputs['elfield']=Float(elfield)
+            inputs['elfield'] = Float(elfield)
         else:
-            inputs['elfield']=Float(0.001)
+            inputs['elfield'] = Float(0.001)
 
         return inputs
 
@@ -561,13 +567,12 @@ def generate_base_scf_workchain_node(fixture_localhost):
 def generate_dielectric_workchain_node():
     """Generate an instance of `WorkflowNode`."""
 
-    def _generate_dielectric_workchain_node(raman=False, ):
-        import numpy
-
+    def _generate_dielectric_workchain_node(raman=False,):
         from aiida import orm
         from aiida.common import LinkType
+        import numpy
 
-        labels = ['numerical_accuracy_2_step_1','numerical_accuracy_4']
+        labels = ['numerical_accuracy_2_step_1', 'numerical_accuracy_4']
 
         node = orm.WorkflowNode().store()
 
@@ -578,16 +583,16 @@ def generate_dielectric_workchain_node():
             tensors.set_array('dielectric', dielectric_array)
 
             b = numpy.eye(3)
-            born_charges_array = numpy.array( [b, -b] )
+            born_charges_array = numpy.array([b, -b])
             tensors.set_array('born_charges', born_charges_array)
 
             if raman:
-                r = numpy.zeros((3,3,3))
-                numpy.fill_diagonal(r,1)
-                dph0_array = numpy.array( [r, -r] )
-                tensors.set_array('dph0_susceptibility', dph0_array)
+                r = numpy.zeros((3, 3, 3))
+                numpy.fill_diagonal(r, 1)
+                dph0_array = numpy.array([r, -r])
+                tensors.set_array('raman_susceptibility', dph0_array)
 
-                nlo_array = numpy.zeros((3,3,3))
+                nlo_array = numpy.zeros((3, 3, 3))
                 tensors.set_array('nlo_susceptibility', nlo_array)
 
             tensors.store()
@@ -598,27 +603,27 @@ def generate_dielectric_workchain_node():
 
     return _generate_dielectric_workchain_node
 
+
 @pytest.fixture
 def generate_vibrational_data(generate_structure):
     """Generate a `VibrationalFrozenPhononData`."""
 
     def _generate_vibrational_data(dielectric=None, born_charges=None, dph0=None, nlo=None, forces=None):
         """Return a `VibrationalFrozenPhononData` with bulk silicon as structure."""
-        import numpy
         from aiida.plugins import DataFactory
-        # from aiida_quantumespresso_vibroscopy.data.vibro_fp import VibrationalFrozenPhononData
+        import numpy
 
-        VibrationalFrozenPhononData = DataFactory('quantumespresso.vibroscopy.fp')
+        # from aiida_vibroscopy.data.vibro_fp import VibrationalFrozenPhononData
+
+        VibrationalFrozenPhononData = DataFactory('vibroscopy.fp')
         PreProcessData = DataFactory('phonopy.preprocess')
 
         structure = generate_structure()
 
-        supercell_matrix = [1,1,1]
+        supercell_matrix = [1, 1, 1]
 
-        preprocess_data =  PreProcessData(
-            structure=structure,
-            supercell_matrix=supercell_matrix,
-            primitive_matrix='auto'
+        preprocess_data = PreProcessData(
+            structure=structure, supercell_matrix=supercell_matrix, primitive_matrix='auto'
         )
 
         preprocess_data.set_displacements()
@@ -633,26 +638,26 @@ def generate_vibrational_data(generate_structure):
         if born_charges is not None:
             vibrational_data.set_born_charges(born_charges)
         else:
-            becs = numpy.array([numpy.eye(3), -1*numpy.eye(3)])
+            becs = numpy.array([numpy.eye(3), -1 * numpy.eye(3)])
             vibrational_data.set_born_charges(becs)
 
         if dph0 is not None:
-            vibrational_data.set_dph0_susceptibility(dph0_susceptibility=dph0)
+            vibrational_data.set_raman_susceptibility(raman_susceptibility=dph0)
         else:
-            dph0 = numpy.zeros((2,3,3,3))
+            dph0 = numpy.zeros((2, 3, 3, 3))
             dph0[0][0][0][0] = +1
             dph0[1][0][0][0] = -1
-            vibrational_data.set_dph0_susceptibility(dph0_susceptibility=dph0)
+            vibrational_data.set_raman_susceptibility(raman_susceptibility=dph0)
 
         if nlo is not None:
             vibrational_data.set_nlo_susceptibility(nlo_susceptibility=nlo)
         else:
-            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=numpy.zeros((3,3,3)))
+            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=numpy.zeros((3, 3, 3)))
 
         if forces is not None:
             vibrational_data.set_forces(forces)
         else:
-            vibrational_data.set_forces( [ [[1,0,0],[-1,0,0]], [[2,0,0],[-2,0,0]] ] )
+            vibrational_data.set_forces([[[1, 0, 0], [-1, 0, 0]], [[2, 0, 0], [-2, 0, 0]]])
 
         return vibrational_data
 
