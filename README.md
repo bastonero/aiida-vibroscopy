@@ -1,7 +1,7 @@
 # aiida-vibroscopy
 AiiDA plugin that uses finite displacements and fields
- to compute phonon properties, dielectric tensor,
- Born effective charges, IR and Raman tensors/spectra.
+to compute phonon properties, dielectric tensor,
+Born effective charges, IR and Raman tensors/spectra.
 
 ## Installation
 To install from PyPI, simply execute:
