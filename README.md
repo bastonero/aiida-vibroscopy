@@ -1,4 +1,6 @@
 # aiida-vibroscopy
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+
 AiiDA plugin that uses finite displacements and fields
 to compute phonon properties, dielectric and
 Born effective charges tensors, Infrared and Raman spectra.
