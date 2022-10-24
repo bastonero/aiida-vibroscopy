@@ -25,5 +25,5 @@ We acknowledge support from:
 * the [U Bremen Excellence Chairs](https://www.uni-bremen.de/u-bremen-excellence-chairs) program funded within the scope of the [Excellence Strategy of Germany’s federal and state governments](https://www.dfg.de/en/research_funding/excellence_strategy/index.html);
 * the [MAPEX](https://www.uni-bremen.de/en/mapex) Center for Materials and Processes.
 
-<img src="https://raw.githubusercontent.com/bastonero/aiida-quantumespresso-vibroscopy/develop/docs/source/images/UBREMEN.pdf" width="300px" height="84px"/>
-<img src="https://raw.githubusercontent.com/bastonero/aiida-quantumespresso-vibroscopy/develop/docs/source/images/MAPEX.jpg" width="300px" height="84px"/>
+<img src="https://raw.githubusercontent.com/bastonero/aiida-vibroscopy/develop/docs/source/images/UBREMEN.pdf" width="300px" height="84px"/>
+<img src="https://raw.githubusercontent.com/bastonero/aiida-vibroscopy/develop/docs/source/images/MAPEX.jpg" width="300px" height="84px"/>
