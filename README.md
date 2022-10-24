@@ -1,7 +1,7 @@
 # aiida-vibroscopy
 AiiDA plugin that uses finite displacements and fields
-to compute phonon properties, dielectric tensor,
-Born effective charges, IR and Raman tensors/spectra.
+to compute phonon properties, dielectric and
+Born effective charges tensors, Infrared and Raman spectra.
 
 ## Installation
 To install from PyPI, simply execute:
@@ -10,11 +10,11 @@ To install from PyPI, simply execute:
 
 or when installing from source:
 
-    git clone https://github.com/bastonero/aiida-quantumespresso-vibrosopy
+    git clone https://github.com/bastonero/aiida-vibrosopy
     pip install .
 
 ## License
-The `aiida-quantumespresso-vibroscopy` plugin package is released under the MIT license.
+The `aiida-vibroscopy` plugin package is released under the MIT license.
 See the `LICENSE.txt` file for more details.
 
 
