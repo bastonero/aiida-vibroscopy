@@ -11,7 +11,7 @@ To install from PyPI, simply execute:
 or when installing from source:
 
     git clone https://github.com/bastonero/aiida-quantumespresso-vibrosopy
-    pip install aiida-vibroscopy
+    pip install .
 
 ## License
 The `aiida-quantumespresso-vibroscopy` plugin package is released under the MIT license.
