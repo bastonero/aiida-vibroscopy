@@ -62,7 +62,7 @@ def compute_active_modes(
 
     # Step 2 - getting the active modes with eigenvectors
     Xr = []
-    for mat in irreps.get_rotations():
+    for mat in irreps.conventional_rotations:
         Xr.append(mat.trace())
     Xr = np.array(Xr)
 
@@ -70,8 +70,8 @@ def compute_active_modes(
     eigvectors_active_modes = []
     labels_active_modes = []
 
-    bands_indices = irreps.get_band_indices()
-    characters = irreps.get_characters().real
+    bands_indices = irreps.band_indices
+    characters = irreps.characters.real
     labels = irreps._get_ir_labels()
 
     mode_index = 0
@@ -160,6 +160,11 @@ def compute_raman_tensors(
 
     :return: tuple (Raman tensors, frequencies, labels)
     """
+    try:
+        nac_direction = nac_direction()
+    except TypeError:
+        pass
+
     if not isinstance(nac_direction, (list, np.ndarray)) or not isinstance(use_irreps, bool):
         raise TypeError('the input is not of the correct type')
 
@@ -238,6 +243,11 @@ def compute_polarization_vectors(
 
     :return: tuple (polarization vectors, frequencies, labels)
     """
+    try:
+        nac_direction = nac_direction()
+    except TypeError:
+        pass
+
     if not isinstance(nac_direction, (list, np.ndarray)) or not isinstance(use_irreps, bool):
         raise TypeError('the input is not of the correct type')
 

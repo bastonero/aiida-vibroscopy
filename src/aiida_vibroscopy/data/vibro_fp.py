@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Mixin for aiida-quantumespresso-vibroscopy DataTypes."""
+"""Mixin for aiida-vibroscopy DataTypes."""
 
 from aiida.plugins import DataFactory
 

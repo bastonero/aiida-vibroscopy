@@ -17,7 +17,10 @@ def generate_workchain_harmonic(generate_workchain, generate_inputs_pw_base):
         inputs = {
             'phonon_workchain': {
                 'scf': scf_inputs,
-            }
+            },
+            'options': {
+                'sleep_submission_time': 0
+            },
         }
 
         if return_inputs:
@@ -206,7 +209,7 @@ def test_run_dielectric(
         'structure': generate_structure(),
         'dielectric_workchain': dielectric_inputs,
         'options': {
-            'sleep_submission_time': 0.1
+            'sleep_submission_time': 0
         },
     }
     process = generate_workchain_harmonic(append_inputs=append_inputs)

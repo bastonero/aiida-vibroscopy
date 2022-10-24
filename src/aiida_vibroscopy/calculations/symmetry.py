@@ -156,7 +156,7 @@ def get_connected_fields_with_operations(
         containing equivalent fields and associated rotations and translations
     """
     lattice = phonopy_instance.unitcell.cell
-    operations = phonopy_instance.symmetry.get_symmetry_operations()
+    operations = phonopy_instance.symmetry.symmetry_operations
     rotations = operations['rotations']
     translations = operations['translations']
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Mixin for aiida-quantumespresso-vibroscopy DataTypes."""
+"""Mixin for aiida-vibroscopy DataTypes."""
 import numpy as np
 
 from aiida_vibroscopy.calculations.spectra_utils import (
@@ -33,7 +33,8 @@ class VibrationalMixin:
     """Mixin class for vibrational DataTypes.
 
     This is meant to be used to extend aiida-phonopy DataTypes to include tensors
-    and information for vibrational spectra."""
+    and information for vibrational spectra.
+    """
 
     @property
     def raman_susceptibility(self):
@@ -77,7 +78,8 @@ class VibrationalMixin:
     def nlo_susceptibility(self):
         """Get the non linear optical susceptibility tensor in Cartesian coordinates."""
         try:
-            value = self.get_array('nlo_susceptibility')
+            value = self.get_attribute('nlo_susceptibility')
+            value = np.array(value)
         except (KeyError, AttributeError):
             value = None
         return value
@@ -101,7 +103,7 @@ class VibrationalMixin:
         the_chi2 = np.array(nlo_susceptibility)
 
         if the_chi2.shape == (3, 3, 3):
-            self.set_array('nlo_susceptibility', the_chi2)
+            self.set_attribute('nlo_susceptibility', the_chi2.tolist())
         else:
             raise ValueError('the array is not of the correct shape')
 
@@ -157,6 +159,11 @@ class VibrationalMixin:
 
         :return: tuple (Raman tensors, frequencies, irreps labels)
         """
+        try:
+            nac_direction = nac_direction()
+        except TypeError:
+            pass
+
         if not isinstance(with_nlo, bool) or not isinstance(use_irreps, bool) or not isinstance(sum_rules, bool):
             raise TypeError('the input is not of the correct type')
 
@@ -202,6 +209,10 @@ class VibrationalMixin:
 
         :return: tuple (polarization vectors, frequencies, irreps labels)
         """
+        try:
+            nac_direction = nac_direction()
+        except TypeError:
+            pass
         if not isinstance(use_irreps, bool) or not isinstance(sum_rules, bool):
             raise TypeError('the input is not of the correct type')
 
@@ -241,7 +252,7 @@ class VibrationalMixin:
         pol_incoming_crystal = np.array(pol_incoming)
         pol_outgoing_crystal = np.array(pol_outgoing)
 
-        cell = self.get_phonopy_instance().primitive.get_cell()
+        cell = self.get_phonopy_instance().primitive.cell
         pol_incoming_cart = np.dot(cell, pol_incoming_crystal)  # in Cartesian coordinates
         pol_outgoing_cart = np.dot(cell, pol_outgoing_crystal)  # in Cartesian coordinates
 
@@ -313,7 +324,7 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        cell = self.get_phonopy_instance().primitive.get_cell()
+        cell = self.get_phonopy_instance().primitive.cell
         pol_incoming_cart = np.dot(cell, pol_incoming_crystal)  # in Cartesian coordinates
 
         pol_vectors, freqs, labels = self.run_polarization_vectors(**kwargs)

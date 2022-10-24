@@ -23,9 +23,9 @@ classifiers = [
 keywords = ['aiida', 'workflows']
 requires-python = '>=3.8'
 dependencies = [
-    "aiida-core>=1.6.0<2.0",
-    "aiida-quantumespresso>=3.4.0<4.0",
-    "aiida-phonopy>=0.7<1.0",
+    "aiida-core>=1.6.0,<2.0.0",
+    "aiida-quantumespresso>=3.4.0,<4.0.0",
+    "aiida-phonopy>=0.7,<1.0",
     "quadpy>=0.16.10",
 ]
 
