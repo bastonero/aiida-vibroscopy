@@ -25,7 +25,8 @@ requires-python = '>=3.8'
 dependencies = [
     "aiida-core>=1.6.0,<2.0.0",
     "aiida-quantumespresso>=3.4.0,<4.0.0",
-    "aiida-phonopy>=0.7,<1.0",
+    "aiida-phonopy>=0.7.0,<1.0.0",
+    "phonopy>=2.16.0,<3.0.0",
     "quadpy>=0.16.10",
 ]
 
@@ -52,23 +53,24 @@ docs = [
 ]
 
 [project.entry-points.'aiida.data']
-"vibroscopy.fp" = "aiida_vibroscopy.data.vibro_fp: VibrationalFrozenPhononData"
-"vibroscopy.lr" =  "aiida_vibroscopy.data.vibro_lr: VibrationalLinearResponseData"
+"vibroscopy.fp" = "aiida_vibroscopy.data.vibro_fp:VibrationalFrozenPhononData"
+"vibroscopy.lr" =  "aiida_vibroscopy.data.vibro_lr:VibrationalLinearResponseData"
 
 [project.entry-points.'aiida.workflows']
-"vibroscopy.dielectric" = "aiida_vibroscopy.workflows.dielectric.base: DielectricWorkChain"
-"vibroscopy.dielectric.numerical_derivatives" = "aiida_vibroscopy.workflows.dielectric.numerical_derivatives: NumericalDerivativesWorkChain"
-"vibroscopy.phonons.harmonic" = "aiida_vibroscopy.workflows.phonons.harmonic: HarmonicWorkChain"
-"vibroscopy.spectra.iraman" = "aiida_vibroscopy.workflows.spectra.iraman: IRamanSpectraWorkChain"
-"vibroscopy.spectra.intensities_average" = "aiida_vibroscopy.workflows.spectra.intensities_average: IntensitiesAverageWorkChain"
+"vibroscopy.dielectric" = "aiida_vibroscopy.workflows.dielectric.base:DielectricWorkChain"
+"vibroscopy.dielectric.numerical_derivatives" = "aiida_vibroscopy.workflows.dielectric.numerical_derivatives:NumericalDerivativesWorkChain"
+"vibroscopy.phonons.harmonic" = "aiida_vibroscopy.workflows.phonons.harmonic:HarmonicWorkChain"
+"vibroscopy.spectra.iraman" = "aiida_vibroscopy.workflows.spectra.iraman:IRamanSpectraWorkChain"
+"vibroscopy.spectra.intensities_average" = "aiida_vibroscopy.workflows.spectra.intensities_average:IntensitiesAverageWorkChain"
 
 [tool.flit.module]
 name = 'aiida_vibroscopy'
 
 [tool.flit.sdist]
 exclude = [
-    '.github/',
+    'docs/',
     'tests/',
+    '.github/',
     '.gitignore',
     '.pre-commit-config.yaml',
 ]
