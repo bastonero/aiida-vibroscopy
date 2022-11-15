@@ -203,6 +203,7 @@ def get_connected_fields_with_operations(
 
 def transform_trajectory(
     trajectory_data: TrajectoryData,
+    polarisation_0: np.ndarray,
     rotation: np.ndarray,
     translation: np.ndarray,
     cell: PhonopyAtoms,
@@ -214,6 +215,8 @@ def transform_trajectory(
 
     forces = new_trajectory.get_array('forces')[-1]
     polarisation = new_trajectory.get_array('electronic_dipole_cartesian_axes')[-1]
+    # Remove the spontaneous polarization which does not transform
+    polarisation -= polarisation_0
 
     lattice = cell.cell
     positions = cell.scaled_positions
@@ -231,7 +234,7 @@ def transform_trajectory(
         forces_[i] = np.dot(r_cart, forces[j])
 
     new_forces = np.array([forces_])
-    new_pola = np.array([pola_])
+    new_pola = np.array([pola_ + polarisation_0])  # adding back spontaneous polarisation
 
     new_trajectory.set_array('forces', new_forces)
     new_trajectory.set_array('electronic_dipole_cartesian_axes', new_pola)
@@ -242,6 +245,7 @@ def transform_trajectory(
 def get_trajectories_from_symmetries(
     preprocess_data: PreProcessData,
     data: dict,
+    data_0: TrajectoryData,
     accuracy_order: int,
 ) -> dict:
     """Return the full dictionary with transformed TrajectoryData using symmetry operation. Only `forces`
@@ -255,6 +259,7 @@ def get_trajectories_from_symmetries(
     phonopy_instance = preprocess_data.get_phonopy_instance()
     symprec = preprocess_data.symprec
     cell = phonopy_instance.unitcell
+    polarisation_0 = data_0.get_array('electronic_dipole_cartesian_axes')[-1]
 
     for key, value in data.items():  # `data` contains the least amount of trajectories
         # key could be `field_index_2` and value its sub dictionary
@@ -276,7 +281,8 @@ def get_trajectories_from_symmetries(
             for trajectory_data in subvalues:
 
                 for field, rotation, translation in zip(fields, rotations, translations):
-                    new_trajectory = transform_trajectory(trajectory_data, rotation, translation, cell, symprec)
+                    args = (trajectory_data, polarisation_0, rotation, translation, cell, symprec)
+                    new_trajectory = transform_trajectory(*args)
                     number, sign = get_tuple_from_vector(field)
                     index_key = f'field_index_{number}'
                     index = 0 if sign > 0 else 1

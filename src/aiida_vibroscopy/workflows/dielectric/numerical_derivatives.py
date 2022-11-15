@@ -18,15 +18,15 @@ def validate_data(data, _):
     """
     control_null_namespace = 0  # must be 1
 
-    for label, trajectory in data.items():
+    for label in data:
         # first, control if `null`
         if label.startswith('null'):
             control_null_namespace += 1
         elif not label[-1] in ['0', '1', '2', '3', '4', '5']:
             return f'`{label[-1]}` is an invalid label ending for field labels`'
-        else:
-            if not len(trajectory) % 2 == 0:
-                return 'field index data must contains even number of key:TrajectoryData pairs'
+        # else:
+        #     if not len(trajectory) % 2 == 0:
+        #         return 'field index data must contains even number of key:TrajectoryData pairs'
 
     if not control_null_namespace == 1:
         return f'invalid number of `null_field` namespaces: expected 1, given {control_null_namespace}'
@@ -163,14 +163,12 @@ class NumericalDerivativesWorkChain(WorkChain):
 
     def run_results(self):
         """Wrap up results from previous calculations."""
-        preprocess_data = PreProcessData(
-            structure=self.inputs.scf.pw.structure,
-            symprec=self.inputs.options.symprec.value,
-            is_symmetry=self.inputs.options.is_symmetry.value,
-            distinguish_kinds=self.inputs.options.distinguish_kinds.value
+        preprocess_data = PreProcessData.generate_preprocess_data(
+            structure=self.inputs.structure,
+            symprec=self.inputs.options.symprec,
+            is_symmetry=self.inputs.options.is_symmetry,
+            distinguish_kinds=self.inputs.options.distinguish_kinds,
         )
-
-        preprocess_data.delete_attribute('displacement_dataset')  # we do not want to store this data
 
         # Non analytical constants
         out_nac_parameters = compute_nac_parameters(

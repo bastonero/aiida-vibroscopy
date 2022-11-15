@@ -71,6 +71,40 @@ class HarmonicWorkChain(BaseWorkChain):
             ),
         )
 
+    @classmethod
+    def get_protocol_filepath(cls):
+        """Return ``pathlib.Path`` to the ``.yaml`` file that defines the protocols."""
+        from importlib_resources import files
+
+        from ..protocols import phonons as phonons_protocols
+        return files(phonons_protocols) / 'harmonic.yaml'
+
+    @classmethod
+    def get_builder_from_protocol(cls, code, structure, protocol=None, overrides=None, options=None, **kwargs):
+        """Return a builder prepopulated with inputs selected according to the chosen protocol.
+
+        :param code: the ``Code`` instance configured for the ``quantumespresso.pw`` plugin.
+        :param structure: the ``StructureData`` instance to use.
+        :param protocol: protocol to use, if not specified, the default will be used.
+        :param overrides: optional dictionary of inputs to override the defaults of the protocol.
+        :param options: A dictionary of options that will be recursively set for the ``metadata.options`` input of all
+            the ``CalcJobs`` that are nested in this work chain.
+        :param kwargs: additional keyword arguments that will be passed to the ``get_builder_from_protocol`` of all the
+            sub processes that are called by this workchain.
+        :return: a process builder instance with all inputs defined ready for launch.
+        """
+        inputs = cls.get_protocol_inputs(protocol, overrides)
+        supercell_matrix = inputs['phonon_workchain'].pop('supercell_matrix', None)
+
+        args = (code, structure, protocol)
+
+        builder = super().get_builder_from_protocol(*args, overrides=inputs, options=options, **kwargs)
+
+        if supercell_matrix:
+            builder.phonon_workchain.supercell_matrix = orm.List(list=supercell_matrix)
+
+        return builder
+
     def setup(self):
         """Setup the workflow generating the PreProcessData."""
         if 'preprocess_data' in self.inputs:
@@ -125,8 +159,9 @@ class HarmonicWorkChain(BaseWorkChain):
 
         if self.ctx.is_magnetic or (len(preprocess.get_unitcell().sites) != len(preprocess.get_primitive_cell().sites)):
             inputs.scf.pw.structure = self.ctx.supercell
-            # base_key = f'{self._RUN_PREFIX}_0'
-            # inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
+            base_key = f'{self._RUN_PREFIX}_0'
+            if self.inputs.options.use_parent_folder:
+                inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
         else:
             inputs.scf.pw.structure = self.ctx.preprocess_data.calcfunctions.get_primitive_cell()
 

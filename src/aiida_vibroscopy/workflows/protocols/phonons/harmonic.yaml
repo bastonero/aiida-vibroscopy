@@ -1,0 +1,21 @@
+default_inputs:
+    clean_workdir: True
+    dielectric_workchain:
+        property: "ir"
+    phonon_workchain:
+        supercell_matrix: [2,2,2] # better to change to number times number of atoms
+    options:
+        run_parallel: True
+        sleep_submission_time: 3.0
+default_protocol: moderate
+protocols:
+    moderate:
+        description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'
+    precise:
+        description: 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'
+        phonon_workchain:
+            supercell_matrix: [3,3,3] # better to change to number times number of atoms
+    fast:
+        description: 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'
+        phonon_workchain:
+            supercell_matrix: [2,2,2] # better to change to number times number of atoms

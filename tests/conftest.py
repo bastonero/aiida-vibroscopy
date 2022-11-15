@@ -220,10 +220,52 @@ def generate_code_localhost():
 
 
 @pytest.fixture
+def serialize_builder():
+    """Serialize the given process builder into a dictionary with nodes turned into their value representation.
+
+    :param builder: the process builder to serialize
+    :return: dictionary
+    """
+
+    def serialize_data(data):
+        # pylint: disable=too-many-return-statements
+        from aiida.orm import BaseType, Code, Dict
+        from aiida.plugins import DataFactory
+
+        StructureData = DataFactory('structure')
+        UpfData = DataFactory('pseudo.upf')
+
+        if isinstance(data, dict):
+            return {key: serialize_data(value) for key, value in data.items()}
+
+        if isinstance(data, BaseType):
+            return data.value
+
+        if isinstance(data, Code):
+            return data.full_label
+
+        if isinstance(data, Dict):
+            return data.get_dict()
+
+        if isinstance(data, StructureData):
+            return data.get_formula()
+
+        if isinstance(data, UpfData):
+            return f'{data.element}<md5={data.md5}>'
+
+        return data
+
+    def _serialize_builder(builder):
+        return serialize_data(builder._inputs(prune=True))  # pylint: disable=protected-access
+
+    return _serialize_builder
+
+
+@pytest.fixture
 def generate_structure():
     """Return a `StructureData` representing bulk silicon."""
 
-    def _generate_structure(sites=None):
+    def _generate_structure(sites=None, structure_id=None):
         """Return a `StructureData` representing bulk silicon."""
         from aiida.orm import StructureData
 
@@ -240,6 +282,13 @@ def generate_structure():
         else:
             for kind, symbol in sites:
                 structure.append_atom(position=(0., 0., 0.), symbols=symbol, name=kind)
+
+        if structure_id == 'silicon':
+            param = 5.43
+            cell = [[param / 2., param / 2., 0], [param / 2., 0, param / 2.], [0, param / 2., param / 2.]]
+            structure = StructureData(cell=cell)
+            structure.append_atom(position=(0., 0., 0.), symbols='Si', name='Si')
+            structure.append_atom(position=(param / 4., param / 4., param / 4.), symbols='Si', name='Si')
 
         return structure
 
@@ -328,13 +377,12 @@ def generate_parser():
 
 
 @pytest.fixture
-def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, generate_upf_family):
+def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, generate_upf_data):
     """Generate default inputs for a `PwCalculation."""
 
     def _generate_inputs_pw(parameters=None, structure=None):
         """Generate default inputs for a `PwCalculation."""
         from aiida.orm import Dict
-        from aiida.orm.nodes.data.upf import get_pseudos_from_structure
         from aiida_quantumespresso.utils.resources import get_default_options
 
         parameters_base = {
@@ -358,13 +406,11 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
             'structure': structure or generate_structure(),
             'kpoints': generate_kpoints_mesh(2),
             'parameters': Dict(dict=parameters_base),
+            'pseudos': {kind: generate_upf_data(kind) for kind in structure.get_kind_names()},
             'metadata': {
                 'options': get_default_options()
             }
         }
-
-        family = generate_upf_family(inputs['structure'])
-        inputs['pseudos'] = get_pseudos_from_structure(inputs['structure'], family.label)
 
         return inputs
 
@@ -464,18 +510,34 @@ def generate_inputs_second_derivatives(generate_trajectory):
     return _generate_inputs_second_derivatives
 
 
+# @pytest.fixture(scope='session')
+# def generate_upf_data(tmp_path_factory):
+#     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
+
+#     def _generate_upf_data(element):
+#         """Return `UpfData` node."""
+#         from aiida.orm import UpfData
+
+#         with open(tmp_path_factory.mktemp('pseudos') / f'{element}.upf', 'w+b') as handle:
+#             handle.write(f'<UPF version="2.0.1"><PP_HEADER element="{element}"/></UPF>'.encode('utf-8'))
+#             handle.flush()
+#             return UpfData(file=handle.name)
+
+#     return _generate_upf_data
+
+
 @pytest.fixture(scope='session')
-def generate_upf_data(tmp_path_factory):
+def generate_upf_data():
     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
 
     def _generate_upf_data(element):
         """Return `UpfData` node."""
-        from aiida.orm import UpfData
+        import io
 
-        with open(tmp_path_factory.mktemp('pseudos') / f'{element}.upf', 'w+b') as handle:
-            handle.write(f'<UPF version="2.0.1"><PP_HEADER element="{element}"/></UPF>'.encode('utf-8'))
-            handle.flush()
-            return UpfData(file=handle.name)
+        from aiida_pseudo.data.pseudo import UpfData
+        content = f'<UPF version="2.0.1"><PP_HEADER\nelement="{element}"\nz_valence="4.0"\n/></UPF>\n'
+        stream = io.BytesIO(content.encode('utf-8'))
+        return UpfData(stream, filename=f'{element}.upf')
 
     return _generate_upf_data
 
@@ -509,6 +571,50 @@ def generate_upf_family(generate_upf_data):
         return family
 
     return _generate_upf_family
+
+
+@pytest.fixture(scope='session', autouse=True)
+def sssp(aiida_profile, generate_upf_data):
+    """Create an SSSP pseudo potential family from scratch."""
+    from aiida.common.constants import elements
+    from aiida.plugins import GroupFactory
+
+    # aiida_profile.clear_profile()
+
+    SsspFamily = GroupFactory('pseudo.family.sssp')
+
+    cutoffs = {}
+    stringency = 'standard'
+
+    with tempfile.TemporaryDirectory() as dirpath:
+        for values in elements.values():
+
+            element = values['symbol']
+
+            actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
+
+            if element in actinides:
+                continue
+
+            upf = generate_upf_data(element)
+            filename = os.path.join(dirpath, f'{element}.upf')
+
+            with open(filename, 'w+b') as handle:
+                with upf.open(mode='rb') as source:
+                    handle.write(source.read())
+                    handle.flush()
+
+            cutoffs[element] = {
+                'cutoff_wfc': 30.0,
+                'cutoff_rho': 240.0,
+            }
+
+        label = 'SSSP/1.1/PBE/efficiency'
+        family = SsspFamily.create_from_folder(dirpath, label)
+
+    family.set_cutoffs(cutoffs, stringency, unit='Ry')
+
+    return family
 
 
 @pytest.fixture

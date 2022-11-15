@@ -9,6 +9,7 @@ from aiida.engine import WorkChain, append_, calcfunction, if_, while_
 from aiida.orm.nodes.data.array.bands import find_bandgap
 from aiida.plugins import CalculationFactory, WorkflowFactory
 from aiida_phonopy.data import PreProcessData
+from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 import numpy as np
 
 from aiida_vibroscopy.calculations.symmetry import get_irreducible_numbers_and_signs
@@ -79,7 +80,7 @@ def validate_inputs(inputs, _):
         return 'one between `electric_field` and `electric_field_scale` must be specified'
 
 
-class DielectricWorkChain(WorkChain):
+class DielectricWorkChain(WorkChain, ProtocolMixin):
     """Workchain that for a given input structure can compute the dielectric tensor at
     high frequency, the Born effective charges, the derivatives of the susceptibility (dielectric) tensor
     using finite fields in the electric enthalpy.
@@ -117,14 +118,15 @@ class DielectricWorkChain(WorkChain):
                 'value (i.e. it will multiply on the numerator the critical electric value).'
             )
         )
-        # property_help = 'Valid inputs are: \n \n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
         spec.input(
             'property',
             valid_type=str,
             required=True,
             non_db=True,
             validator=cls._validate_properties,
-            help='String for the property to calculate.'
+            help=(
+                'Valid inputs are: \n \n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
+            )
         )
         spec.input(
             'parent_scf',
@@ -166,7 +168,7 @@ class DielectricWorkChain(WorkChain):
             help='Symmetry tolerance for space group analysis on the input structure.',
         )
         spec.input(
-            'options.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            'options.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(False),
             help='Whether or not to distinguish atom with same species but different names with symmetries.',
         )
         spec.input(
@@ -234,6 +236,72 @@ class DielectricWorkChain(WorkChain):
 
         if invalid_value is not None:
             return f'Got invalid or not implemented property value {invalid_value}.'
+
+    @classmethod
+    def get_protocol_filepath(cls):
+        """Return ``pathlib.Path`` to the ``.yaml`` file that defines the protocols."""
+        from importlib_resources import files
+
+        from ..protocols import dielectric as dielectric_protocols
+        return files(dielectric_protocols) / 'base.yaml'
+
+    @classmethod
+    def get_builder_from_protocol(cls, code, structure, protocol=None, overrides=None, options=None, **kwargs):
+        """Return a builder prepopulated with inputs selected according to the chosen protocol.
+
+        :param code: the ``Code`` instance configured for the ``quantumespresso.pw`` plugin.
+        :param structure: the ``StructureData`` instance to use.
+        :param protocol: protocol to use, if not specified, the default will be used.
+        :param overrides: optional dictionary of inputs to override the defaults of the protocol.
+        :param options: A dictionary of options that will be recursively set for the ``metadata.options`` input of all
+            the ``CalcJobs`` that are nested in this work chain.
+        :param kwargs: additional keyword arguments that will be passed to the ``get_builder_from_protocol`` of all the
+            sub processes that are called by this workchain.
+        :return: a process builder instance with all inputs defined ready for launch.
+        """
+        from aiida.orm import to_aiida_type
+
+        inputs = cls.get_protocol_inputs(protocol, overrides)
+
+        args = (code, structure, protocol)
+        scf = PwBaseWorkChain.get_builder_from_protocol(
+            *args, overrides=inputs.get('scf', None), options=options, **kwargs
+        )
+
+        scf.pop('clean_workdir', None)
+        scf['pw'].pop('parent_folder', None)
+
+        builder = cls.get_builder()
+
+        if 'options' in inputs:
+            options = {}
+
+            if 'sleep_submission_time' in inputs['options']:
+                options.update({'sleep_submission_time': inputs['options']['sleep_submission_time']})
+
+            non_default_options = ['symprec', 'distinguish_kinds', 'is_symmetry']
+            for name in non_default_options:
+                if name in inputs['options']:
+                    options.update({name:to_aiida_type(inputs['options'][name])})
+
+            builder.options = options
+
+        name = 'electric_field' if 'electric_field' in inputs else 'electric_field_scale'
+        builder[name] = to_aiida_type(inputs[name])
+
+        non_default_difference = ['diagonal_scale', 'accuracy']
+        if 'central_difference' in inputs:
+            central_difference = {}
+            for name in non_default_difference:
+                if name in inputs:
+                    central_difference.update({name:to_aiida_type(inputs['central_difference'][name])})
+            builder['central_difference'] = central_difference
+
+        builder.scf = scf
+        builder.clean_workdir = orm.Bool(inputs['clean_workdir'])
+        builder.property = inputs['property']
+
+        return builder
 
     def setup(self):
         """Set up the context and the outline."""
@@ -371,12 +439,12 @@ class DielectricWorkChain(WorkChain):
         parameters = inputs.pw.parameters.get_dict()
         parameters['CONTROL']['calculation'] = 'nscf'
 
-        for key in ('nberrycyc, lelfield', 'efield_cart'):
-            parameters.pop(key, None)
+        nbnd = outputs.output_parameters.get_attribute('number_of_bands')+10
+        parameters['SYSTEM']['nbnd'] = nbnd
 
-        if 'parent_folder' not in self.inputs:
-            nbnd = outputs.output_parameters.get_attribute('number_of_bands')+10
-            parameters['SYSTEM']['nbnd'] = nbnd
+        for key in ('nberrycyc', 'lelfield', 'efield_cart'):
+            parameters['CONTROL'].pop(key, None)
+            parameters['ELECTRONS'].pop(key, None)
 
         inputs.pw.parameters = orm.Dict(dict=parameters)
         inputs.pw.parent_folder = outputs.remote_folder
@@ -443,8 +511,6 @@ class DielectricWorkChain(WorkChain):
     def run_electric_field_scfs(self):
         """Running scf with different electric fields for central difference."""
         # Here we can already truncate `numbers`` from the very beginning using symmetry analysis
-
-
         signs = [1.0,-1.0]
         for number, bool_signs in zip(self.ctx.numbers, self.ctx.signs):
             norm = self.ctx.electric_field.value*(self.ctx.iteration +1)/self.ctx.steps
