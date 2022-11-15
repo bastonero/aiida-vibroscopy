@@ -24,9 +24,9 @@ def generate_workchain_iraman(
         inputs = {
             'structure': structure,
             'phonon_workchain': {
-                'scf': phonon_inputs
+                'scf': phonon_inputs,
             },
-            'dielectric_workchain': dielectric_inputs
+            'dielectric_workchain': dielectric_inputs,
         }
 
         if return_inputs:
@@ -146,6 +146,7 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
     from aiida.orm import WorkflowNode
 
+    # inputs = {'intensities_average':}
     process = generate_workchain_iraman()
 
     process.ctx.vibrational_data = {
@@ -176,13 +177,14 @@ def test_show_results(generate_workchain_iraman, generate_intensities_workchain_
 
     # Sanity check
     assert 'ir_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs
+    assert 'raman_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs
 
     process.show_results()
 
-    assert 'intensities_average' in process.outputs
-    assert 'numerical_order_4' in process.outputs['intensities_average']
-    assert 'numerical_order_2_step_1' in process.outputs['intensities_average']
+    assert 'output_intensities_average' in process.outputs
+    assert 'numerical_order_4' in process.outputs['output_intensities_average']
+    assert 'numerical_order_2_step_1' in process.outputs['output_intensities_average']
 
     for key in ['ir_averaged', 'raman_averaged']:
-        assert key in process.outputs['intensities_average']['numerical_order_4']
-        assert key in process.outputs['intensities_average']['numerical_order_2_step_1']
+        assert key in process.outputs['output_intensities_average']['numerical_order_4']
+        assert key in process.outputs['output_intensities_average']['numerical_order_2_step_1']

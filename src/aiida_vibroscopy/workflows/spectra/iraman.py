@@ -35,7 +35,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             namespace='intensities_average',
             namespace_options={
                 'required':
-                True,
+                False,
                 'populate_defaults':
                 True,
                 'help': (
@@ -47,23 +47,21 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         )
 
         spec.outline(
-            cls.setup,
-            cls.run_base_supercell,
-            cls.inspect_base_supercell,
+            cls.setup, cls.run_base_supercell, cls.inspect_base_supercell,
             if_(cls.should_run_parallel)(cls.run_parallel,).else_(
                 cls.run_forces,
                 cls.run_dielectric,
-            ),
-            cls.inspect_all_runs,
-            cls.run_raw_results,
-            cls.run_intensities_averaged,
-            cls.show_results,
+            ), cls.inspect_all_runs, cls.run_raw_results,
+            if_(cls.should_run_average)(
+                cls.run_intensities_averaged,
+                cls.show_results,
+            )
         )
 
-        spec.output_namespace(
-            'intensities_average', dynamic=True, help=('Intensities average over space and q-points.')
-        )
         spec.expose_outputs(IntensitiesAverageWorkChain)
+        spec.output_namespace(
+            'output_intensities_average', dynamic=True, help='Intensities average over space and q-points.'
+        )
         spec.output_namespace(
             'vibrational_data',
             valid_type=VibrationalFrozenPhononData,
@@ -78,11 +76,45 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             403, 'ERROR_AVERAGING_FAILED', message='The averaging procedure for intensities had an unexpected error.'
         )
 
+    @classmethod
+    def get_protocol_filepath(cls):
+        """Return ``pathlib.Path`` to the ``.yaml`` file that defines the protocols."""
+        from importlib_resources import files
+
+        from ..protocols import spectra as stectra_protocols
+        return files(stectra_protocols) / 'iraman.yaml'
+
+    @classmethod
+    def get_builder_from_protocol(cls, code, structure, protocol=None, overrides=None, options=None, **kwargs):
+        """Return a builder prepopulated with inputs selected according to the chosen protocol.
+
+        :param code: the ``Code`` instance configured for the ``quantumespresso.pw`` plugin.
+        :param structure: the ``StructureData`` instance to use.
+        :param protocol: protocol to use, if not specified, the default will be used.
+        :param overrides: optional dictionary of inputs to override the defaults of the protocol.
+        :param options: A dictionary of options that will be recursively set for the ``metadata.options`` input of all
+            the ``CalcJobs`` that are nested in this work chain.
+        :param kwargs: additional keyword arguments that will be passed to the ``get_builder_from_protocol`` of all the
+            sub processes that are called by this workchain.
+        :return: a process builder instance with all inputs defined ready for launch.
+        """
+        inputs = cls.get_protocol_inputs(protocol, overrides)
+        intensities_average = inputs.pop('intensities_average', None)
+
+        args = (code, structure, protocol)
+
+        builder = super().get_builder_from_protocol(*args, overrides=inputs, options=options, **kwargs)
+
+        if intensities_average:
+            builder.intensities_average = intensities_average
+
+        return builder
+
     def setup(self):
         """Setup the workflow generating the PreProcessData."""
         preprocess_inputs = {'structure': self.inputs.structure}
         for pp_input in ['symprec', 'is_symmetry', 'displacement_generator', 'distinguish_kinds']:
-            if pp_input in self.inputs:
+            if pp_input in self.inputs.phonon_workchain:
                 preprocess_inputs.update({pp_input: self.inputs.phonon_workchain[pp_input]})
         preprocess_inputs.update({'supercell_matrix': orm.List(list=[1, 1, 1])})
         preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
@@ -97,8 +129,10 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric_workchain'))
         base_key = f'{self._RUN_PREFIX}_0'
 
+        if self.inputs.options.use_parent_folder:
+            inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
+
         inputs.scf.pw.structure = self.ctx.supercell
-        inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
         inputs.clean_workdir = self.inputs.clean_workdir
         inputs.options = extract_symmetry_info(self.ctx.preprocess_data)
 
@@ -131,6 +165,10 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             output_key = f'vibrational_data.{key}'
             self.out(output_key, vibrational_data)
 
+    def should_run_average(self):
+        """Return whether to run the average spectra."""
+        return 'intensities_average' in self.inputs
+
     def run_intensities_averaged(self):
         """Run an `IntensitiesAverageWorkChain` with the calculated vibrational data."""
         self.ctx.intensities_average = {}
@@ -145,13 +183,12 @@ class IRamanSpectraWorkChain(BaseWorkChain):
 
     def show_results(self):
         """Expose the outputs."""
-        outputs = {'intensities_average': {}}
         for key, workchain in self.ctx.intensities_average.items():
+
             if workchain.is_failed:
                 self.report('the averaging procedure failed')
                 return self.exit_codes.ERROR_AVERAGING_FAILED
 
-            outs = {key: {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain)}}
-            outputs['intensities_average'].update(outs)
-
-        self.out_many(outputs)
+            out_key = f'output_intensities_average.{key}'
+            out_dict = {out_key: {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain)}}
+            self.out_many(out_dict)

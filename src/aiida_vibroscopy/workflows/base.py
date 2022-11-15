@@ -6,6 +6,7 @@ from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import WorkChain
 from aiida.plugins import DataFactory, WorkflowFactory
+from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 
 from aiida_vibroscopy.calculations.phonon_utils import get_energy, get_forces
 from aiida_vibroscopy.calculations.spectra_utils import get_supercells_for_hubbard
@@ -47,7 +48,7 @@ def validate_inputs(inputs, _):
         return 'too many inputs for non-analytical constants'
 
 
-class BaseWorkChain(WorkChain):
+class BaseWorkChain(WorkChain, ProtocolMixin):
     """
     Base class for `phonons` and `spectra` workchains.
     """
@@ -157,6 +158,16 @@ class BaseWorkChain(WorkChain):
             help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
         )
         spec.input(
+            'options.use_parent_folder',
+            valid_type=bool,
+            non_db=True,
+            default=False,
+            help=(
+                'Whether to use the remote folder for the `DielectricWorkCahin` '
+                '(`False` is suggested when caching is activated).'
+            ),
+        )
+        spec.input(
             'clean_workdir',
             valid_type=orm.Bool,
             default=lambda: orm.Bool(False),
@@ -220,6 +231,68 @@ class BaseWorkChain(WorkChain):
             ]
             if invalid_values:
                 return f'Displacement options must be of the correct type; got invalid values {invalid_values}.'
+
+    @classmethod
+    def get_protocol_filepath(cls):
+        """Return ``pathlib.Path`` to the ``.yaml`` file that defines the protocols."""
+        from importlib_resources import files
+
+        from . import protocols
+        return files(protocols) / 'base.yaml'
+
+    @classmethod
+    def get_builder_from_protocol(cls, code, structure, protocol=None, overrides=None, options=None, **kwargs):
+        """Return a builder prepopulated with inputs selected according to the chosen protocol.
+
+        :param code: the ``Code`` instance configured for the ``quantumespresso.pw`` plugin.
+        :param structure: the ``StructureData`` instance to use.
+        :param protocol: protocol to use, if not specified, the default will be used.
+        :param overrides: optional dictionary of inputs to override the defaults of the protocol.
+        :param options: A dictionary of options that will be recursively set for the ``metadata.options`` input of all
+            the ``CalcJobs`` that are nested in this work chain.
+        :param kwargs: additional keyword arguments that will be passed to the ``get_builder_from_protocol`` of all the
+            sub processes that are called by this workchain.
+        :return: a process builder instance with all inputs defined ready for launch.
+        """
+        from aiida.orm import to_aiida_type
+
+        inputs = cls.get_protocol_inputs(protocol, overrides)
+
+        args = (code, structure, protocol)
+        dielectric_workchain = DielectricWorkChain.get_builder_from_protocol(
+            *args, overrides=inputs.get('dielectric_workchain', None), options=options, **kwargs
+        )
+        phonon_overrides = inputs.get('phonon_workchain', {}).get('scf', None)
+        phonon_scf = PwBaseWorkChain.get_builder_from_protocol(
+            *args, overrides=phonon_overrides, options=options, **kwargs
+        )
+
+        dielectric_workchain['scf']['pw'].pop('structure', None)
+        dielectric_workchain.pop('clean_workdir', None)
+        phonon_scf['pw'].pop('structure', None)
+        phonon_scf.pop('clean_workdir', None)
+
+        builder = cls.get_builder()
+        builder.phonon_workchain.scf = phonon_scf
+
+        if 'phonon_workchain' in inputs:
+            non_default_namelist = [
+                'primitive_matrix'
+                'displacement_generator',
+                'distinguish_kinds',
+                'is_symmetry',
+                'symprec',
+            ]
+            for name in non_default_namelist:
+                if name in inputs['phonon_workchain']:
+                    builder.phonon_workchain[name] = to_aiida_type(name)
+
+        builder.options = inputs['options']
+        builder.dielectric_workchain = dielectric_workchain
+        builder.clean_workdir = orm.Bool(inputs['clean_workdir'])
+        builder.structure = structure
+
+        return builder
 
     def set_ctx_variables(self):
         """Set `is_magnetic` and `plus_hubbard` context variables."""

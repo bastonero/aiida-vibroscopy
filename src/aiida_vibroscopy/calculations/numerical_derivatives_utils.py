@@ -144,6 +144,7 @@ def compute_susceptibility_derivatives(
     volume = structure.get_cell_volume()  # angstrom^3
     volume_au_units = volume / (CONSTANTS.bohr_to_ang**3)  # bohr^3
 
+    # Loading the data
     raw_data = {}
     for key, value in kwargs.items():
         if key == 'null_field':
@@ -158,7 +159,7 @@ def compute_susceptibility_derivatives(
 
     # Taking the missing data from symmetry
     data = get_trajectories_from_symmetries(
-        preprocess_data=preprocess_data, data=raw_data, accuracy_order=accuracy_order.value
+        preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
     )
 
     # Conversion factors
@@ -183,13 +184,10 @@ def compute_susceptibility_derivatives(
     for accuracy in accuracies:
         scale_step = accuracy / 2
 
-        # This is the Chi2 tensor, where Chi2 is the non linear optical susceptibility.
-        # It is a tensor of the shape (k, i, j), i,j,k relative to the electric field direction.
+        # We first compute the tensor using Voigt notation.
         dchi_tensor = []
-        chi2_tensor = np.zeros((3, 3, 3))
-
-        # We first compute the dChi/du tensor using Voigt notation.
         dchi_voigt = [0 for _ in range(6)]
+        chi2_tensor = np.zeros((3, 3, 3))
         chi2_voigt = [0 for _ in range(6)]
 
         # i.e. {'field_index_0':{'0':Traj,'1':Traj, ...}, 'field_index_1':{...}, ..., 'field_index_5':{...} }
@@ -338,7 +336,7 @@ def compute_nac_parameters(
 
     # Taking the missing data from symmetry
     data = get_trajectories_from_symmetries(
-        preprocess_data=preprocess_data, data=raw_data, accuracy_order=accuracy_order.value
+        preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
     )
 
     # Conversion factors
@@ -359,11 +357,11 @@ def compute_nac_parameters(
         accuracies = []
 
     for accuracy in accuracies:
-        bec_tensor = []
         scale_step = accuracy / 2
 
         # We first compute the tensors using an analogous of Voigt notation.
         chi_voigt = [0 for _ in range(3)]
+        bec_tensor = []
         bec_voigt = [0 for _ in range(3)]
 
         # i.e. {'field_index_0':{'0':Traj,'1':Traj, ...}, 'field_index_1':{...}, ..., 'field_index_5':{...} }
@@ -378,7 +376,11 @@ def compute_nac_parameters(
                     **step_value,
                 )
                 bec_voigt[int(key[-1])] = central_derivatives_calculator(
-                    step_size=scale_step * field_step, order=1, vector_name='forces', data_0=data_0, **step_value
+                    step_size=scale_step * field_step,
+                    order=1,
+                    vector_name='forces',
+                    data_0=data_0,
+                    **step_value,
                 )
 
         # Now we build the actual tensor.
@@ -393,9 +395,9 @@ def compute_nac_parameters(
         bec_tensor = np.array(bec_tensor)
 
         # Doing the symmetrization in case
-        chi_tensor, bec_tensor = symmetrize_borns_and_epsilon(
+        bec_tensor, eps_tensor = symmetrize_borns_and_epsilon(
             borns=bec_tensor,
-            epsilon=chi_tensor,
+            epsilon=eps_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
             is_symmetry=preprocess_data.is_symmetry
@@ -417,9 +419,8 @@ def compute_nac_parameters(
         accuracies = [2]
 
     for accuracy in accuracies:
-        bec_tensor = []
-
         # We first compute the tensors using an analogous of Voigt notation.
+        bec_tensor = []
         chi_voigt = [0 for _ in range(3)]
         bec_voigt = [0 for _ in range(3)]
 
@@ -452,7 +453,7 @@ def compute_nac_parameters(
         # Doing the symmetrization in case
         bec_tensor, eps_tensor = symmetrize_borns_and_epsilon(
             borns=bec_tensor,
-            epsilon=chi_tensor,
+            epsilon=eps_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
             is_symmetry=preprocess_data.is_symmetry

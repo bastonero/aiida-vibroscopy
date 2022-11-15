@@ -1,0 +1,71 @@
+clean_workdir: true
+dielectric_workchain:
+  electric_field_scale: 1.2
+  property: raman
+  scf:
+    kpoints_distance: 0.15
+    kpoints_force_parity: false
+    pw:
+      code: '@localhost-test'
+      metadata:
+        options:
+          max_wallclock_seconds: 43200
+          resources:
+            num_machines: 1
+          withmpi: true
+      parameters:
+        CONTROL:
+          calculation: scf
+          etot_conv_thr: 2.0e-05
+          forc_conv_thr: 0.0001
+          tprnfor: true
+          tstress: true
+        ELECTRONS:
+          conv_thr: 4.0e-10
+          electron_maxstep: 80
+          mixing_beta: 0.4
+        SYSTEM:
+          degauss: 0.01
+          ecutrho: 240.0
+          ecutwfc: 30.0
+          nosym: false
+          occupations: smearing
+          smearing: cold
+      pseudos:
+        Si: Si<md5=57fa15d98af99972c7b7aa5c179b0bb8>
+options:
+  run_parallel: true
+  sleep_submission_time: 3.0
+phonon_workchain:
+  scf:
+    kpoints_distance: 0.15
+    kpoints_force_parity: false
+    pw:
+      code: '@localhost-test'
+      metadata:
+        options:
+          max_wallclock_seconds: 43200
+          resources:
+            num_machines: 1
+          withmpi: true
+      parameters:
+        CONTROL:
+          calculation: scf
+          etot_conv_thr: 2.0e-05
+          forc_conv_thr: 0.0001
+          tprnfor: true
+          tstress: true
+        ELECTRONS:
+          conv_thr: 4.0e-10
+          electron_maxstep: 80
+          mixing_beta: 0.4
+        SYSTEM:
+          degauss: 0.01
+          ecutrho: 240.0
+          ecutwfc: 30.0
+          nosym: false
+          occupations: smearing
+          smearing: cold
+      pseudos:
+        Si: Si<md5=57fa15d98af99972c7b7aa5c179b0bb8>
+structure: Si2
