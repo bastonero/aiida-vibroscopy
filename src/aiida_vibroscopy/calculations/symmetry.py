@@ -262,37 +262,44 @@ def get_trajectories_from_symmetries(
     polarisation_0 = data_0.get_array('electronic_dipole_cartesian_axes')[-1]
 
     for key, value in data.items():  # `data` contains the least amount of trajectories
-        # key could be `field_index_2` and value its sub dictionary
-        if not len(value) == accuracy_order:  # it means we can extrapolate extra info
-            vector = get_vector_from_number(int(key[-1]), 1)
-            subvalues = [0 for _ in range(len(value))]
+        # Key could be e.g. `field_index_2` and value its sub dictionary.
+        count = 0  # it counts the numerical order for correct arrangement of data
+        subvalues = [0 for _ in range(len(value))]  # ordered TrajectoryData array
+        is_full = len(value) == accuracy_order  # it means we have both + and - directions
+        # Sanity check to have correct order and indecis.
+        for subkey, subvalue in value.items():
+            subvalues[int(subkey)] = subvalue
 
-            count = 0  # it counts the numerical order for correct arrangement if data
+        for j, trajectory_data in enumerate(subvalues):
+            # Sign is determined depending on the accuracy and how many subvalues are in there.
+            sign = 1
+            if is_full:
+                sign = 1 if j % 2 == 0 else -1
 
-            # Sanity check to have correct order
-            for subkey, subvalue in value.items():
-                subvalues[int(subkey)] = subvalue
+            vector = get_vector_from_number(int(key[-1]), sign)
 
             fields, rotations, translations = get_connected_fields_with_operations(
                 phonopy_instance=phonopy_instance,
                 field_direction=vector,
             )
 
-            for trajectory_data in subvalues:
-
-                for field, rotation, translation in zip(fields, rotations, translations):
-                    args = (trajectory_data, polarisation_0, rotation, translation, cell, symprec)
-                    new_trajectory = transform_trajectory(*args)
-                    number, sign = get_tuple_from_vector(field)
-                    index_key = f'field_index_{number}'
+            for field, rotation, translation in zip(fields, rotations, translations):
+                args = (trajectory_data, polarisation_0, rotation, translation, cell, symprec)
+                new_trajectory = transform_trajectory(*args)
+                number, sign = get_tuple_from_vector(field)
+                index_key = f'field_index_{number}'
+                if not is_full:
                     index = 0 if sign > 0 else 1
                     index += count
-                    try:
-                        full_data[index_key][str(index)] = new_trajectory
-                    except KeyError:
-                        full_data[index_key] = {}
-                        full_data[index_key][str(index)] = new_trajectory
+                else:
+                    index = j
+                try:
+                    full_data[index_key][str(index)] = new_trajectory
+                except KeyError:
+                    full_data[index_key] = {}
+                    full_data[index_key][str(index)] = new_trajectory
 
+            if not is_full:
                 count += 2
 
     return full_data
@@ -300,7 +307,9 @@ def get_trajectories_from_symmetries(
 
 def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData, number_id: int) -> tuple:
     """Return tuple with list of independent numbers to run
-    and corresponding list of [bool, bool] for the sign to run."""
+    and corresponding list of [bool, bool] for the sign to run.
+
+    :param number_id: 3 or 6 for second or third order derivatives, respectively."""
     phonopy_instance = preprocess_data.get_phonopy_instance()
     irr_numbers = list(range(number_id))
     irr_signs = [[True, True] for _ in range(number_id)]  # we start supposing having no symmetries
@@ -340,19 +349,20 @@ def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData, number_id
     final_number = deepcopy(irr_numbers)
 
     for fnumber in final_number:
-        field = get_vector_from_number(fnumber, 1)  # just for consistency
-        connected_fields, _, _ = get_connected_fields_with_operations(phonopy_instance, field)
-        connected_fields = connected_fields.tolist()
-        connected_fields.remove(field)  # we know for sure that the identity operator exists
+        if fnumber in irr_numbers:
+            field = get_vector_from_number(fnumber, 1)  # just for consistency
+            connected_fields, _, _ = get_connected_fields_with_operations(phonopy_instance, field)
+            connected_fields = connected_fields.tolist()
+            connected_fields.remove(field)  # we know for sure that the identity operator exists
 
-        for cfield in connected_fields:
-            number, _ = get_tuple_from_vector(cfield)
-            if number != fnumber:
-                try:
-                    index = irr_numbers.index(number)
-                    irr_numbers.pop(index)
-                    irr_signs.pop(index)
-                except ValueError:
-                    pass
+            for cfield in connected_fields:
+                number, _ = get_tuple_from_vector(cfield)
+                if number != fnumber:
+                    try:
+                        index = irr_numbers.index(number)
+                        irr_numbers.pop(index)
+                        irr_signs.pop(index)
+                    except ValueError:
+                        pass
 
     return irr_numbers, irr_signs

@@ -189,6 +189,11 @@ def compute_raman_tensors(
         selection_rule=selection_rule
     )
 
+    # Here we check we do not have empty array.
+    # E.g. happening in cubic crystals, such as MgO
+    if not neigvs.tolist():
+        return (np.array([]) for _ in range(3))
+
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
     # dph0   shape|indices = (num atoms, 3, 3, 3) | (I, k, i, j)
     # The contraction is performed over I and k, resulting in (n, i, j) Raman tensors.
@@ -268,9 +273,13 @@ def compute_polarization_vectors(
 
     borns = phonopy_instance.nac_params['born']
 
-    if sum_rules:
+    if not sum_rules:
         sum_rule_correction = borns.sum(axis=0) / len(borns)  # sum over atomic index
         borns -= sum_rule_correction
+
+    # Here we check we do not have empty array.
+    if neigvs.tolist():
+        return (np.array([]) for _ in range(3))
 
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
     # borns  shape|indices = (num atoms, 3, 3) | (I, i, k)

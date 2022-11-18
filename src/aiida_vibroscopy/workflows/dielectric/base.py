@@ -51,7 +51,7 @@ def get_accuracy_from_field_intensity(norm: orm.Float):
 
     :param norm: intensity of electric field in Ry a.u.
     """
-    return orm.Int(4) if (norm.value < 1e-4 or norm.value > 1e-2) else orm.Int(2)
+    return orm.Int(4) if norm.value > 5.e-4 else orm.Int(2)
 
 
 def validate_accuracy(value, _):
