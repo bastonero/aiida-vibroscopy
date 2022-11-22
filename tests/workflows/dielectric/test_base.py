@@ -16,11 +16,11 @@ def generate_elfield_scf_workchain_node():
         node = WorkflowNode().store()
 
         if volume is None:
-            parameters = Dict(dict={'volume': 1.0}).store()
+            parameters = Dict({'volume': 1.0}).store()
         else:
-            parameters = Dict(dict={'volume': volume}).store()
+            parameters = Dict({'volume': volume}).store()
 
-        parameters.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
+        parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
 
         trajectory = TrajectoryData()
 
@@ -39,7 +39,7 @@ def generate_elfield_scf_workchain_node():
         positions = np.array([[[0., 0., 0.], [0., 0., 0.]]])
         trajectory.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg', 'O'], positions=positions, times=times)
         trajectory.store()
-        trajectory.add_incoming(node, link_type=LinkType.RETURN, link_label='output_trajectory')
+        trajectory.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_trajectory')
 
         return node
 
@@ -73,11 +73,11 @@ def generate_base_scf_workchain_node(fixture_localhost):
 
         node = WorkflowNode().store()
 
-        parameters = Dict(dict={'number_of_bands': 5}).store()
-        parameters.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
+        parameters = Dict({'number_of_bands': 5}).store()
+        parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
 
         remote_folder = RemoteData(computer=fixture_localhost, remote_path='/tmp').store()
-        remote_folder.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
+        remote_folder.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
         remote_folder.store()
 
         return node
@@ -85,7 +85,7 @@ def generate_base_scf_workchain_node(fixture_localhost):
     return _generate_base_scf_workchain_node
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_valididation_inputs(generate_workchain_dielectric, generate_inputs_dielectric):
     """Test `DielectricWorkChain` validation methods."""
     inputs = generate_inputs_dielectric(electric_field=0.1)
@@ -120,7 +120,7 @@ def test_valididation_inputs(generate_workchain_dielectric, generate_inputs_diel
         }, 'specified accuracy is negative or not even.'),
     ),
 )
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_invalid_inputs(generate_workchain_dielectric, generate_inputs_dielectric, parameters, message):
     """Test `DielectricWorkChain` validation methods."""
     with pytest.raises(ValueError) as exception:
@@ -130,7 +130,7 @@ def test_invalid_inputs(generate_workchain_dielectric, generate_inputs_dielectri
     assert message in str(exception.value)
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_valid_property_inputs(generate_workchain_dielectric, generate_inputs_dielectric):
     """Test `DielectricWorkChain` validation methods."""
     properties = (
@@ -163,7 +163,7 @@ def test_valid_property_inputs(generate_workchain_dielectric, generate_inputs_di
         }, [False, True, 6, False]),
     ),
 )
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_setup(generate_workchain_dielectric, generate_inputs_dielectric, parameters, values):
     """Test `DielectricWorkChain.setup`."""
     inputs = generate_inputs_dielectric(**parameters)
@@ -184,7 +184,7 @@ def test_setup(generate_workchain_dielectric, generate_inputs_dielectric, parame
         assert process.ctx.numbers == [2]
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_base_scf(generate_workchain_dielectric, generate_inputs_dielectric):
     """Test `DielectricWorkChain.run_base_scf`."""
     inputs = generate_inputs_dielectric(electric_field=1.0)
@@ -195,7 +195,7 @@ def test_run_base_scf(generate_workchain_dielectric, generate_inputs_dielectric)
     assert 'base_scf' in process.ctx
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_nscf(generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node):
     """Test `DielectricWorkChain.run_nscf`."""
     inputs = generate_inputs_dielectric(electric_field_scale=1.0)
@@ -213,17 +213,17 @@ def test_run_nscf(generate_workchain_dielectric, generate_inputs_dielectric, gen
     (
         ({
             'electric_field': 1.0e-3
-        }, [2, 1]),
+        }, [4, 2]),
         ({
             'electric_field': 1.0e-5
-        }, [4, 2]),
+        }, [2, 1]),
         ({
             'electric_field': 1.0,
             'accuracy': 4
         }, [4, 2]),
     ),
 )
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_null_field_scf(
     generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node, parameters, values
 ):
@@ -242,7 +242,7 @@ def test_run_null_field_scf(
     assert process.ctx.iteration == 0
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_electric_field_scfs(
     generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node
 ):
@@ -278,7 +278,7 @@ def test_run_electric_field_scfs(
     assert process.ctx.iteration == 2
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node):
     """Test `DielectricWorkChain.run_null_field_scf`."""
     from aiida.orm import Bool
@@ -319,7 +319,7 @@ def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, g
     assert process.ctx.iteration == 2
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_inspect(generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node):
     """Test `DielectricWorkChain.run_numerical_derivatives`."""
     inputs = generate_inputs_dielectric(electric_field=1.0, accuracy=2)
@@ -338,7 +338,7 @@ def test_inspect(generate_workchain_dielectric, generate_inputs_dielectric, gene
     assert 'data' in process.ctx
 
 
-@pytest.mark.usefixtures('aiida_profile')
+##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_numerical_derivatives(
     generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node
 ):

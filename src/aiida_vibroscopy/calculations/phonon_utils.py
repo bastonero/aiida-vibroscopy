@@ -85,7 +85,7 @@ def get_forces(trajectory: orm.TrajectoryData):
 def get_energy(parameters: orm.Dict):
     """Convert the `energy` attribute of `parameters` into a Float."""
     from aiida.orm import Float
-    return Float(parameters.get_attribute('energy'))
+    return Float(parameters.base.attributes.get('energy'))
 
 
 @calcfunction

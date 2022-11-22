@@ -50,7 +50,7 @@ def test_electronic_type(fixture_code, generate_structure):
 def test_spin_type(fixture_code, generate_structure):
     """Test ``DielectricWorkChain.get_builder_from_protocol`` with ``spin_type`` keyword."""
     code = fixture_code('quantumespresso.pw')
-    structure = generate_structure(structure_id='silicon')
+    structure = generate_structure('silicon')
 
     with pytest.raises(NotImplementedError):
         for spin_type in [SpinType.NON_COLLINEAR, SpinType.SPIN_ORBIT]:

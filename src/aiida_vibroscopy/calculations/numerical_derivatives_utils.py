@@ -297,7 +297,7 @@ def compute_susceptibility_derivatives(
         key_order = f'numerical_accuracy_{accuracy}'
         chis_data.update({key_order: deepcopy(chis_array_data)})
 
-    units_data = orm.Dict(dict={
+    units_data = orm.Dict({
         'raman_susceptibility': r'$\AA^2$',
         'nlo_susceptibility': 'pm/V',
     })

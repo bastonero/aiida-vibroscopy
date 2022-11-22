@@ -11,7 +11,7 @@ def generate_workchain_average_fixture(generate_workchain, generate_vibrational_
         from aiida import orm
         entry_point = 'vibroscopy.spectra.intensities_average'
         vibrational_data = generate_vibrational_data()
-        options = orm.Dict(dict={'quadrature_order': 3})
+        options = orm.Dict({'quadrature_order': 3})
 
         inputs = {
             'vibrational_data': vibrational_data,

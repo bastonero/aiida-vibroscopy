@@ -55,16 +55,17 @@ def generate_intensities_workchain_node():
         ir_array = ArrayData().store()
         raman_array = ArrayData().store()
 
-        ir_array.add_incoming(node, link_type=LinkType.RETURN, link_label='ir_averaged')
-        raman_array.add_incoming(node, link_type=LinkType.RETURN, link_label='raman_averaged')
+        ir_array.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='ir_averaged')
+        raman_array.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='raman_averaged')
 
         return node
 
     return _generate_intensities_workchain_node
 
 
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_setup(generate_workchain_iraman):
-    """Test `IRamanSpectraWorkChain` setep method."""
+    """Test `IRamanSpectraWorkChain` setup method."""
     process = generate_workchain_iraman()
     process.setup()
 
@@ -75,6 +76,7 @@ def test_setup(generate_workchain_iraman):
     assert process.ctx.plus_hubbard == False
 
 
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_forces` method."""
     append_inputs = {'options': {'sleep_submission_time': 0.1}}
@@ -94,6 +96,7 @@ def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node)
     assert 'scf_supercell_1' in process.ctx
 
 
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_dielectric` method."""
     append_inputs = {'options': {'sleep_submission_time': 0.1}}
@@ -112,6 +115,7 @@ def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_n
     ('raman'),
     ((True), (False)),
 )
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchain_node, raman):
     """Test `IRamanSpectraWorkChain.run_raw_results` method."""
     from aiida import orm
@@ -141,12 +145,9 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
     assert 'numerical_accuracy_4' in process.outputs['vibrational_data']
 
 
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data):
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
-    from aiida.orm import WorkflowNode
-
-    # inputs = {'intensities_average':}
     process = generate_workchain_iraman()
 
     process.ctx.vibrational_data = {
@@ -157,23 +158,23 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
     process.run_intensities_averaged()
 
     assert 'intensities_average' in process.ctx
-    assert 'intensities_average.numerical_order_2_step_1' in process.ctx
-    assert 'intensities_average.numerical_order_4' in process.ctx
+    assert 'numerical_order_2_step_1' in process.ctx.intensities_average
+    assert 'numerical_order_4' in process.ctx.intensities_average
 
-    for key, value in process.ctx.intensities_average.items():
+    for key in process.ctx.intensities_average:
         assert key in ['numerical_order_2_step_1', 'numerical_order_4']
-        assert isinstance(value, WorkflowNode)
 
 
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_show_results(generate_workchain_iraman, generate_intensities_workchain_node):
     """Test `IRamanSpectraWorkChain.show_results` method."""
+    from aiida.common import AttributeDict
     process = generate_workchain_iraman()
 
-    process.ctx.intensities_average = {
+    process.ctx.intensities_average = AttributeDict({
         'numerical_order_2_step_1': generate_intensities_workchain_node(),
         'numerical_order_4': generate_intensities_workchain_node(),
-    }
+    })
 
     # Sanity check
     assert 'ir_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs

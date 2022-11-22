@@ -372,14 +372,14 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
                 parameters['SYSTEM'].pop('smearing', None)
                 parameters['SYSTEM'].pop('degauss', None)
                 parameters['SYSTEM'].pop('starting_magnetization', None)
-                parameters['SYSTEM']['nbnd'] = base_out.output_parameters.get_attribute('number_of_bands')
-                tot_magnetization = base_out.output_parameters.get_attribute('total_magnetization')
+                parameters['SYSTEM']['nbnd'] = base_out.output_parameters.base.attributes.get('number_of_bands')
+                tot_magnetization = base_out.output_parameters.base.attributes.get('total_magnetization')
                 parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
                 if validate_tot_magnetization(tot_magnetization):
                     return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
 
             parameters['ELECTRONS']['startingpot'] = 'file'
-            inputs.pw.parameters = orm.Dict(dict=parameters)
+            inputs.pw.parameters = orm.Dict(parameters)
 
             inputs.clean_workdir = self.inputs.clean_workdir
             inputs.metadata.label = label
