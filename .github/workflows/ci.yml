@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: ci
 
 on: [push, pull_request]
 
@@ -37,7 +37,7 @@ jobs:
 
         strategy:
             matrix:
-                python-version: ['3.8', '3.9']
+                python-version: ['3.9','3.9', '3.10', '3.11']
 
         services:
             rabbitmq:
@@ -62,14 +62,10 @@ jobs:
             with:
                 python-version: ${{ matrix.python-version }}
 
-        -   name: Install system dependencies
-            run: sudo apt update && sudo apt install postgresql
-
         -   name: Install python dependencies
-            run: |
-                pip install --upgrade setuptools
-                pip install -e .[tests]
-                reentry scan
+            run: pip install -e .[tests]
 
         -   name: Run pytest
+            env:
+                AIIDA_WARN_v3: 1
             run: pytest -sv tests
