@@ -57,7 +57,7 @@ def generate_valid_nac_parameters():
     return nac
 
 
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_valididation_inputs(generate_workchain_harmonic, generate_preprocess_data):
     """Test `HarmonicWorkChain` inizialisation with secure inputs."""
     preprocess_data = generate_preprocess_data()
@@ -89,7 +89,7 @@ def test_valididation_inputs(generate_workchain_harmonic, generate_preprocess_da
         }
     }, 'Displacement options must be of the correct type; got invalid values [True].')),
 )
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_invalid_inputs(
     generate_workchain_harmonic, generate_inputs_dielectric, generate_preprocess_data, generate_structure, parameters,
     message
@@ -117,14 +117,12 @@ def test_invalid_inputs(
 
     if 'supercell_matrix' in parameters:
         inputs = generate_workchain_harmonic(return_inputs=True)
-        inputs['phonon_workchain'].update({'supercell_matrix': orm.List(list=parameters['supercell_matrix'])})
+        inputs['phonon_workchain'].update({'supercell_matrix': orm.List(parameters['supercell_matrix'])})
         parameters = inputs
 
     if 'displacement_generator' in parameters:
         inputs = generate_workchain_harmonic(return_inputs=True)
-        inputs['phonon_workchain'].update({
-            'displacement_generator': orm.Dict(dict=parameters['displacement_generator'])
-        })
+        inputs['phonon_workchain'].update({'displacement_generator': orm.Dict(parameters['displacement_generator'])})
         parameters = inputs
 
     with pytest.raises(ValueError) as exception:
@@ -140,7 +138,7 @@ def test_invalid_inputs(
         (False),
     ),
 )
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_setup(generate_workchain_harmonic, generate_preprocess_data, generate_structure, parameters):
     """Test `HarmonicWorkChain` setep method."""
     from aiida.plugins import DataFactory
@@ -164,7 +162,7 @@ def test_setup(generate_workchain_harmonic, generate_preprocess_data, generate_s
     assert process.ctx.plus_hubbard == False
 
 
-@pytest.mark.usefixtures('aiida_profile')
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, generate_inputs_dielectric):
     """Test `HarmonicWorkChain` setep method."""
     append_inputs = {'structure': generate_structure()}
@@ -180,6 +178,7 @@ def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, 
     assert process.ctx.run_parallel == True
 
 
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_forces(generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node):
     """Test `HarmonicWorkChain.run_forces` method."""
     append_inputs = {'structure': generate_structure(), 'options': {'sleep_submission_time': 0.1}}
@@ -198,6 +197,7 @@ def test_run_forces(generate_workchain_harmonic, generate_structure, generate_ba
     assert 'scf_supercell_1' in process.ctx
 
 
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_dielectric(
     generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node, generate_inputs_dielectric
 ):
@@ -227,6 +227,7 @@ def test_run_dielectric(
     ('is_magnetic'),
     ((True), (False)),
 )
+#@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_results(
     generate_workchain_harmonic, generate_structure, generate_dielectric_workchain_node, generate_inputs_dielectric,
     is_magnetic

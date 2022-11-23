@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=redefined-outer-name
 """Initialise a text database and profile for pytest."""
-import collections
+from collections.abc import Mapping
+import io
 import os
+import pathlib
 import shutil
 import tempfile
 
-from aiida.manage.fixtures import fixture_manager
 import pytest
 
 pytest_plugins = ['aiida.manage.tests.pytest_fixtures']  # pylint: disable=invalid-name
@@ -29,19 +30,10 @@ def filepath_fixtures(filepath_tests):
     return os.path.join(filepath_tests, 'fixtures')
 
 
-@pytest.fixture(scope='session')
-def fixture_environment():
-    """Set up a complete AiiDA test environment, with configuration, profile, database and repository."""
-    with fixture_manager() as manager:
-        yield manager
-
-
-@pytest.fixture(scope='session')
-def fixture_work_directory():
-    """Return a temporary folder that can be used as for example a computer's work directory."""
-    dirpath = tempfile.mkdtemp()
-    yield dirpath
-    shutil.rmtree(dirpath)
+@pytest.fixture
+def filepath_fixtures(filepath_tests):
+    """Return the absolute filepath to the directory containing the file `fixtures`."""
+    return os.path.join(filepath_tests, 'fixtures')
 
 
 @pytest.fixture(scope='function')
@@ -65,121 +57,126 @@ def fixture_code(fixture_localhost):
     """Return a `Code` instance configured to run calculations of given entry point on localhost `Computer`."""
 
     def _fixture_code(entry_point_name):
-        from aiida.orm import Code
-        return Code(input_plugin_name=entry_point_name, remote_computer_exec=[fixture_localhost, '/bin/true'])
+        from aiida.common import exceptions
+        from aiida.orm import InstalledCode, load_code
+
+        label = f'test.{entry_point_name}'
+
+        try:
+            return load_code(label=label)
+        except exceptions.NotExistent:
+            return InstalledCode(
+                label=label,
+                computer=fixture_localhost,
+                filepath_executable='/bin/true',
+                default_calc_job_plugin=entry_point_name,
+            )
 
     return _fixture_code
 
 
-@pytest.fixture(scope='function')
-def fixture_database(fixture_environment):
-    """Clear the database after each test."""
-    yield
-    fixture_environment.reset_db()
-
-
 @pytest.fixture
-def generate_calc_job():
-    """Fixture to construct a new `CalcJob` instance and call `prepare_for_submission` for testing `CalcJob` classes.
+def serialize_builder():
+    """Serialize the given process builder into a dictionary with nodes turned into their value representation.
 
-    The fixture will return the `CalcInfo` returned by `prepare_for_submission` and the temporary folder that was
-    passed to it, into which the raw input files will have been written.
+    :param builder: the process builder to serialize
+    :return: dictionary
     """
 
-    def _generate_calc_job(folder, entry_point_name, inputs=None):
-        """Fixture to generate a mock `CalcInfo` for testing calculation jobs."""
-        from aiida.engine.utils import instantiate_process
-        from aiida.manage.manager import get_manager
-        from aiida.plugins import CalculationFactory
+    def serialize_data(data):
+        # pylint: disable=too-many-return-statements
+        from aiida.orm import AbstractCode, BaseType, Data, Dict, KpointsData, RemoteData, SinglefileData
+        from aiida.plugins import DataFactory
 
-        manager = get_manager()
-        runner = manager.get_runner()
+        StructureData = DataFactory('core.structure')
+        UpfData = DataFactory('pseudo.upf')
 
-        process_class = CalculationFactory(entry_point_name)
-        process = instantiate_process(runner, process_class, **inputs)
+        if isinstance(data, dict):
+            return {key: serialize_data(value) for key, value in data.items()}
 
-        calc_info = process.prepare_for_submission(folder)
+        if isinstance(data, BaseType):
+            return data.value
 
-        return calc_info
+        if isinstance(data, AbstractCode):
+            return data.full_label
 
-    return _generate_calc_job
+        if isinstance(data, Dict):
+            return data.get_dict()
+
+        if isinstance(data, StructureData):
+            return data.get_formula()
+
+        if isinstance(data, UpfData):
+            return f'{data.element}<md5={data.md5}>'
+
+        if isinstance(data, RemoteData):
+            # For `RemoteData` we compute the hash of the repository. The value returned by `Node._get_hash` is not
+            # useful since it includes the hash of the absolute filepath and the computer UUID which vary between tests
+            return data.base.repository.hash()
+
+        if isinstance(data, KpointsData):
+            try:
+                return data.get_kpoints()
+            except AttributeError:
+                return data.get_kpoints_mesh()
+
+        if isinstance(data, SinglefileData):
+            return data.get_content()
+
+        if isinstance(data, Data):
+            return data.base.caching._get_hash()  # pylint: disable=protected-access
+
+        return data
+
+    def _serialize_builder(builder):
+        return serialize_data(builder._inputs(prune=True))  # pylint: disable=protected-access
+
+    return _serialize_builder
 
 
-@pytest.fixture
-def generate_calc_job_node(fixture_localhost):
-    """Fixture to generate a mock `CalcJobNode` for testing parsers."""
+@pytest.fixture(scope='session', autouse=True)
+def sssp(aiida_profile, generate_upf_data):
+    """Create an SSSP pseudo potential family from scratch."""
+    from aiida.common.constants import elements
+    from aiida.plugins import GroupFactory
 
-    def flatten_inputs(inputs, prefix=''):
-        """Flatten inputs recursively like :meth:`aiida.engine.processes.process::Process._flatten_inputs`."""
-        flat_inputs = []
-        for key, value in inputs.items():
-            if isinstance(value, collections.Mapping):
-                flat_inputs.extend(flatten_inputs(value, prefix=prefix + key + '__'))
-            else:
-                flat_inputs.append((prefix + key, value))
-        return flat_inputs
+    aiida_profile.clear_profile()
 
-    def _generate_calc_job_node(entry_point_name, computer=None, test_name=None, inputs=None, attributes=None):
-        """Fixture to generate a mock `CalcJobNode` for testing parsers.
+    SsspFamily = GroupFactory('pseudo.family.sssp')
 
-        :param entry_point_name: entry point name of the calculation class
-        :param computer: a `Computer` instance
-        :param test_name: relative path of directory with test output files in the `fixtures/{entry_point_name}` folder
-        :param inputs: any optional nodes to add as input links to the corrent CalcJobNode
-        :param attributes: any optional attributes to set on the node
-        :return: `CalcJobNode` instance with an attached `FolderData` as the `retrieved` node
-        """
-        from aiida import orm
-        from aiida.common import LinkType
-        from aiida.plugins.entry_point import format_entry_point_string
+    cutoffs = {}
+    stringency = 'standard'
 
-        if computer is None:
-            computer = fixture_localhost
+    with tempfile.TemporaryDirectory() as dirpath:
+        for values in elements.values():
 
-        entry_point = format_entry_point_string('aiida.calculations', entry_point_name)
+            element = values['symbol']
 
-        node = orm.CalcJobNode(computer=computer, process_type=entry_point)
-        node.set_attribute('input_filename', 'aiida.in')
-        node.set_attribute('output_filename', 'aiida.out')
-        node.set_attribute('error_filename', 'aiida.err')
-        node.set_option('resources', {'num_machines': 1, 'num_mpiprocs_per_machine': 1})
-        node.set_option('max_wallclock_seconds', 1800)
+            actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
 
-        if attributes:
-            node.set_attribute_many(attributes)
+            if element in actinides:
+                continue
 
-        if inputs:
-            metadata = inputs.pop('metadata', {})
-            options = metadata.get('options', {})
+            upf = generate_upf_data(element)
+            dirpath = pathlib.Path(dirpath)
+            filename = dirpath / f'{element}.upf'
 
-            for name, option in options.items():
-                node.set_option(name, option)
+            with open(filename, 'w+b') as handle:
+                with upf.open(mode='rb') as source:
+                    handle.write(source.read())
+                    handle.flush()
 
-            for link_label, input_node in flatten_inputs(inputs):
-                input_node.store()
-                node.add_incoming(input_node, link_type=LinkType.INPUT_CALC, link_label=link_label)
+            cutoffs[element] = {
+                'cutoff_wfc': 30.0,
+                'cutoff_rho': 240.0,
+            }
 
-        node.store()
+        label = 'SSSP/1.1/PBE/efficiency'
+        family = SsspFamily.create_from_folder(dirpath, label)
 
-        retrieved = orm.FolderData()
+    family.set_cutoffs(cutoffs, stringency, unit='Ry')
 
-        if test_name is not None:
-            basepath = os.path.dirname(os.path.abspath(__file__))
-            filepath = os.path.join(
-                basepath, 'parsers', 'fixtures', entry_point_name[len('quantumespresso.'):], test_name
-            )
-            retrieved.put_object_from_tree(filepath)
-
-        retrieved.add_incoming(node, link_type=LinkType.CREATE, link_label='retrieved')
-        retrieved.store()
-
-        remote_folder = orm.RemoteData(computer=computer, remote_path='/tmp')
-        remote_folder.add_incoming(node, link_type=LinkType.CREATE, link_label='remote_folder')
-        remote_folder.store()
-
-        return node
-
-    return _generate_calc_job_node
+    return family
 
 
 @pytest.fixture
@@ -207,81 +204,19 @@ def generate_workchain():
 
 
 @pytest.fixture
-def generate_code_localhost():
-    """Return a `Code` instance configured to run calculations of given entry point on localhost `Computer`."""
-
-    def _generate_code_localhost(entry_point_name, computer):
-        from aiida.orm import Code
-        plugin_name = entry_point_name
-        remote_computer_exec = [computer, '/bin/true']
-        return Code(input_plugin_name=plugin_name, remote_computer_exec=remote_computer_exec)
-
-    return _generate_code_localhost
-
-
-@pytest.fixture
-def serialize_builder():
-    """Serialize the given process builder into a dictionary with nodes turned into their value representation.
-
-    :param builder: the process builder to serialize
-    :return: dictionary
-    """
-
-    def serialize_data(data):
-        # pylint: disable=too-many-return-statements
-        from aiida.orm import BaseType, Code, Dict
-        from aiida.plugins import DataFactory
-
-        StructureData = DataFactory('structure')
-        UpfData = DataFactory('pseudo.upf')
-
-        if isinstance(data, dict):
-            return {key: serialize_data(value) for key, value in data.items()}
-
-        if isinstance(data, BaseType):
-            return data.value
-
-        if isinstance(data, Code):
-            return data.full_label
-
-        if isinstance(data, Dict):
-            return data.get_dict()
-
-        if isinstance(data, StructureData):
-            return data.get_formula()
-
-        if isinstance(data, UpfData):
-            return f'{data.element}<md5={data.md5}>'
-
-        return data
-
-    def _serialize_builder(builder):
-        return serialize_data(builder._inputs(prune=True))  # pylint: disable=protected-access
-
-    return _serialize_builder
-
-
-@pytest.fixture
 def generate_structure():
     """Return a `StructureData` representing bulk silicon."""
 
-    def _generate_structure(sites=None, structure_id=None):
+    def _generate_structure(structure_id=None):
         """Return a `StructureData` representing bulk silicon."""
         from aiida.orm import StructureData
 
-        if sites is None:
+        if structure_id is None:
             cell = [[3.9625313477, -3.9625313477, 0.0], [-3.9625313477, 0.0, 3.9625313477],
                     [0.0, -3.9625313477, -3.9625313477]]
             structure = StructureData(cell=cell)
-        else:
-            structure = StructureData()
-
-        if sites is None:
             structure.append_atom(position=(0., 0., 0.), symbols='Mg', name='Mg')
             structure.append_atom(position=(1.98126567385, 1.98126567385, 1.98126567385), symbols='O', name='O')
-        else:
-            for kind, symbol in sites:
-                structure.append_atom(position=(0., 0., 0.), symbols=symbol, name=kind)
 
         if structure_id == 'silicon':
             param = 5.43
@@ -289,7 +224,6 @@ def generate_structure():
             structure = StructureData(cell=cell)
             structure.append_atom(position=(0., 0., 0.), symbols='Si', name='Si')
             structure.append_atom(position=(param / 4., param / 4., param / 4.), symbols='Si', name='Si')
-
         return structure
 
     return _generate_structure
@@ -361,31 +295,15 @@ def generate_trajectory():
 
 
 @pytest.fixture
-def generate_parser():
-    """Fixture to load a parser class for testing parsers."""
-
-    def _generate_parser(entry_point_name):
-        """Fixture to load a parser class for testing parsers.
-
-        :param entry_point_name: entry point name of the parser class
-        :return: the `Parser` sub class
-        """
-        from aiida.plugins import ParserFactory
-        return ParserFactory(entry_point_name)
-
-    return _generate_parser
-
-
-@pytest.fixture
 def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, generate_upf_data):
     """Generate default inputs for a `PwCalculation."""
 
-    def _generate_inputs_pw(parameters=None, structure=None):
+    def _generate_inputs_pw():
         """Generate default inputs for a `PwCalculation."""
         from aiida.orm import Dict
         from aiida_quantumespresso.utils.resources import get_default_options
 
-        parameters_base = {
+        parameters = Dict({
             'CONTROL': {
                 'calculation': 'scf'
             },
@@ -396,16 +314,13 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
             'ELECTRONS': {
                 'mixing_beta': 0.4
             },
-        }
-
-        if parameters is not None:
-            parameters_base.update(parameters)
-
+        })
+        structure = generate_structure()
         inputs = {
             'code': fixture_code('quantumespresso.pw'),
-            'structure': structure or generate_structure(),
+            'structure': structure,
             'kpoints': generate_kpoints_mesh(2),
-            'parameters': Dict(dict=parameters_base),
+            'parameters': parameters,
             'pseudos': {kind: generate_upf_data(kind) for kind in structure.get_kind_names()},
             'metadata': {
                 'options': get_default_options()
@@ -418,7 +333,7 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
 
 
 @pytest.fixture
-def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
+def generate_inputs_dielectric(generate_inputs_pw):
     """Generate default inputs for a `DielectricWorkChain`."""
 
     def _generate_inputs_dielectric(
@@ -432,8 +347,7 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
         """Generate default inputs for a `DielectricWorkChain`."""
         from aiida.orm import Bool, Float, Int
 
-        structure = generate_structure()
-        inputs_scf = generate_inputs_pw(structure=structure)
+        inputs_scf = generate_inputs_pw()
 
         kpoints = inputs_scf.pop('kpoints')
 
@@ -445,7 +359,7 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
             },
             'clean_workdir': Bool(clean_workdir),
             'options': {
-                'sleep_submission_time': 0
+                'sleep_submission_time': 0.
             }
         }
 
@@ -463,77 +377,12 @@ def generate_inputs_dielectric(generate_inputs_pw, generate_structure):
     return _generate_inputs_dielectric
 
 
-@pytest.fixture
-def generate_inputs_second_derivatives(generate_trajectory):
-    """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
-
-    def _generate_inputs_second_derivatives(trial=None, volume=None, elfield=None):
-        """Generate default inputs for a `SecondOrderDerivativesWorkChain`."""
-        from aiida.orm import Float
-
-        if trial is None:
-            data = {
-                'null': generate_trajectory(),
-                'field0': generate_trajectory(),
-                'field1': generate_trajectory(),
-                'field2': generate_trajectory(),
-            }
-        elif trial == 0:
-            data = {
-                'null': generate_trajectory(),
-                'field1': generate_trajectory(),
-            }
-        elif trial == 1:
-            data = {
-                'field1': generate_trajectory(),
-            }
-        elif trial == 2:
-            data = {
-                'null': generate_trajectory(),
-            }
-
-        inputs = {
-            'data': data,
-        }
-
-        if not volume is None:
-            inputs['volume'] = Float(volume)
-        else:
-            inputs['volume'] = Float(1.0)
-        if not elfield is None:
-            inputs['elfield'] = Float(elfield)
-        else:
-            inputs['elfield'] = Float(0.001)
-
-        return inputs
-
-    return _generate_inputs_second_derivatives
-
-
-# @pytest.fixture(scope='session')
-# def generate_upf_data(tmp_path_factory):
-#     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
-
-#     def _generate_upf_data(element):
-#         """Return `UpfData` node."""
-#         from aiida.orm import UpfData
-
-#         with open(tmp_path_factory.mktemp('pseudos') / f'{element}.upf', 'w+b') as handle:
-#             handle.write(f'<UPF version="2.0.1"><PP_HEADER element="{element}"/></UPF>'.encode('utf-8'))
-#             handle.flush()
-#             return UpfData(file=handle.name)
-
-#     return _generate_upf_data
-
-
 @pytest.fixture(scope='session')
 def generate_upf_data():
     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
 
     def _generate_upf_data(element):
         """Return `UpfData` node."""
-        import io
-
         from aiida_pseudo.data.pseudo import UpfData
         content = f'<UPF version="2.0.1"><PP_HEADER\nelement="{element}"\nz_valence="4.0"\n/></UPF>\n'
         stream = io.BytesIO(content.encode('utf-8'))
@@ -542,89 +391,13 @@ def generate_upf_data():
     return _generate_upf_data
 
 
-@pytest.fixture(scope='session')
-def generate_upf_family(generate_upf_data):
-    """Return a `UpfFamily` that serves as a pseudo family."""
-
-    def _generate_upf_family(structure, label='SSSP-testing2'):
-        from aiida.common import exceptions
-        from aiida.orm import UpfFamily
-
-        try:
-            existing = UpfFamily.objects.get(label=label)
-        except exceptions.NotExistent:
-            pass
-        else:
-            UpfFamily.objects.delete(existing.pk)
-
-        family = UpfFamily(label=label)
-
-        pseudos = {}
-
-        for kind in structure.kinds:
-            pseudo = generate_upf_data(kind.symbol).store()
-            pseudos[pseudo.element] = pseudo
-
-        family.store()
-        family.add_nodes(list(pseudos.values()))
-
-        return family
-
-    return _generate_upf_family
-
-
-@pytest.fixture(scope='session', autouse=True)
-def sssp(aiida_profile, generate_upf_data):
-    """Create an SSSP pseudo potential family from scratch."""
-    from aiida.common.constants import elements
-    from aiida.plugins import GroupFactory
-
-    # aiida_profile.clear_profile()
-
-    SsspFamily = GroupFactory('pseudo.family.sssp')
-
-    cutoffs = {}
-    stringency = 'standard'
-
-    with tempfile.TemporaryDirectory() as dirpath:
-        for values in elements.values():
-
-            element = values['symbol']
-
-            actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
-
-            if element in actinides:
-                continue
-
-            upf = generate_upf_data(element)
-            filename = os.path.join(dirpath, f'{element}.upf')
-
-            with open(filename, 'w+b') as handle:
-                with upf.open(mode='rb') as source:
-                    handle.write(source.read())
-                    handle.flush()
-
-            cutoffs[element] = {
-                'cutoff_wfc': 30.0,
-                'cutoff_rho': 240.0,
-            }
-
-        label = 'SSSP/1.1/PBE/efficiency'
-        family = SsspFamily.create_from_folder(dirpath, label)
-
-    family.set_cutoffs(cutoffs, stringency, unit='Ry')
-
-    return family
-
-
 @pytest.fixture
 def generate_inputs_pw_base(generate_inputs_pw, generate_structure):
     """Generate default inputs for a `PwBaseWorkChain`."""
 
     def _generate_inputs_pw_base():
         """Generate default inputs for a `PwBaseWorkChain`."""
-        structure = generate_structure()
-        inputs_scf = generate_inputs_pw(structure=structure)
+        inputs_scf = generate_inputs_pw()
 
         kpoints = inputs_scf.pop('kpoints')
 
@@ -656,12 +429,12 @@ def generate_base_scf_workchain_node(fixture_localhost):
 
         node = orm.WorkflowNode().store()
 
-        parameters = orm.Dict(dict={'number_of_bands': 5}).store()
-        parameters.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
+        parameters = orm.Dict({'number_of_bands': 5}).store()
+        parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
 
         remote_folder = orm.RemoteData(computer=computer, remote_path='/tmp').store()
-        remote_folder.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
-        remote_folder.add_incoming(calcjob_node, link_type=LinkType.CREATE, link_label='remote_folder')
+        remote_folder.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
+        remote_folder.base.links.add_incoming(calcjob_node, link_type=LinkType.CREATE, link_label='remote_folder')
         remote_folder.store()
 
         return node
@@ -703,7 +476,7 @@ def generate_dielectric_workchain_node():
 
             tensors.store()
 
-            tensors.add_incoming(node, link_type=LinkType.RETURN, link_label=f'tensors__{label}')
+            tensors.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label=f'tensors__{label}')
 
         return node
 
@@ -718,8 +491,6 @@ def generate_vibrational_data(generate_structure):
         """Return a `VibrationalFrozenPhononData` with bulk silicon as structure."""
         from aiida.plugins import DataFactory
         import numpy
-
-        # from aiida_vibroscopy.data.vibro_fp import VibrationalFrozenPhononData
 
         VibrationalFrozenPhononData = DataFactory('vibroscopy.fp')
         PreProcessData = DataFactory('phonopy.preprocess')

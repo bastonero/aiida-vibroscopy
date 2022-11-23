@@ -78,7 +78,7 @@ class VibrationalMixin:
     def nlo_susceptibility(self):
         """Get the non linear optical susceptibility tensor in Cartesian coordinates."""
         try:
-            value = self.get_attribute('nlo_susceptibility')
+            value = self.base.attributes.get('nlo_susceptibility')
             value = np.array(value)
         except (KeyError, AttributeError):
             value = None
@@ -103,7 +103,7 @@ class VibrationalMixin:
         the_chi2 = np.array(nlo_susceptibility)
 
         if the_chi2.shape == (3, 3, 3):
-            self.set_attribute('nlo_susceptibility', the_chi2.tolist())
+            self.base.attributes.set('nlo_susceptibility', the_chi2.tolist())
         else:
             raise ValueError('the array is not of the correct shape')
 

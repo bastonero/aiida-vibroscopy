@@ -440,7 +440,7 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
 
         .. note: if residual forces would be stored, label it with 0 as suffix.
     """
-    from aiida_vibroscopy.data.vibro_fp import VibrationalFrozenPhononData
+    VibrationalFrozenPhononData = DataFactory('vibroscopy.fp')
 
     # Getting the prefix
     for key in forces_dict:

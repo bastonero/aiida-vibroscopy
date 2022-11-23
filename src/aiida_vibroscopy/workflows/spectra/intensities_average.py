@@ -79,7 +79,7 @@ class IntensitiesAverageWorkChain(WorkChain):
         spec.input(
             'options',
             valid_type=orm.Dict,
-            default=lambda: orm.Dict(dict={'quadrature_order': 41}),
+            default=lambda: orm.Dict({'quadrature_order': 41}),
             help='Options for averaging on the non-analytical directions.'
         )
         # spec.input('quadrature_order', valid_type=orm.Int,
@@ -131,7 +131,7 @@ class IntensitiesAverageWorkChain(WorkChain):
                 if vibrational_data.has_nlo():
                     options['with_nlo'] = True
 
-            kwargs['options'] = orm.Dict(dict=options)
+            kwargs['options'] = orm.Dict(options)
 
             self.report('Raman averaging calcfunction started')
             raman_average = compute_raman_average(**kwargs)

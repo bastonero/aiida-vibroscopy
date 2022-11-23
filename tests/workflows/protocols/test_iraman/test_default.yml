@@ -6,7 +6,7 @@ dielectric_workchain:
     kpoints_distance: 0.15
     kpoints_force_parity: false
     pw:
-      code: '@localhost-test'
+      code: test.quantumespresso.pw@localhost-test
       metadata:
         options:
           max_wallclock_seconds: 43200
@@ -41,7 +41,7 @@ phonon_workchain:
     kpoints_distance: 0.15
     kpoints_force_parity: false
     pw:
-      code: '@localhost-test'
+      code: test.quantumespresso.pw@localhost-test
       metadata:
         options:
           max_wallclock_seconds: 43200

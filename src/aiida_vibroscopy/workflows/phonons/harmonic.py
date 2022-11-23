@@ -101,7 +101,7 @@ class HarmonicWorkChain(BaseWorkChain):
         builder = super().get_builder_from_protocol(*args, overrides=inputs, options=options, **kwargs)
 
         if supercell_matrix:
-            builder.phonon_workchain.supercell_matrix = orm.List(list=supercell_matrix)
+            builder.phonon_workchain.supercell_matrix = orm.List(supercell_matrix)
 
         return builder
 

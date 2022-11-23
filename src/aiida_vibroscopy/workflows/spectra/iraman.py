@@ -116,7 +116,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         for pp_input in ['symprec', 'is_symmetry', 'displacement_generator', 'distinguish_kinds']:
             if pp_input in self.inputs.phonon_workchain:
                 preprocess_inputs.update({pp_input: self.inputs.phonon_workchain[pp_input]})
-        preprocess_inputs.update({'supercell_matrix': orm.List(list=[1, 1, 1])})
+        preprocess_inputs.update({'supercell_matrix': orm.List([1, 1, 1])})
         preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
 
         self.ctx.preprocess_data = preprocess
@@ -171,7 +171,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
 
     def run_intensities_averaged(self):
         """Run an `IntensitiesAverageWorkChain` with the calculated vibrational data."""
-        self.ctx.intensities_average = {}
+        self.ctx.intensities_average = AttributeDict({})
         for key, vibrational_data in self.ctx.vibrational_data.items():
             inputs = AttributeDict(self.exposed_inputs(IntensitiesAverageWorkChain, namespace='intensities_average'))
             inputs.vibrational_data = vibrational_data

@@ -31,7 +31,7 @@ def compute_electric_field(
     _, band_gap = find_bandgap(bands)
     scaling = scale_factor.value
 
-    kmesh = np.array(parameters.get_attribute('monkhorst_pack_grid'))
+    kmesh = np.array(parameters.base.attributes.get('monkhorst_pack_grid'))
     cell = np.array(structure.cell)
 
     denominator = np.fabs(np.dot(cell.T, kmesh)).max() * UNITS_FACTORS.efield_au_to_si
@@ -274,17 +274,17 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
         builder = cls.get_builder()
 
         if 'options' in inputs:
-            options = {}
+            builder_options = {}
 
             if 'sleep_submission_time' in inputs['options']:
-                options.update({'sleep_submission_time': inputs['options']['sleep_submission_time']})
+                builder_options.update({'sleep_submission_time': inputs['options']['sleep_submission_time']})
 
             non_default_options = ['symprec', 'distinguish_kinds', 'is_symmetry']
             for name in non_default_options:
                 if name in inputs['options']:
-                    options.update({name:to_aiida_type(inputs['options'][name])})
+                    builder_options.update({name:to_aiida_type(inputs['options'][name])})
 
-            builder.options = options
+            builder.options = builder_options
 
         name = 'electric_field' if 'electric_field' in inputs else 'electric_field_scale'
         builder[name] = to_aiida_type(inputs[name])
@@ -314,11 +314,11 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             distinguish_kinds=self.inputs.options.distinguish_kinds.value
         )
 
+        self.ctx.should_estimate_electric_field = True
+
         if 'electric_field' in self.inputs:
             self.ctx.should_estimate_electric_field = False
             self.ctx.electric_field = self.inputs.electric_field
-        else:
-            self.ctx.should_estimate_electric_field = True
 
         if self.inputs.property in ('ir','nac','born-charges','bec','dielectric'):
             self.ctx.numbers, self.ctx.signs = get_irreducible_numbers_and_signs(preprocess_data, 3)
@@ -387,13 +387,13 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             parameters['SYSTEM']['occupations'] = 'fixed'
             parameters['SYSTEM'].pop('smearing', None)
             parameters['SYSTEM'].pop('degauss', None)
-            parameters['SYSTEM']['nbnd'] = base_out.output_parameters.get_attribute('number_of_bands')
-            tot_magnetization = base_out.output_parameters.get_attribute('total_magnetization')
+            parameters['SYSTEM']['nbnd'] = base_out.output_parameters.base.attributes.get('number_of_bands')
+            tot_magnetization = base_out.output_parameters.base.attributes.get('total_magnetization')
             parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
             if validate_tot_magnetization(tot_magnetization):
                 return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
         # --- Return
-        inputs.pw.parameters = orm.Dict(dict=parameters)
+        inputs.pw.parameters = orm.Dict(parameters)
         if self.ctx.clean_workdir:
             inputs.clean_workdir = orm.Bool(False)
 
@@ -412,7 +412,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             inputs.pw.parent_folder = self.inputs.parent_scf
             parameters['ELECTRONS']['startingpot'] = 'file'
 
-        inputs.pw.parameters = orm.Dict(dict=parameters)
+        inputs.pw.parameters = orm.Dict(parameters)
 
         key = 'base_scf'
         inputs.metadata.call_link_label = key
@@ -439,14 +439,14 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
         parameters = inputs.pw.parameters.get_dict()
         parameters['CONTROL']['calculation'] = 'nscf'
 
-        nbnd = outputs.output_parameters.get_attribute('number_of_bands')+10
+        nbnd = outputs.output_parameters.base.attributes.get('number_of_bands')+10
         parameters['SYSTEM']['nbnd'] = nbnd
 
         for key in ('nberrycyc', 'lelfield', 'efield_cart'):
             parameters['CONTROL'].pop(key, None)
             parameters['ELECTRONS'].pop(key, None)
 
-        inputs.pw.parameters = orm.Dict(dict=parameters)
+        inputs.pw.parameters = orm.Dict(parameters)
         inputs.pw.parent_folder = outputs.remote_folder
 
         key = 'nscf'
@@ -552,9 +552,6 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
 
     def inspect_electric_field_scfs(self):
         """Inspect all previous pw workchains with electric fields."""
-        self.ctx.electric_field_step = get_electric_field_step(self.ctx.electric_field, self.ctx.accuracy)
-        self.out('electric_field_step', self.ctx.electric_field_step)
-
         self.ctx.data = {'null_field': self.ctx.null_field.outputs.output_trajectory}
 
         for label, workchains in self.ctx.items():
@@ -572,11 +569,13 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
 
     def run_numerical_derivatives(self):
         """Compute numerical derivatives from previous calculations."""
+        electric_field_step = get_electric_field_step(self.ctx.electric_field, self.ctx.accuracy)
+        self.out('electric_field_step', electric_field_step)
         key = 'numerical_derivatives'
 
         inputs = {
             'data':self.ctx.data,
-            'electric_field_step':self.ctx.electric_field_step,
+            'electric_field_step':electric_field_step,
             'structure':self.inputs.scf.pw.structure,
             'accuracy_order':self.ctx.accuracy,
             'diagonal_scale':self.inputs.central_difference.diagonal_scale,

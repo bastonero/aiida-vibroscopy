@@ -22,7 +22,7 @@ def test_get_default_protocol():
 def test_default(fixture_code, generate_structure, data_regression, serialize_builder):
     """Test ``IRamanSpectraWorkChain.get_builder_from_protocol`` for the default protocol."""
     code = fixture_code('quantumespresso.pw')
-    structure = generate_structure(structure_id='silicon')
+    structure = generate_structure('silicon')
     builder = IRamanSpectraWorkChain.get_builder_from_protocol(code, structure)
 
     assert isinstance(builder, ProcessBuilder)
@@ -32,7 +32,7 @@ def test_default(fixture_code, generate_structure, data_regression, serialize_bu
 def test_electronic_type(fixture_code, generate_structure):
     """Test ``IRamanSpectraWorkChain.get_builder_from_protocol`` with ``electronic_type`` keyword."""
     code = fixture_code('quantumespresso.pw')
-    structure = generate_structure(structure_id='silicon')
+    structure = generate_structure('silicon')
 
     with pytest.raises(NotImplementedError):
         for electronic_type in [ElectronicType.AUTOMATIC]:
