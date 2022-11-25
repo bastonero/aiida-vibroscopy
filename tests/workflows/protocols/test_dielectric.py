@@ -62,3 +62,32 @@ def test_spin_type(fixture_code, generate_structure):
         parameters = namespace['pw']['parameters'].get_dict()
         assert parameters['SYSTEM']['nspin'] == 2
         assert parameters['SYSTEM']['starting_magnetization'] == {'Si': 0.1}
+
+
+def test_overrides_dielectric(fixture_code, generate_structure):
+    """Test ``DielectricWorkChain.get_builder_from_protocol`` with ``spin_type`` keyword."""
+    code = fixture_code('quantumespresso.pw')
+    structure = generate_structure('silicon')
+
+    electric_field = 0.001
+    accuracy = 4
+
+    overrides = {'electric_field': electric_field, 'central_difference': {'accuracy': 4}}
+    builder = DielectricWorkChain.get_builder_from_protocol(code, structure, overrides=overrides)
+
+    assert builder.electric_field == electric_field
+    assert builder.central_difference.accuracy == accuracy
+
+
+def test_options(fixture_code, generate_structure):
+    """Test specifying ``options`` for the ``get_builder_from_protocol()`` method."""
+    code = fixture_code('quantumespresso.pw')
+    structure = generate_structure()
+
+    queue_name = 'super-fast'
+    withmpi = False  # The protocol default is ``True``
+
+    options = {'queue_name': queue_name, 'withmpi': withmpi}
+    builder = DielectricWorkChain.get_builder_from_protocol(code, structure, options=options)
+
+    assert builder.scf.pw.metadata['options']['queue_name'] == queue_name
