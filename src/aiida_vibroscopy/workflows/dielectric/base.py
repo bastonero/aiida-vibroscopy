@@ -293,7 +293,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
         if 'central_difference' in inputs:
             central_difference = {}
             for name in non_default_difference:
-                if name in inputs:
+                if name in inputs['central_difference']:
                     central_difference.update({name:to_aiida_type(inputs['central_difference'][name])})
             builder['central_difference'] = central_difference
 
