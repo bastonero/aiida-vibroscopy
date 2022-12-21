@@ -321,7 +321,7 @@ def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, g
 
 ##@pytest.mark.usefixtures('aiida_profile_clean')
 def test_inspect(generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node):
-    """Test `DielectricWorkChain.run_numerical_derivatives`."""
+    """Test `DielectricWorkChain.inspect_electric_field_scfs`."""
     inputs = generate_inputs_dielectric(electric_field=1.0, accuracy=2)
     process = generate_workchain_dielectric(inputs=inputs)
     process.setup()
@@ -335,10 +335,14 @@ def test_inspect(generate_workchain_dielectric, generate_inputs_dielectric, gene
         ]
 
     process.inspect_electric_field_scfs()
-    assert 'data' in process.ctx
+    assert 'num_diff_data' in process.ctx
+    assert 'fields_data' in process.outputs
+
+    for i in range(6):
+        assert f'field_index_{i}' in process.outputs['fields_data']
 
 
-##@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_numerical_derivatives(
     generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node
 ):

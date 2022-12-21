@@ -9,6 +9,7 @@ from aiida.engine import WorkChain, append_, calcfunction, if_, while_
 from aiida.orm.nodes.data.array.bands import find_bandgap
 from aiida.plugins import CalculationFactory, WorkflowFactory
 from aiida_phonopy.data import PreProcessData
+from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance import create_kpoints_from_distance
 from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 import numpy as np
 
@@ -80,7 +81,7 @@ def validate_inputs(inputs, _):
         return 'one between `electric_field` and `electric_field_scale` must be specified'
 
 
-class DielectricWorkChain(WorkChain, ProtocolMixin):
+class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many-public-methods
     """Workchain that for a given input structure can compute the dielectric tensor at
     high frequency, the Born effective charges, the derivatives of the susceptibility (dielectric) tensor
     using finite fields in the electric enthalpy.
@@ -181,6 +182,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             cls.setup,
             cls.run_base_scf,
             cls.inspect_base_scf,
+            cls.set_reference_kpoints,
             if_(cls.should_estimate_electric_field)(
                 cls.run_nscf,
                 cls.inspect_nscf,
@@ -218,11 +220,9 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             message='The nscf work chain failed.')
         spec.exit_code(402, 'ERROR_FAILED_ELFIELD_SCF',
             message='The electric field scf work chain failed for direction {direction}.')
-        spec.exit_code(403, 'ERROR_EFIELD_CARD_FATAL_FAIL ',
-            message='One of the electric field card is abnormally all zeros or the direction finding failed.')
-        spec.exit_code(404, 'ERROR_NUMERICAL_DERIVATIVES ',
+        spec.exit_code(403, 'ERROR_NUMERICAL_DERIVATIVES',
             message='The numerical derivatives calculation failed.')
-        spec.exit_code(405, 'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
+        spec.exit_code(404, 'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
             message=('The scf PwBaseWorkChain sub process in iteration '
                     'returned a non integer total magnetization (threshold exceeded).'))
 
@@ -282,7 +282,8 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             non_default_options = ['symprec', 'distinguish_kinds', 'is_symmetry']
             for name in non_default_options:
                 if name in inputs['options']:
-                    builder_options.update({name:to_aiida_type(inputs['options'][name])})
+                    value = to_aiida_type(inputs['options'][name])
+                    builder_options.update({name:value})
 
             builder.options = builder_options
 
@@ -294,7 +295,8 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             central_difference = {}
             for name in non_default_difference:
                 if name in inputs['central_difference']:
-                    central_difference.update({name:to_aiida_type(inputs['central_difference'][name])})
+                    value = to_aiida_type(inputs['central_difference'][name])
+                    central_difference.update({name:value})
             builder['central_difference'] = central_difference
 
         builder.scf = scf
@@ -368,6 +370,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
         parameters['SYSTEM']['occupations'] = 'fixed'
         parameters['SYSTEM'].pop('degauss', None)
         parameters['SYSTEM'].pop('smearing', None)
+        parameters['CONTROL']['restart_mode'] = 'from_scratch'
         parameters['CONTROL']['lelfield'] = True
         parameters['CONTROL']['tprnfor'] = True # sanity check
         parameters['ELECTRONS']['efield_cart'] = electric_field_vector
@@ -392,10 +395,14 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
             if validate_tot_magnetization(tot_magnetization):
                 return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
-        # --- Return
+        # --- Fill
         inputs.pw.parameters = orm.Dict(parameters)
         if self.ctx.clean_workdir:
             inputs.clean_workdir = orm.Bool(False)
+        # --- Set non-redundant kpoints
+        for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
+            inputs.pop(name, None)
+        inputs.kpoints = self.ctx.kpoints
 
         return inputs
 
@@ -431,13 +438,39 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
             self.report(f'base scf failed with exit status {workchain.exit_status}')
             return self.exit_codes.ERROR_FAILED_BASE_SCF
 
+    def set_reference_kpoints(self):
+        """Set the Context variables for the kpoints for the sub WorkChains,
+        in order to call only once the `create_kpoints_from_distance` calcfunction."""
+        try:
+            kpoints = self.inputs.scf.kpoints
+        except AttributeError:
+            inputs = {
+                'structure': self.ctx.supercell,
+                'distance': self.inputs.scf.kpoints_distance,
+                'force_parity': self.inputs.scf.get('kpoints_force_parity', orm.Bool(False)),
+                'metadata': {
+                    'call_link_label': 'create_kpoints_from_distance'
+                }
+            }
+            kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
+
+        self.ctx.kpoints = kpoints
+
     def run_nscf(self):
-        """Run nscf."""
+        """Run a NSCF PwBaseWorkChain to evalute the band gap."""
         inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='scf'))
+
+        for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
+            inputs.pop(name, None)
+        inputs.kpoints = self.ctx.kpoints
+
         outputs = self.ctx.base_scf.outputs
 
         parameters = inputs.pw.parameters.get_dict()
-        parameters['CONTROL']['calculation'] = 'nscf'
+        parameters['CONTROL'].update({
+            'calculation': 'nscf',
+            'restart_mode': 'from_scratch',
+        })
 
         nbnd = outputs.output_parameters.base.attributes.get('number_of_bands')+10
         parameters['SYSTEM']['nbnd'] = nbnd
@@ -479,7 +512,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
     def run_null_field_scf(self):
         """Run electric enthalpy scf with zero electric field."""
         # First we quickly put in the ctx the value of the numerical accuracy
-        if 'accuracy' in self.inputs.central_difference:
+        if 'accuracy' in AttributeDict(self.inputs.central_difference):
             self.ctx.accuracy = self.inputs.central_difference.accuracy
         else:
             self.ctx.accuracy = get_accuracy_from_field_intensity(self.ctx.electric_field)
@@ -552,13 +585,15 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
 
     def inspect_electric_field_scfs(self):
         """Inspect all previous pw workchains with electric fields."""
+        output_data = {'fields_data.null_field': self.ctx.null_field.outputs.output_trajectory}
         self.ctx.data = {'null_field': self.ctx.null_field.outputs.output_trajectory}
 
         for label, workchains in self.ctx.items():
             if label.startswith('field_index_'):
-                field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains)}
+                field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok} # pylint: disable=locally-disabled, line-too-long
+                output_data.update({f'fields_data.{label}':field_data})
                 self.ctx.data.update({label:field_data})
-        self.out_many({'fields_data':self.ctx.data})
+        self.out_many(output_data)
 
         for key, workchains in self.ctx.items():
             if key.startswith('field_index_'):
@@ -574,7 +609,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):
         key = 'numerical_derivatives'
 
         inputs = {
-            'data':self.ctx.data,
+            'data': self.ctx.data,
             'electric_field_step':electric_field_step,
             'structure':self.inputs.scf.pw.structure,
             'accuracy_order':self.ctx.accuracy,

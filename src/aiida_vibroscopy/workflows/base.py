@@ -285,7 +285,8 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             ]
             for name in non_default_namelist:
                 if name in inputs['phonon_workchain']:
-                    builder.phonon_workchain[name] = to_aiida_type(name)
+                    value = to_aiida_type(inputs['phonon_workchain'][name])
+                    builder.phonon_workchain[name] = value
 
         builder.options = inputs['options']
         builder.dielectric_workchain = dielectric_workchain
@@ -360,8 +361,14 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             label = f'{self._RUN_PREFIX}_{num}'
 
             inputs = AttributeDict(self.exposed_inputs(PwBaseWorkChain, namespace='phonon_workchain.scf'))
-            inputs.pw.structure = supercell
             inputs.pw.parent_folder = base_out.remote_folder
+
+            for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
+                inputs.pop(name, None)
+
+            inputs.kpoints = self.ctx.phonon_workchain_kpoints
+
+            inputs.pw.structure = supercell
 
             parameters = inputs.pw.parameters.get_dict()
             parameters.setdefault('CONTROL', {})
@@ -369,15 +376,15 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             parameters.setdefault('ELECTRONS', {})
             if self.ctx.is_magnetic:
                 parameters['SYSTEM']['occupations'] = 'fixed'
-                parameters['SYSTEM'].pop('smearing', None)
-                parameters['SYSTEM'].pop('degauss', None)
-                parameters['SYSTEM'].pop('starting_magnetization', None)
+                for name in ('smearing', 'degauss', 'starting_magnetization'):
+                    parameters['SYSTEM'].pop(name, None)
                 parameters['SYSTEM']['nbnd'] = base_out.output_parameters.base.attributes.get('number_of_bands')
                 tot_magnetization = base_out.output_parameters.base.attributes.get('total_magnetization')
                 parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
                 if validate_tot_magnetization(tot_magnetization):
                     return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
 
+            parameters['CONTROL']['restart_mode'] = 'from_scratch'
             parameters['ELECTRONS']['startingpot'] = 'file'
             inputs.pw.parameters = orm.Dict(parameters)
 

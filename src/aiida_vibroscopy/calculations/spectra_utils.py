@@ -113,22 +113,31 @@ def compute_active_modes(
 
 def compute_raman_space_average(raman_tensors):
     """Return the space average for the HH and HV configuration
-    (e.g. `Light scattering in solides II`, M. Cardona).
+    (e.g. `Light scattering in solides II`, M. Cardona and
+    `S. A. Prosandeev et al., Phys. Rev. B, 71, 214307 (2005) ).
 
     :return: (intensities HH, intensities HV)
     """
     intensities_hh = []
     intensities_hv = []
     for R in raman_tensors:
-        a = R.trace() / 3.0
-        a2 = a * a
-        b2 = (
-            0.5 * ((R[0][0] - R[1][1])**2 + (R[0][0] - R[2][2])**2 + (R[1][1] - R[2][2])**2) + 3. *
-            (R[0][1]**2 + R[0][2]**2 + R[1][2]**2)
+        # a = R.trace() / 3.0
+        # a2 = a * a
+        # b2 = (
+        #     0.5 * ((R[0][0] - R[1][1])**2 + (R[0][0] - R[2][2])**2 + (R[1][1] - R[2][2])**2) + 3. *
+        #     (R[0][1]**2 + R[0][2]**2 + R[1][2]**2)
+        # )
+        # intensities_hh.append(a2 + 4 * b2 / 45)
+        # intensities_hv.append(3 * b2 / 45)
+        G0 = (R.trace()**2) / 3.0
+        G1 = 0.5 * ((R[0][1] - R[1][0])**2 + (R[0][2] - R[2][0])**2 + (R[1][2] - R[2][1])**2)
+        G2 = (
+            0.5 * ((R[0][1] + R[1][0])**2 + (R[0][2] + R[2][0])**2 + (R[1][2] + R[2][1])**2) + (1. / 3.) *
+            ((R[0][0] - R[1][1])**2 + (R[0][0] - R[2][2])**2 + (R[1][1] - R[2][2])**2)
         )
-        intensities_hh.append(a2 + 4 * b2 / 45)
-        intensities_hv.append(3 * b2 / 45)
 
+        intensities_hh.append((10 * G0 + 4 * G2) / 30)
+        intensities_hv.append((5 * G1 + 3 * G2) / 30)
     return (np.array(intensities_hh), np.array(intensities_hv))
 
 

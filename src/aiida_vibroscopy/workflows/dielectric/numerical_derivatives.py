@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Workflow for numerical derivatives."""
 from aiida import orm
+from aiida.common import AttributeDict
 from aiida.engine import WorkChain
 from aiida_phonopy.data import PreProcessData
 
@@ -170,12 +171,14 @@ class NumericalDerivativesWorkChain(WorkChain):
             distinguish_kinds=self.inputs.options.distinguish_kinds,
         )
 
+        kwargs = AttributeDict(self.inputs.data)
+
         # Non analytical constants
         out_nac_parameters = compute_nac_parameters(
             preprocess_data=preprocess_data,
             electric_field=self.inputs.electric_field_step,
             accuracy_order=self.inputs.accuracy_order,
-            **self.inputs.data
+            **kwargs
         )
 
         # Derivatives of the susceptibility
@@ -188,7 +191,7 @@ class NumericalDerivativesWorkChain(WorkChain):
                 electric_field=self.inputs.electric_field_step,
                 diagonal_scale=self.inputs.diagonal_scale,
                 accuracy_order=self.inputs.accuracy_order,
-                **self.inputs.data,
+                **kwargs,
             )
 
             self.out('units', out_dchis['units'])

@@ -5,6 +5,7 @@ from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import if_
 from aiida.plugins import DataFactory, WorkflowFactory
+from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance import create_kpoints_from_distance
 
 from aiida_vibroscopy.calculations.phonon_utils import extract_symmetry_info
 from aiida_vibroscopy.calculations.spectra_utils import elaborate_tensors, generate_vibrational_data
@@ -37,7 +38,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
                 'required':
                 False,
                 'populate_defaults':
-                True,
+                False,
                 'help': (
                     'Inputs for the `IntensitiesAverageWorkChain` that will'
                     'be used to run the average calculation over intensities.'
@@ -47,7 +48,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         )
 
         spec.outline(
-            cls.setup, cls.run_base_supercell, cls.inspect_base_supercell,
+            cls.setup, cls.run_base_supercell, cls.inspect_base_supercell, cls.set_reference_kpoints,
             if_(cls.should_run_parallel)(cls.run_parallel,).else_(
                 cls.run_forces,
                 cls.run_dielectric,
@@ -114,7 +115,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         """Setup the workflow generating the PreProcessData."""
         preprocess_inputs = {'structure': self.inputs.structure}
         for pp_input in ['symprec', 'is_symmetry', 'displacement_generator', 'distinguish_kinds']:
-            if pp_input in self.inputs.phonon_workchain:
+            if pp_input in AttributeDict(self.inputs.phonon_workchain):
                 preprocess_inputs.update({pp_input: self.inputs.phonon_workchain[pp_input]})
         preprocess_inputs.update({'supercell_matrix': orm.List([1, 1, 1])})
         preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
@@ -124,9 +125,33 @@ class IRamanSpectraWorkChain(BaseWorkChain):
 
         self.set_ctx_variables()
 
+    def set_reference_kpoints(self):
+        """Set the Context variables for the kpoints for the sub WorkChains,
+        in order to call only once the `create_kpoints_from_distance` calcfunction."""
+        for key in ['phonon_workchain', 'dielectric_workchain']:
+            try:
+                kpoints = self.inputs[key]['scf']['kpoints']
+            except (AttributeError, KeyError):
+                inputs = {
+                    'structure': self.ctx.supercell,
+                    'distance': self.inputs[key]['scf']['kpoints_distance'],
+                    'force_parity': self.inputs[key]['scf'].get('kpoints_force_parity', orm.Bool(False)),
+                    'metadata': {
+                        'call_link_label': f'create_{key}_kpoints'
+                    }
+                }
+                kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
+
+            self.ctx[f'{key}_kpoints'] = kpoints
+
     def run_dielectric(self):
         """Run a DielectricWorkChain."""
         inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric_workchain'))
+        for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
+            inputs.scf.pop(name, None)
+
+        inputs.scf.kpoints = self.ctx['dielectric_workchain_kpoints']
+
         base_key = f'{self._RUN_PREFIX}_0'
 
         if self.inputs.options.use_parent_folder:
