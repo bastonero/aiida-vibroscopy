@@ -158,9 +158,10 @@ def compute_susceptibility_derivatives(
     data_0 = raw_data.pop('null_field')
 
     # Taking the missing data from symmetry
-    data = get_trajectories_from_symmetries(
-        preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
-    )
+    if preprocess_data.is_symmetry:
+        data = get_trajectories_from_symmetries(
+            preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
+        )
 
     # Conversion factors
     dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
@@ -335,9 +336,10 @@ def compute_nac_parameters(
     data_0 = raw_data.pop('null_field')
 
     # Taking the missing data from symmetry
-    data = get_trajectories_from_symmetries(
-        preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
-    )
+    if preprocess_data.is_symmetry:
+        data = get_trajectories_from_symmetries(
+            preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
+        )
 
     # Conversion factors
     bec_factor = forces_si_to_au / sqrt(2)
