@@ -337,16 +337,11 @@ def generate_inputs_dielectric(generate_inputs_pw):
     """Generate default inputs for a `DielectricWorkChain`."""
 
     def _generate_inputs_dielectric(
-        property='raman',
-        clean_workdir=True,
-        electric_field=None,
-        electric_field_scale=None,
-        accuracy=None,
-        diagonal_scale=None
+        property='raman', clean_workdir=True, electric_field_step=None, accuracy=None, diagonal_scale=None, **_
     ):
         """Generate default inputs for a `DielectricWorkChain`."""
+        from aiida.common.extendeddicts import AttributeDict
         from aiida.orm import Bool, Float, Int
-
         inputs_scf = generate_inputs_pw()
 
         kpoints = inputs_scf.pop('kpoints')
@@ -363,16 +358,14 @@ def generate_inputs_dielectric(generate_inputs_pw):
             }
         }
 
-        if electric_field is not None:
-            inputs['electric_field'] = Float(electric_field)
-        if electric_field_scale is not None:
-            inputs['electric_field_scale'] = Float(electric_field_scale)
+        if electric_field_step is not None:
+            inputs['electric_field_step'] = Float(electric_field_step)
         if accuracy is not None:
             inputs['central_difference'] = {'accuracy': Int(accuracy)}
         if diagonal_scale is not None:
             inputs['central_difference'] = {'diagonal_scale': Float(diagonal_scale)}
 
-        return inputs
+        return AttributeDict(inputs)
 
     return _generate_inputs_dielectric
 
@@ -392,7 +385,7 @@ def generate_upf_data():
 
 
 @pytest.fixture
-def generate_inputs_pw_base(generate_inputs_pw, generate_structure):
+def generate_inputs_pw_base(generate_inputs_pw):
     """Generate default inputs for a `PwBaseWorkChain`."""
 
     def _generate_inputs_pw_base():
