@@ -136,7 +136,7 @@ def compute_susceptibility_derivatives(
     :note: the number of arrays depends on the accuracy.
 
     :return: dictionary with ArrayData having arraynames:
-        * `raman_susceptibility` containing (num_atoms, 3, 3, 3) arrays (second index refers to atomic displacements);
+        * `raman_tensors` containing (num_atoms, 3, 3, 3) arrays (second index refers to atomic displacements);
         * `nlo_susceptibility` containing (3, 3, 3) arrays;
         And a key `units` as orm.Dict containing the units of the tensors.
     """
@@ -227,7 +227,7 @@ def compute_susceptibility_derivatives(
 
         # Doing the symmetrization in case
         dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
-            raman_susceptibility=dchi_tensor,
+            raman_tensors=dchi_tensor,
             nlo_susceptibility=chi2_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
@@ -236,7 +236,7 @@ def compute_susceptibility_derivatives(
 
         # Setting arrays
         chis_array_data = orm.ArrayData()
-        chis_array_data.set_array('raman_susceptibility', dchi_tensor * dchi_factor)
+        chis_array_data.set_array('raman_tensors', dchi_tensor * dchi_factor)
         chis_array_data.set_array('nlo_susceptibility', chi2_tensor * chi2_factor)
 
         key_order = f'numerical_accuracy_2_step_{int(scale_step)}'
@@ -283,7 +283,7 @@ def compute_susceptibility_derivatives(
 
         # Doing the symmetrization in case
         dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
-            raman_susceptibility=dchi_tensor,
+            raman_tensors=dchi_tensor,
             nlo_susceptibility=chi2_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
@@ -292,14 +292,14 @@ def compute_susceptibility_derivatives(
 
         # Setting arrays
         chis_array_data = orm.ArrayData()
-        chis_array_data.set_array('raman_susceptibility', dchi_tensor * dchi_factor)
+        chis_array_data.set_array('raman_tensors', dchi_tensor * dchi_factor)
         chis_array_data.set_array('nlo_susceptibility', chi2_tensor * chi2_factor)
 
         key_order = f'numerical_accuracy_{accuracy}'
         chis_data.update({key_order: deepcopy(chis_array_data)})
 
     units_data = orm.Dict({
-        'raman_susceptibility': r'$\AA^2$',
+        'raman_tensors': r'$\AA^2$',
         'nlo_susceptibility': 'pm/V',
     })
 
@@ -482,7 +482,7 @@ def join_tensors(nac_parameters: orm.ArrayData, susceptibilities: orm.ArrayData)
     for key in keys:
         tensors.set_array(key, nac_parameters.get_array(key))
 
-    keys = ['raman_susceptibility', 'nlo_susceptibility']
+    keys = ['raman_tensors', 'nlo_susceptibility']
     for key in keys:
         tensors.set_array(key, susceptibilities.get_array(key))
 

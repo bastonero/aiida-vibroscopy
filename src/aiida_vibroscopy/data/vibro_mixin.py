@@ -6,7 +6,7 @@ from aiida_vibroscopy.calculations.spectra_utils import (
     compute_active_modes,
     compute_polarization_vectors,
     compute_raman_space_average,
-    compute_raman_tensors,
+    compute_raman_susceptibility_tensors,
 )
 
 __all__ = ('VibrationalMixin',)
@@ -37,24 +37,24 @@ class VibrationalMixin:
     """
 
     @property
-    def raman_susceptibility(self):
+    def raman_tensors(self):
         """Get the derivatives of the susceptibility tensor in respect
         to atomic positions in Cartesian coordinates.
         """
         try:
-            value = self.get_array('raman_susceptibility')
+            value = self.get_array('raman_tensors')
         except (KeyError, AttributeError):
             value = None
         return value
 
-    def set_raman_susceptibility(self, raman_susceptibility):
+    def set_raman_tensors(self, raman_tensors):
         """Set the derivatives of the susceptibility tensor in respect to atomic
         positions in Cartesian coordinates.
 
         .. note: it is assumed that the reference system is the same (if not the one)
             of the primitive cell.
 
-        :param raman_susceptibility: (number of atoms in the primitive cell, 3, 3, 3)
+        :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3)
             array like (first index refers to forces);
 
         :raises:
@@ -63,14 +63,14 @@ class VibrationalMixin:
         """
         # self._if_can_modify()
 
-        if not isinstance(raman_susceptibility, (list, np.ndarray)):
+        if not isinstance(raman_tensors, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
 
-        the_dchi = np.array(raman_susceptibility)
+        the_dchi = np.array(raman_tensors)
         n_atoms = len(self.get_primitive_cell().sites)
 
         if the_dchi.shape == (n_atoms, 3, 3, 3):
-            self.set_array('raman_susceptibility', the_dchi)
+            self.set_array('raman_tensors', the_dchi)
         else:
             raise ValueError('the array is not of the correct shape')
 
@@ -109,7 +109,7 @@ class VibrationalMixin:
 
     def has_raman_parameters(self):
         """Returns wheter or not the Data has derivatives of susceptibility for Raman spectra."""
-        return self.raman_susceptibility is not None
+        return self.raman_tensors is not None
 
     def has_nlo(self):
         """Returns wheter or not the Data has non linear optical susceptibility tensor."""
@@ -132,7 +132,7 @@ class VibrationalMixin:
             sr_thr=sr_thr
         )
 
-    def run_raman_tensors(
+    def run_raman_susceptibility_tensors(
         self,
         nac_direction=lambda: [0, 0, 0],
         with_nlo=True,
@@ -178,9 +178,9 @@ class VibrationalMixin:
 
         nlo_susceptibility = self.nlo_susceptibility if with_nlo else None
 
-        results = compute_raman_tensors(
+        results = compute_raman_susceptibility_tensors(
             phonopy_instance=phonopy_instance,
-            raman_susceptibility=self.raman_susceptibility,
+            raman_tensors=self.raman_tensors,
             nlo_susceptibility=nlo_susceptibility,
             nac_direction=nac_direction,
             use_irreps=use_irreps,
@@ -244,7 +244,8 @@ class VibrationalMixin:
         :param pol_outgoing: light polarization vector of the outgoing light
             (scattered) in crystal/fractional coordinates
         :type pol_outgoing: list or numpy.ndarray of shape (3,)
-        :param kwargs: keys of :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_tensors` method
+        :param kwargs: keys of
+        :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
         """
         if not isinstance(pol_incoming, (list, np.ndarray)) or not isinstance(pol_outgoing, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -259,16 +260,18 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,) or pol_outgoing_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        raman_tensors, freqs, labels = self.run_raman_tensors(**kwargs)
+        raman_susceptibility_tensors, freqs, labels = self.run_raman_susceptibility_tensors(**kwargs)
 
-        raman_intensities = [np.dot(pol_incoming_cart, np.dot(tensor, pol_outgoing_cart)) for tensor in raman_tensors]
+        raman_intensities = [
+            np.dot(pol_incoming_cart, np.dot(tensor, pol_outgoing_cart)) for tensor in raman_susceptibility_tensors
+        ]
         raman_intensities = [intensity**2 for intensity in raman_intensities]
 
         return (raman_intensities, freqs, labels)
 
     def run_powder_raman_intensities(self, quadrature_order=None, **kwargs):
         """Return unpolarized powder Raman intensities (in angstrom^4/AMU)
-        in the two common setups of back scattering and 90 degress
+        in the two common setups of polarized and unpolarized
         scattering, with frequencies (cm-1) and labels.
 
         .. note: to obtain the total unpolarized intensities,
@@ -276,15 +279,16 @@ class VibrationalMixin:
 
         :param quadrature_order: algebraic order to perform the integration
             on the sphere of nac directions
-        :param kwargs: keys of :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_tensors` method
+        :param kwargs: keys of
+        :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
 
         :return: (Raman intensities HH, Raman intensities HV, frequencies, labels)
         """
         raman_hh = []
         raman_hv = []
         if quadrature_order is None:
-            raman_tensors, freqs, labels = self.run_raman_tensors(**kwargs)
-            raman_hh, raman_hv = compute_raman_space_average(raman_tensors=raman_tensors)
+            raman_susceptibility_tensors, freqs, labels = self.run_raman_susceptibility_tensors(**kwargs)
+            raman_hh, raman_hv = compute_raman_space_average(raman_susceptibility_tensors=raman_susceptibility_tensors)
 
         else:
             scheme = _get_scheme_from_order(quadrature_order)
@@ -297,9 +301,11 @@ class VibrationalMixin:
             for q, ws in zip(points, weights):
                 cell = self.get_phonopy_instance().primitive.cell
                 q_crystal = np.dot(cell, q)  # in reciprocal fractional/crystal coordinates
-                q_tensors, q_freqs, q_labels = self.run_raman_tensors(**kwargs, **{'nac_direction': q_crystal})
+                q_tensors, q_freqs, q_labels = self.run_raman_susceptibility_tensors(
+                    **kwargs, **{'nac_direction': q_crystal}
+                )
 
-                q_raman_hh, q_raman_hv = compute_raman_space_average(raman_tensors=q_tensors)
+                q_raman_hh, q_raman_hv = compute_raman_space_average(raman_susceptibility_tensors=q_tensors)
                 raman_hh.append(ws * q_raman_hh)
                 raman_hv.append(ws * q_raman_hv)
                 freqs += q_freqs.tolist()

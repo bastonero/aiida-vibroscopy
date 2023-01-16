@@ -57,7 +57,7 @@ def take_average_of_dph0(dchi_ph0, rotations, translations, cell, symprec):
 
 
 def symmetrize_susceptibility_derivatives(
-    raman_susceptibility,
+    raman_tensors,
     nlo_susceptibility,
     ucell,
     primitive_matrix=None,
@@ -68,7 +68,7 @@ def symmetrize_susceptibility_derivatives(
 ) -> tuple:
     """Symmetrize susceptibility derivatives tensors (dChi/dr and Chi^2).
 
-    :param raman_susceptibility: array_like dChi/dr tensors, shape=(unitcell_atoms, 3, 3, 3).
+    :param raman_tensors: array_like dChi/dr tensors, shape=(unitcell_atoms, 3, 3, 3).
         Convention is to have the symmetric elements over the 2 and 3 indices,
         i.e. [I,k,i,j] = [I,k,j,i] <==> k is the index of the displacement.
     :param nlo_susceptibility: array_like Chi^2 tensors, shape=(3, 3, 3)
@@ -106,17 +106,17 @@ def symmetrize_susceptibility_derivatives(
     translations = u_sym.symmetry_operations['translations']
     ptg_ops = u_sym.pointgroup_operations
 
-    transpose_dph0 = np.transpose(raman_susceptibility, axes=[0, 2, 1, 3])  # transpose i <--> k
+    transpose_dph0 = np.transpose(raman_tensors, axes=[0, 2, 1, 3])  # transpose i <--> k
 
     nlo_ = symmetrize_3nd_rank_tensor(nlo_susceptibility, ptg_ops, lattice)
     tdph0_ = take_average_of_dph0(transpose_dph0, rotations, translations, ucell, symprec)
     dph0_ = np.transpose(tdph0_, axes=[0, 2, 1, 3])  # transpose back i <--> k
 
-    if (abs(raman_susceptibility - dph0_) > 0.1).any():
+    if (abs(raman_tensors - dph0_) > 0.1).any():
         lines = [
             'Symmetry of dChi/dr tensors is largely broken. '
             'The max difference is:',
-            f'{(raman_susceptibility - dph0_).max()}',
+            f'{(raman_tensors - dph0_).max()}',
         ]
         import warnings
 

@@ -8,7 +8,7 @@ def test_methods(generate_vibrational_data):
     """Test `VibrationalMixin` methods."""
     vibrational_data = generate_vibrational_data()
 
-    vibrational_data.run_raman_tensors()
+    vibrational_data.run_raman_susceptibility_tensors()
     vibrational_data.run_polarization_vectors()
     vibrational_data.run_polarized_raman_intensities([1, 0, 0], [-1, 0, 0])
     vibrational_data.run_powder_raman_intensities()

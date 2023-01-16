@@ -49,7 +49,7 @@ def extract_orders(**kwargs):
         order_outputs[order_name] = {'nac_parameters': order_array}
 
     try:
-        all_dph0 = kwargs['raman_susceptibility']
+        all_dph0 = kwargs['raman_tensors']
         all_nlo = kwargs['nlo_susceptibility']
 
         for order_name in all_dielectric.get_arraynames():
@@ -57,12 +57,12 @@ def extract_orders(**kwargs):
             nlo_array = all_nlo.get_array(order_name)
 
             order_dph0_array = orm.ArrayData()
-            order_dph0_array.set_array('raman_susceptibility', dph0_array)
+            order_dph0_array.set_array('raman_tensors', dph0_array)
 
             order_nlo_array = orm.ArrayData()
             order_nlo_array.set_array('nlo_susceptibility', nlo_array)
 
-            order_outputs[order_name].update({'raman_susceptibility': order_dph0_array})
+            order_outputs[order_name].update({'raman_tensors': order_dph0_array})
             order_outputs[order_name].update({'nlo_susceptibility': order_nlo_array})
     except KeyError:
         pass
