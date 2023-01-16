@@ -462,7 +462,7 @@ def generate_dielectric_workchain_node():
                 r = numpy.zeros((3, 3, 3))
                 numpy.fill_diagonal(r, 1)
                 dph0_array = numpy.array([r, -r])
-                tensors.set_array('raman_susceptibility', dph0_array)
+                tensors.set_array('raman_tensors', dph0_array)
 
                 nlo_array = numpy.zeros((3, 3, 3))
                 tensors.set_array('nlo_susceptibility', nlo_array)
@@ -517,12 +517,12 @@ def generate_vibrational_data(generate_structure):
             dph0 = numpy.zeros((2, 3, 3, 3))
             dph0[0][0][0][0] = +1
             dph0[1][0][0][0] = -1
-            vibrational_data.set_raman_susceptibility(raman_susceptibility=dph0)
+            vibrational_data.set_raman_tensors(raman_tensors=dph0)
 
         if nlo is not None:
             vibrational_data.set_nlo_susceptibility(nlo_susceptibility=nlo)
         else:
-            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=numpy.zeros((3, 3, 3)))
+            vibrational_data.set_raman_tensors(raman_tensors=numpy.zeros((3, 3, 3)))
 
         if forces is not None:
             vibrational_data.set_forces(forces)

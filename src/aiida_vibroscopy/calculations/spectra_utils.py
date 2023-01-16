@@ -15,7 +15,7 @@ __all__ = (
     'boson_factor',
     'compute_active_modes',
     'compute_raman_space_average',
-    'compute_raman_tensors',
+    'compute_raman_susceptibility_tensors',
     'compute_polarization_vectors',
     'compute_polarization_vectors',
     'get_supercells_for_hubbard',
@@ -111,7 +111,7 @@ def compute_active_modes(
     return (freq_active_modes, norm_eigvectors_active_modes, labels_active_modes)
 
 
-def compute_raman_space_average(raman_tensors):
+def compute_raman_space_average(raman_susceptibility_tensors):
     """Return the space average for the HH and HV configuration
     (e.g. `Light scattering in solides II`, M. Cardona and
     `S. A. Prosandeev et al., Phys. Rev. B, 71, 214307 (2005) ).
@@ -120,7 +120,7 @@ def compute_raman_space_average(raman_tensors):
     """
     intensities_hh = []
     intensities_hv = []
-    for R in raman_tensors:
+    for R in raman_susceptibility_tensors:
         # a = R.trace() / 3.0
         # a2 = a * a
         # b2 = (
@@ -141,9 +141,9 @@ def compute_raman_space_average(raman_tensors):
     return (np.array(intensities_hh), np.array(intensities_hv))
 
 
-def compute_raman_tensors(
+def compute_raman_susceptibility_tensors(
     phonopy_instance,
-    raman_susceptibility,
+    raman_tensors,
     nlo_susceptibility=None,
     nac_direction=lambda: [0, 0, 0],
     use_irreps=True,
@@ -156,7 +156,7 @@ def compute_raman_tensors(
     :param phonopy_instance: Phonopy instance with non-analytical constants included
     :param nac_direction: non-analytical direction in reciprocal
         space coordinates (only direction is meaningful)
-    :param raman_susceptibility: derivatives of the susceptibility
+    :param raman_tensors: derivatives of the susceptibility
         in respect to atomic positions in Cartesian coordinates and in angstrom^2
     :param nlo_susceptibility: non linear optical susceptibility
         in Cartesian coordinates and in pm/V
@@ -188,8 +188,8 @@ def compute_raman_tensors(
     selection_rule = 'raman' if use_irreps else None
 
     if sum_rules:
-        sum_rule_correction = raman_susceptibility.sum(axis=0) / len(raman_susceptibility)  # sum over atomic index
-        raman_susceptibility -= sum_rule_correction
+        sum_rule_correction = raman_tensors.sum(axis=0) / len(raman_tensors)  # sum over atomic index
+        raman_tensors -= sum_rule_correction
 
     freqs, neigvs, labels = compute_active_modes(
         phonopy_instance=phonopy_instance,
@@ -206,7 +206,7 @@ def compute_raman_tensors(
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
     # dph0   shape|indices = (num atoms, 3, 3, 3) | (I, k, i, j)
     # The contraction is performed over I and k, resulting in (n, i, j) Raman tensors.
-    raman_tensors = np.tensordot(neigvs, raman_susceptibility, axes=([1, 2], [0, 1]))
+    raman_susceptibility_tensors = np.tensordot(neigvs, raman_tensors, axes=([1, 2], [0, 1]))
 
     if nlo_susceptibility is not None and q_direction.nonzero()[0].tolist():
         borns = phonopy_instance.nac_params['born']
@@ -229,9 +229,9 @@ def compute_raman_tensors(
         nlo_term = np.dot(nlo_susceptibility, q_direction)  # (3, 3) | (i, j)
 
         nlo_correction = -(UNITS_FACTORS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
-        raman_tensors = raman_tensors + nlo_correction
+        raman_susceptibility_tensors = raman_susceptibility_tensors + nlo_correction
 
-    return (raman_tensors, freqs, labels)
+    return (raman_susceptibility_tensors, freqs, labels)
 
 
 def compute_polarization_vectors(
@@ -334,7 +334,7 @@ def get_supercells_for_hubbard(preprocess_data: PreProcessData, ref_structure: o
 @calcfunction
 def elaborate_susceptibility_derivatives(
     preprocess_data: PreProcessData,
-    raman_susceptibility=None,
+    raman_tensors=None,
     nlo_susceptibility=None,
 ):
     """Return the susceptibility derivatives in the primitive cell
@@ -344,12 +344,12 @@ def elaborate_susceptibility_derivatives(
 
     from .symmetry import symmetrize_susceptibility_derivatives
 
-    ref_dph0 = raman_susceptibility.get_array('raman_susceptibility')
+    ref_dph0 = raman_tensors.get_array('raman_tensors')
     ref_nlo = nlo_susceptibility.get_array('nlo_susceptibility')
 
     dph0_, nlo_ = symmetrize_susceptibility_derivatives(
         # tensors
-        raman_susceptibility=ref_dph0,
+        raman_tensors=ref_dph0,
         nlo_susceptibility=ref_nlo,
         # preprocess info
         ucell=preprocess_data.get_phonopy_instance().unitcell,
@@ -360,11 +360,11 @@ def elaborate_susceptibility_derivatives(
     )
 
     dph0_data = ArrayData()
-    dph0_data.set_array('raman_susceptibility', dph0_)
+    dph0_data.set_array('raman_tensors', dph0_)
     nlo_data = ArrayData()
     nlo_data.set_array('nlo_susceptibility', nlo_)
 
-    return {'raman_susceptibility': dph0_data, 'nlo_susceptibility': nlo_data}
+    return {'raman_tensors': dph0_data, 'nlo_susceptibility': nlo_data}
 
 
 @calcfunction
@@ -379,7 +379,7 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
     ref_dielectric = tensors.get_array('dielectric')
     ref_born_charges = tensors.get_array('born_charges')
     try:
-        ref_dph0 = tensors.get_array('raman_susceptibility')
+        ref_dph0 = tensors.get_array('raman_tensors')
         ref_nlo = tensors.get_array('nlo_susceptibility')
         is_third = True
     except KeyError:
@@ -407,7 +407,7 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
     if is_third:
         dph0_, nlo_ = symmetrize_susceptibility_derivatives(
             # tensors
-            raman_susceptibility=ref_dph0,
+            raman_tensors=ref_dph0,
             nlo_susceptibility=ref_nlo,
             # preprocess info
             ucell=preprocess_data.get_phonopy_instance().unitcell,
@@ -417,7 +417,7 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
             symprec=preprocess_data.symprec,
         )
 
-        new_tensors.set_array('raman_susceptibility', dph0_)
+        new_tensors.set_array('raman_tensors', dph0_)
         new_tensors.set_array('nlo_susceptibility', nlo_)
 
     return new_tensors
@@ -432,7 +432,7 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
     calcfunction with a variable number of supercells forces.
 
     :param tensors: ArrayData with arraynames `dielectric`, `born_charges`
-        and eventual `raman_susceptibility`, `nlo_susceptibility`
+        and eventual `raman_tensors`, `nlo_susceptibility`
     :param forces_dict: dictionary of supercells forces as ArrayData stored
         as `forces`, each Data labelled in the dictionary in the format
         `{prefix}_{suffix}`. The prefix is common and the suffix
@@ -483,7 +483,7 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
     vibrational_data.set_dielectric(tensors.get_array('dielectric'))
     vibrational_data.set_born_charges(tensors.get_array('born_charges'))
     try:
-        vibrational_data.set_raman_susceptibility(tensors.get_array('raman_susceptibility'))
+        vibrational_data.set_raman_tensors(tensors.get_array('raman_tensors'))
         vibrational_data.set_nlo_susceptibility(tensors.get_array('nlo_susceptibility'))
     except KeyError:
         pass
