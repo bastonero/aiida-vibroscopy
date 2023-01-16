@@ -128,7 +128,12 @@ class IRamanSpectraWorkChain(BaseWorkChain):
     def set_reference_kpoints(self):
         """Set the Context variables for the kpoints for the sub WorkChains,
         in order to call only once the `create_kpoints_from_distance` calcfunction."""
-        for key in ['phonon_workchain', 'dielectric_workchain']:
+        if 'kpoints_parallel_distance' in self.inputs.dielectric_workchain:
+            key_list = ['phonon_workchain']
+        else:
+            key_list = ['phonon_workchain', 'dielectric_workchain']
+
+        for key in key_list:
             try:
                 kpoints = self.inputs[key]['scf']['kpoints']
             except (AttributeError, KeyError):
@@ -147,10 +152,12 @@ class IRamanSpectraWorkChain(BaseWorkChain):
     def run_dielectric(self):
         """Run a DielectricWorkChain."""
         inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric_workchain'))
-        for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
-            inputs.scf.pop(name, None)
 
-        inputs.scf.kpoints = self.ctx['dielectric_workchain_kpoints']
+        if 'kpoints_parallel_distance' not in self.inputs.dielectric_workchain:
+            for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
+                inputs.scf.pop(name, None)
+
+            inputs.scf.kpoints = self.ctx['dielectric_workchain_kpoints']
 
         base_key = f'{self._RUN_PREFIX}_0'
 

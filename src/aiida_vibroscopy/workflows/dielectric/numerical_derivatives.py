@@ -108,12 +108,8 @@ class NumericalDerivativesWorkChain(WorkChain):
             help='Namespace for passing TrajectoryData containing forces and polarization.',
         )
         spec.input('data.null_field', valid_type=orm.TrajectoryData, required=True)
-        spec.input_namespace('data.field_index_0', valid_type=orm.TrajectoryData, required=False)
-        spec.input_namespace('data.field_index_1', valid_type=orm.TrajectoryData, required=False)
-        spec.input_namespace('data.field_index_2', valid_type=orm.TrajectoryData, required=False)
-        spec.input_namespace('data.field_index_3', valid_type=orm.TrajectoryData, required=False)
-        spec.input_namespace('data.field_index_4', valid_type=orm.TrajectoryData, required=False)
-        spec.input_namespace('data.field_index_5', valid_type=orm.TrajectoryData, required=False)
+        for i in range(6):
+            spec.input_namespace(f'data.field_index_{i}', valid_type=orm.TrajectoryData, required=False)
 
         spec.input('accuracy_order', valid_type=orm.Int, validator=validate_positive)
         spec.input(
