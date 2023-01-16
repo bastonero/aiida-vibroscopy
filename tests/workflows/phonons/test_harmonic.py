@@ -186,6 +186,7 @@ def test_run_forces(generate_workchain_harmonic, generate_structure, generate_ba
 
     process.setup()
     process.run_base_supercell()
+    process.set_reference_kpoints()
 
     assert 'scf_supercell_0'
 

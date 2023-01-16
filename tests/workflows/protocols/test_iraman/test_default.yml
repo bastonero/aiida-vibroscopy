@@ -1,12 +1,12 @@
 clean_workdir: true
 dielectric_workchain:
-  electric_field_scale: 1.2
+  kpoints_parallel_distance: 0.1
   property: raman
   scf:
     kpoints_distance: 0.15
     kpoints_force_parity: false
     pw:
-      code: test.quantumespresso.pw@localhost-test
+      code: test.quantumespresso.pw@localhost
       metadata:
         options:
           max_wallclock_seconds: 43200
@@ -41,7 +41,7 @@ phonon_workchain:
     kpoints_distance: 0.15
     kpoints_force_parity: false
     pw:
-      code: test.quantumespresso.pw@localhost-test
+      code: test.quantumespresso.pw@localhost
       metadata:
         options:
           max_wallclock_seconds: 43200
