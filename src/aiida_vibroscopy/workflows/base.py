@@ -6,6 +6,7 @@ from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import WorkChain
 from aiida.plugins import DataFactory, WorkflowFactory
+from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance import create_kpoints_from_distance
 from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 
 from aiida_vibroscopy.calculations.phonon_utils import get_energy, get_forces
@@ -326,7 +327,7 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
 
         node = self.submit(PwBaseWorkChain, **inputs)
         self.to_context(**{key: node})
-        self.report(f'launched base supercell scf PwBaseWorkChain<{node.pk}>')
+        self.report(f'launching base supercell scf PwBaseWorkChain<{node.pk}>')
 
     def inspect_base_supercell(self):
         """Verify that the scf PwBaseWorkChain finished successfully."""
@@ -336,6 +337,30 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
         if not workchain.is_finished_ok:
             self.report(f'base supercell scf failed with exit status {workchain.exit_status}')
             return self.exit_codes.ERROR_FAILED_BASE_SCF
+
+    def set_reference_kpoints(self):
+        """Set the Context variables for the kpoints for the sub WorkChains,
+        in order to call only once the `create_kpoints_from_distance` calcfunction."""
+        key_list = ['phonon_workchain']
+        if 'dielectric_workchain' in self.inputs:
+            if 'kpoints_parallel_distance' not in self.inputs.dielectric_workchain:
+                key_list = ['phonon_workchain', 'dielectric_workchain']
+
+        for key in key_list:
+            try:
+                kpoints = self.inputs[key]['scf']['kpoints']
+            except (AttributeError, KeyError):
+                inputs = {
+                    'structure': self.ctx.supercell,
+                    'distance': self.inputs[key]['scf']['kpoints_distance'],
+                    'force_parity': self.inputs[key]['scf'].get('kpoints_force_parity', orm.Bool(False)),
+                    'metadata': {
+                        'call_link_label': f'create_{key}_kpoints'
+                    }
+                }
+                kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
+
+            self.ctx[f'{key}_kpoints'] = kpoints
 
     def run_parallel(self):
         """It runs in parallel forces calculations and dielectric workchain."""

@@ -517,7 +517,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         node = self.submit(PwBaseWorkChain, **inputs)
         self.to_context(**{key: node})
-        self.report(f'launched base scf PwBaseWorkChain<{node.pk}>')
+        self.report(f'launching base scf PwBaseWorkChain<{node.pk}>')
 
     def inspect_base_scf(self):
         """Verify that the scf PwBaseWorkChain finished successfully."""
@@ -560,7 +560,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         node = self.submit(PwBaseWorkChain, **inputs)
         self.to_context(**{key: node})
-        self.report(f'launched base scf PwBaseWorkChain<{node.pk}>')
+        self.report(f'launching base scf PwBaseWorkChain<{node.pk}>')
 
     def inspect_nscf(self):
         """Verify that the nscf PwBaseWorkChain finished successfully."""
@@ -599,7 +599,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
             node = self.submit(PwBaseWorkChain, **inputs)
             self.to_context(**{key: append_(node)})
-            self.report(f'launched PwBaseWorkChain<{node.pk}> with null electric field')
+            self.report(f'launching PwBaseWorkChain<{node.pk}> with null electric field')
         else:
             for index, kpoints in enumerate(self.ctx.kpoints_list):
                 inputs.kpoints = kpoints
@@ -607,7 +607,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
                 node = self.submit(PwBaseWorkChain, **inputs)
                 self.to_context(**{key: append_(node)})
-                self.report(f'launched PwBaseWorkChain<{node.pk}> with null electric field {index}')
+                self.report(f'launching PwBaseWorkChain<{node.pk}> with null electric field {index}')
 
     def inspect_null_field_scfs(self):
         """Verify that the scf PwBaseWorkChain with null electric field finished successfully."""
@@ -673,7 +673,8 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     # Symmetries can reduce this.
                     node = self.submit(PwBaseWorkChain, **inputs)
                     self.to_context(**{key: append_(node)})
-                    self.report(f'launched PwBaseWorkChain<{node.pk}> with electric field index {number}')
+                    message = f'with electric field index {number} iteration #{self.ctx.iteration}'
+                    self.report(f'launching PwBaseWorkChain<{node.pk}> ' + message)
                     time.sleep(self.inputs.options.sleep_submission_time)
 
         self.ctx.iteration = self.ctx.iteration +1
@@ -718,7 +719,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         node = self.submit(NumericalDerivativesWorkChain, **inputs)
         self.to_context(**{key: node})
-        self.report(f'launched NumericalDerivativesWorkChain<{node.pk}> for computing numerical derivatives.')
+        self.report(f'launching NumericalDerivativesWorkChain<{node.pk}> for computing numerical derivatives.')
 
     def results(self):
         """Expose outputs."""

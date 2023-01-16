@@ -5,7 +5,6 @@ from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import if_
 from aiida.plugins import DataFactory, WorkflowFactory
-from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance import create_kpoints_from_distance
 
 from aiida_vibroscopy.calculations.phonon_utils import extract_symmetry_info
 from aiida_vibroscopy.calculations.spectra_utils import elaborate_tensors, generate_vibrational_data
@@ -124,30 +123,6 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         self.ctx.run_parallel = self.inputs.options.run_parallel
 
         self.set_ctx_variables()
-
-    def set_reference_kpoints(self):
-        """Set the Context variables for the kpoints for the sub WorkChains,
-        in order to call only once the `create_kpoints_from_distance` calcfunction."""
-        if 'kpoints_parallel_distance' in self.inputs.dielectric_workchain:
-            key_list = ['phonon_workchain']
-        else:
-            key_list = ['phonon_workchain', 'dielectric_workchain']
-
-        for key in key_list:
-            try:
-                kpoints = self.inputs[key]['scf']['kpoints']
-            except (AttributeError, KeyError):
-                inputs = {
-                    'structure': self.ctx.supercell,
-                    'distance': self.inputs[key]['scf']['kpoints_distance'],
-                    'force_parity': self.inputs[key]['scf'].get('kpoints_force_parity', orm.Bool(False)),
-                    'metadata': {
-                        'call_link_label': f'create_{key}_kpoints'
-                    }
-                }
-                kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
-
-            self.ctx[f'{key}_kpoints'] = kpoints
 
     def run_dielectric(self):
         """Run a DielectricWorkChain."""

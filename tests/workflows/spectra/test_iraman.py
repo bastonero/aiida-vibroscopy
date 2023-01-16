@@ -4,36 +4,14 @@ import pytest
 
 
 @pytest.fixture
-def generate_workchain_iraman(
-    generate_workchain, generate_structure, generate_inputs_pw_base, generate_inputs_dielectric
-):
-    """Generate an instance of a `IRamanSpectraWorkChain`."""
+def generate_workchain_iraman(generate_workchain, generate_inputs_iraman):
+    """Generate an instance of a `DielectricWorkChain`."""
 
-    def _generate_workchain_iraman(append_inputs=None, return_inputs=False):
+    def _generate_workchain_iraman(inputs=None, **kwargs):
         entry_point = 'vibroscopy.spectra.iraman'
 
-        structure = generate_structure()
-
-        phonon_inputs = generate_inputs_pw_base()
-        phonon_inputs['pw'].pop('structure')
-
-        dielectric_inputs = generate_inputs_dielectric(electric_field_scale=1.0)
-        dielectric_inputs['scf']['pw'].pop('structure')
-        dielectric_inputs.pop('clean_workdir')
-
-        inputs = {
-            'structure': structure,
-            'phonon_workchain': {
-                'scf': phonon_inputs,
-            },
-            'dielectric_workchain': dielectric_inputs,
-        }
-
-        if return_inputs:
-            return inputs
-
-        if append_inputs is not None:
-            inputs.update(append_inputs)
+        if inputs is None:
+            inputs = generate_inputs_iraman(**kwargs)
 
         process = generate_workchain(entry_point, inputs)
 
@@ -84,6 +62,7 @@ def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node)
 
     process.setup()
     process.run_base_supercell()
+    process.set_reference_kpoints()
 
     assert 'scf_supercell_0' in process.ctx
 
@@ -104,6 +83,8 @@ def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_n
 
     process.setup()
     process.run_base_supercell()
+    process.set_reference_kpoints()
+
     process.ctx.scf_supercell_0 = generate_base_scf_workchain_node()
 
     process.run_dielectric()
@@ -148,7 +129,9 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
 #@pytest.mark.usefixtures('aiida_profile_clean')
 def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data):
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
-    process = generate_workchain_iraman()
+    from aiida.orm import Dict
+    options = Dict({'quadrature_order': 3})
+    process = generate_workchain_iraman(append_inputs={'intensities_average': {'options': options}})
 
     process.ctx.vibrational_data = {
         'numerical_order_2_step_1': generate_vibrational_data(),

@@ -370,6 +370,46 @@ def generate_inputs_dielectric(generate_inputs_pw):
     return _generate_inputs_dielectric
 
 
+@pytest.fixture
+def generate_inputs_iraman(generate_inputs_pw, generate_inputs_dielectric):
+    """Generate an instance of inputs for `IRamanSpectraWorkChain`."""
+
+    def _generate_inputs_iraman(append_inputs=None, return_inputs=False):
+        inputs_pw = generate_inputs_pw()
+        structure = inputs_pw.pop('structure')
+        kpoints = inputs_pw.pop('kpoints')
+
+        inputs = {
+            'structure': structure,
+            'phonon_workchain': {
+                'scf': {
+                    'pw': inputs_pw,
+                    'kpoints': kpoints,
+                }
+            },
+            'dielectric_workchain': {
+                'property': 'raman',
+                'scf': {
+                    'pw': inputs_pw,
+                    'kpoints': kpoints
+                },
+                'options': {
+                    'sleep_submission_time': 0.
+                }
+            },
+            'options': {
+                'sleep_submission_time': 0.
+            }
+        }
+
+        if append_inputs is not None:
+            inputs.update(append_inputs)
+
+        return inputs
+
+    return _generate_inputs_iraman
+
+
 @pytest.fixture(scope='session')
 def generate_upf_data():
     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
@@ -512,7 +552,7 @@ def generate_vibrational_data(generate_structure):
             vibrational_data.set_born_charges(becs)
 
         if dph0 is not None:
-            vibrational_data.set_raman_susceptibility(raman_susceptibility=dph0)
+            vibrational_data.set_raman_tensors(raman_tensors=dph0)
         else:
             dph0 = numpy.zeros((2, 3, 3, 3))
             dph0[0][0][0][0] = +1
@@ -522,7 +562,7 @@ def generate_vibrational_data(generate_structure):
         if nlo is not None:
             vibrational_data.set_nlo_susceptibility(nlo_susceptibility=nlo)
         else:
-            vibrational_data.set_raman_tensors(raman_tensors=numpy.zeros((3, 3, 3)))
+            vibrational_data.set_nlo_susceptibility(nlo_susceptibility=numpy.zeros((3, 3, 3)))
 
         if forces is not None:
             vibrational_data.set_forces(forces)
