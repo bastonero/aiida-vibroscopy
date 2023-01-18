@@ -29,32 +29,43 @@ __all__ = (
 
 def get_central_derivatives_coefficients(accuracy: int, order: int):
     """Return an array with the central derivatives coefficients in 0.
+    Implementation following `Math. Comp. 51 (1988), 699-706`.
 
     .. note: non standard format. They are provided as:
         :math:`[c_1, c_{-1}, c_2, c_{-2}, \\dots, c_0]` where :math:`c_i` is
         the coefficient for f(i*step_size)
     """
-    index = int(accuracy / 2) - 1
+    alpha = [0]
+    for n in range(int(accuracy / 2)):
+        alpha += [n + 1, -(n + 1)]
 
-    if order == 1:
+    M = order
+    N = len(alpha) - 1
+    delta = np.zeros((M + 1, N + 1, N + 1))
+    delta[0, 0, 0] = 1
+    c1 = 1
 
-        coefficients = [
-            [1 / 2, 0],
-            [2 / 3, -1 / 12, 0],
-            [3 / 4, -3 / 20, 1 / 60, 0],
-            [4 / 5, -1 / 5, 4 / 105, -1 / 280, 0],
-        ]
+    for n in range(1, N + 1):
+        c2 = 1
+        for nu in range(0, n):
+            c3 = alpha[n] - alpha[nu]
+            c2 = c2 * c3
+            if n <= M:
+                delta[n, n - 1, nu] = 0
+            for m in range(0, min(n, M) + 1):
+                delta[m, n, nu] = (alpha[n] * delta[m, n - 1, nu] - m * delta[m - 1, n - 1, nu]) / c3
+        for m in range(0, min(n, M) + 1):
+            delta[m, n, n] = (c1 / c2) * (m * delta[m - 1, n - 1, n - 1] - alpha[n - 1] * delta[m, n - 1, n - 1])
+        c1 = c2
 
-    if order == 2:
+    coefficients = delta[order, accuracy, :(accuracy + 1)].tolist()
+    c0 = coefficients.pop(0)
+    coefficients.append(c0)
 
-        coefficients = [
-            [1, -2],
-            [4 / 3, -1 / 12, -5 / 2],
-            [3 / 2, -3 / 20, 1 / 90, -49 / 18],
-            [8 / 5, -1 / 5, 8 / 315, -1 / 560, -205 / 72],
-        ]
+    for n in range(int(accuracy / 2)):
+        coefficients.pop(n + 1)
 
-    return coefficients[index]
+    return coefficients
 
 
 def central_derivatives_calculator(
