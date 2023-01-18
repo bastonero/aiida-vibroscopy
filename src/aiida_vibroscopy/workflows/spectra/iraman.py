@@ -60,7 +60,10 @@ class IRamanSpectraWorkChain(BaseWorkChain):
 
         spec.expose_outputs(IntensitiesAverageWorkChain)
         spec.output_namespace(
-            'output_intensities_average', dynamic=True, help='Intensities average over space and q-points.'
+            'output_intensities_average',
+            dynamic=True,
+            required=False,
+            help='Intensities average over space and q-points.'
         )
         spec.output_namespace(
             'vibrational_data',
