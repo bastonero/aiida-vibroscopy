@@ -10,11 +10,18 @@ def generate_elfield_scf_workchain_node():
 
     def _generate_scf_workchain_node(polarization=None, forces=None, volume=None):
         from aiida.common import LinkType
-        from aiida.orm import TrajectoryData, WorkflowNode
+        from aiida.orm import KpointsData, TrajectoryData, WorkflowNode
         import numpy as np
         from plumpy.process_states import ProcessState
 
-        node = WorkflowNode().store()
+        node = WorkflowNode()
+
+        kpoints = KpointsData()
+        kpoints.set_kpoints_mesh([2, 2, 2])
+        kpoints.store()
+        node.base.links.add_incoming(kpoints, link_type=LinkType.INPUT_WORK, link_label='kpoints')
+
+        node.store()
         node.set_exit_status(0)
         node.set_process_state(ProcessState.FINISHED)
 
@@ -508,7 +515,7 @@ def test_inspect(
     assert process.ctx.base_scf.is_finished_ok
     process.inspect_base_scf()
 
-    assert 'data' in process.ctx
+    # assert 'data' in process.ctx
 
     process.run_null_field_scfs()
     process.ctx.null_fields = [generate_base_scf_workchain_node()]
@@ -520,11 +527,10 @@ def test_inspect(
         ]
 
     process.inspect_electric_field_scfs()
-    assert 'fields_data' in process.outputs
+    # assert 'fields_data' in process.outputs
     # assert 'num_diff_data' in process.ctx
-
-    for i in range(6):
-        assert f'field_index_{i}' in process.outputs['fields_data']
+    # for i in range(6):
+    #     assert f'field_index_{i}' in process.outputs['fields_data']
 
 
 @pytest.mark.usefixtures('aiida_profile_clean')
@@ -538,10 +544,12 @@ def test_run_numerical_derivatives(
     process = generate_workchain_dielectric(inputs=inputs)
     process.setup()
     process.set_step_and_accuracy()
+    process.set_reference_kpoints()
 
     process.ctx.base_scf = generate_base_scf_workchain_node()
     process.inspect_base_scf()
 
+    process.ctx['null_fields'] = [generate_elfield_scf_workchain_node()]
     for i in range(6):
         process.ctx[f'field_index_{i}'] = [
             generate_elfield_scf_workchain_node(),
@@ -549,5 +557,13 @@ def test_run_numerical_derivatives(
         ]
 
     process.inspect_electric_field_scfs()
+    process.remove_reference_forces()
+    assert 'new_data' in process.ctx
+
+    for i in range(6):
+        key = f'field_index_{i}'
+        assert key in process.ctx['new_data']
+        assert len(process.ctx['new_data'][key]) == 2
+
     process.run_numerical_derivatives()
     assert 'numerical_derivatives' in process.ctx

@@ -4,7 +4,7 @@ from aiida import orm
 from aiida.engine import WorkChain, calcfunction
 import numpy as np
 
-from aiida_vibroscopy.data import VibrationalFrozenPhononData, VibrationalLinearResponseData
+from aiida_vibroscopy.data import VibrationalData, VibrationalFrozenPhononData
 
 
 @calcfunction
@@ -67,7 +67,7 @@ class IntensitiesAverageWorkChain(WorkChain):
 
         spec.input(
             'vibrational_data',
-            valid_type=(VibrationalLinearResponseData, VibrationalFrozenPhononData),
+            valid_type=(VibrationalData, VibrationalFrozenPhononData),
             required=True,
             validator=validate_vibrational_data,
             help=(

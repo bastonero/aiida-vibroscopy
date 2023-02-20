@@ -56,11 +56,8 @@ def add_zero_polarization(trajectory: orm.TrajectoryData):
 def get_electric_field_step(critical_electric_field: orm.Float, accuracy: orm.Int):
     """Return the central difference displacement step."""
     norm = critical_electric_field.value
-    if norm > 1.e-3:
-        norm = 1.e-3
-        return orm.Float(2 * norm / accuracy.value)
     if norm > 1.e-4:
-        norm = round(norm, 5)
+        norm = norm / 10.
         return orm.Float(2 * norm / accuracy.value)
     return orm.Float(2 * norm / accuracy.value)
 
@@ -72,11 +69,7 @@ def get_accuracy_from_critical_field(norm: orm.Float):
     :param norm: intensity of critical electric field in Ry a.u.
     :return: even Int in aiida type.
     """
-    if norm.value > 1.e-3:
-        return orm.Int(6)
-    if norm.value > 1.e-4:
-        return orm.Int(4)
-    return orm.Int(2)
+    return orm.Int(4) if norm.value > 1.e-4 else orm.Int(2)
 
 
 def validate_accuracy(value, _):
@@ -216,6 +209,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 cls.run_electric_field_scfs,
                 cls.inspect_electric_field_scfs,
             ),
+            cls.remove_reference_forces,
             cls.run_numerical_derivatives,
             cls.results,
         )
@@ -475,8 +469,9 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
 
             parameters['SYSTEM'].update({
-                'nbnd': base_out.output_parameters.base.attributes.get('number_of_bands'),
-                'tot_magnetization': tot_magnetization,
+                # In some rare cases, this makes the code to crash.
+                # 'nbnd': base_out.output_parameters.base.attributes.get('number_of_bands'),
+                'tot_magnetization': abs(round(tot_magnetization)),
             })
 
         # --- Fill the inputs
@@ -506,6 +501,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         if 'parent_scf' in self.inputs:
             inputs.pw.parent_folder = self.inputs.parent_scf
+            parameters['CONTROL']['restart_mode'] = 'from_scratch'
             parameters['ELECTRONS']['startingpot'] = 'file'
 
         inputs.pw.parameters = orm.Dict(parameters)
@@ -523,9 +519,9 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         """Verify that the scf PwBaseWorkChain finished successfully."""
         workchain = self.ctx.base_scf
 
-        if workchain.is_finished_ok:
-            self.ctx.data = {'null_field': add_zero_polarization(self.ctx.base_scf.outputs.output_trajectory)}
-        else:
+        if not workchain.is_finished_ok:
+            #     self.ctx.data = {'null_field': add_zero_polarization(self.ctx.base_scf.outputs.output_trajectory)}
+            # else:
             self.report(f'base scf failed with exit status {workchain.exit_status}')
             return self.exit_codes.ERROR_FAILED_BASE_SCF
 
@@ -603,7 +599,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         else:
             for index, kpoints in enumerate(self.ctx.kpoints_list):
                 inputs.kpoints = kpoints
-                inputs.metadata.call_link_label = f'{key[:-2]}_{index}'
+                inputs.metadata.call_link_label = f'{key[:-1]}_{index}'
 
                 node = self.submit(PwBaseWorkChain, **inputs)
                 self.to_context(**{key: append_(node)})
@@ -684,13 +680,16 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         # output_data = {'fields_data.null_field': self.ctx.null_field.outputs.output_trajectory}
         # self.ctx.data = {'null_field': self.ctx.null_field.outputs.output_trajectory}
         output_data = {}
+        self.ctx.data = {}
+        self.ctx.meshes_dict = {}
 
         for label, workchains in self.ctx.items():
             if label.startswith('field_index_'):
+                self.ctx.meshes_dict[label] = workchains[0].inputs.kpoints.get_kpoints_mesh()[0]
                 field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok} # pylint: disable=locally-disabled, line-too-long
                 output_data.update({f'fields_data.{label}':field_data})
                 self.ctx.data.update({label:field_data})
-        self.out_many(output_data)
+        # self.out_many(output_data)
 
         for key, workchains in self.ctx.items():
             if key.startswith('field_index_'):
@@ -699,12 +698,28 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                         self.report(f'electric field scf failed with exit status {workchain.exit_status}')
                         return self.exit_codes.ERROR_FAILED_ELFIELD_SCF.format(direction=key[-1])
 
+    def remove_reference_forces(self):
+        """Subtract the reference forces to each electric field trajectory."""
+        from aiida_vibroscopy.calculations.spectra_utils import subtract_residual_forces
+        if 'kpoints_parallel_distance' in self.inputs:
+            ref_meshes = orm.List(self.ctx.meshes)
+        else:
+            ref_meshes = orm.List([self.ctx.kpoints.get_kpoints_mesh()[0]])
+        meshes_dict = orm.Dict(self.ctx.meshes_dict)
+        ref_trajectories = {}
+        for i, wc in enumerate(self.ctx.null_fields):
+            ref_trajectories[str(i)] = wc.outputs.output_trajectory
+        old_trajectories = self.ctx.data
+        kwargs = {'ref_trajectories': ref_trajectories, 'old_trajectories': old_trajectories}
+        new_data = subtract_residual_forces(ref_meshes, meshes_dict, **kwargs)
+        self.ctx.new_data = new_data
+
     def run_numerical_derivatives(self):
         """Compute numerical derivatives from previous calculations."""
         key = 'numerical_derivatives'
 
         inputs = {
-            'data': self.ctx.data,
+            'data': self.ctx.new_data,
             'electric_field_step':self.ctx.electric_field_step,
             'structure':self.inputs.scf.pw.structure,
             'accuracy_order':self.ctx.accuracy,

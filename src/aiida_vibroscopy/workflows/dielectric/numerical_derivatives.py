@@ -29,8 +29,8 @@ def validate_data(data, _):
         #     if not len(trajectory) % 2 == 0:
         #         return 'field index data must contains even number of key:TrajectoryData pairs'
 
-    if not control_null_namespace == 1:
-        return f'invalid number of `null_field` namespaces: expected 1, given {control_null_namespace}'
+    # if not control_null_namespace == 1:
+    #     return f'invalid number of `null_field` namespaces: expected 1, given {control_null_namespace}'
 
 
 class NumericalDerivativesWorkChain(WorkChain):
@@ -102,12 +102,13 @@ class NumericalDerivativesWorkChain(WorkChain):
     def define(cls, spec):
         super().define(spec)
 
+        # yapf: disable
         spec.input_namespace(
             'data',
             validator=validate_data,
             help='Namespace for passing TrajectoryData containing forces and polarization.',
         )
-        spec.input('data.null_field', valid_type=orm.TrajectoryData, required=True)
+        spec.input('data.null_field', valid_type=orm.TrajectoryData, required=False)
         for i in range(6):
             spec.input_namespace(f'data.field_index_{i}', valid_type=orm.TrajectoryData, required=False)
 
@@ -156,7 +157,10 @@ class NumericalDerivativesWorkChain(WorkChain):
                 'always expressed in Cartesian coordinates.'
             ),
         )
-        spec.output('units', valid_type=orm.Dict, help='Units of the susceptibility derivatives tensors.')
+        spec.output(
+            'units', valid_type=orm.Dict, required=False,
+            help='Units of the susceptibility derivatives tensors.')
+        # yapf: enable
 
     def run_results(self):
         """Wrap up results from previous calculations."""
