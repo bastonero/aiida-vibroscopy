@@ -9,7 +9,7 @@ from aiida.plugins import DataFactory, WorkflowFactory
 from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance import create_kpoints_from_distance
 from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 
-from aiida_vibroscopy.calculations.phonon_utils import get_energy, get_forces
+from aiida_vibroscopy.calculations.phonon_utils import get_energy
 from aiida_vibroscopy.calculations.spectra_utils import get_supercells_for_hubbard
 from aiida_vibroscopy.utils.validation import validate_matrix, validate_positive, validate_tot_magnetization
 
@@ -71,48 +71,40 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
         """Define inputs, outputs, and outline."""
         super().define(spec)
 
+        # yapf:disable
         spec.input(
-            'structure', valid_type=orm.StructureData, required=False, help='The structure at equilibrium volume.'
+            'structure', valid_type=orm.StructureData, required=False,
+            help='The structure at equilibrium volume.'
         )
         spec.input_namespace(
             'phonon_workchain',
             help='Inputs for the frozen phonons calculation.',
         )
         spec.input(
-            'phonon_workchain.primitive_matrix',
-            valid_type=orm.List,
-            validator=validate_matrix,
-            required=False,
+            'phonon_workchain.primitive_matrix', valid_type=orm.List, required=False,
             help='Primitive matrix that defines the primitive cell from the unitcell.',
+            validator=validate_matrix,
         )
         spec.input(
-            'phonon_workchain.symprec',
-            valid_type=orm.Float,
-            validator=validate_positive,
-            required=False,
+            'phonon_workchain.symprec', valid_type=orm.Float, required=False,
             help='Symmetry tolerance for space group analysis on the input structure.',
+            validator=validate_positive,
         )
         spec.input(
-            'phonon_workchain.is_symmetry',
-            valid_type=orm.Bool,
-            required=False,
+            'phonon_workchain.is_symmetry', valid_type=orm.Bool, required=False,
             help='Whether using or not the space group symmetries.',
         )
         spec.input(
-            'phonon_workchain.distinguish_kinds',
-            valid_type=orm.Bool,
-            required=False,
+            'phonon_workchain.distinguish_kinds', valid_type=orm.Bool, required=False,
             help='Whether or not to distinguish atom with same species but different names with symmetries.',
         )
         spec.input(
-            'phonon_workchain.displacement_generator',
-            valid_type=orm.Dict,
-            required=False,
-            validator=cls._validate_displacements,
+            'phonon_workchain.displacement_generator', valid_type=orm.Dict, required=False,
             help=(
                 'Info for displacements generation. The following flags are allowed:\n ' +
                 '\n '.join(f'{flag_name}' for flag_name in cls._ENABLED_DISPLACEMENT_GENERATOR_FLAGS)
             ),
+            validator=cls._validate_displacements,
         )
         spec.expose_inputs(
             PwBaseWorkChain,
@@ -127,17 +119,15 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             DielectricWorkChain,
             namespace='dielectric_workchain',
             namespace_options={
-                'required':
-                False,
-                'populate_defaults':
-                False,
-                'help':
-                ('Inputs for the `DielectricWorkChain` that will be'
-                 'used to calculate the non-analytical constants.')
+                'required': False, 'populate_defaults': False,
+                'help': (
+                    'Inputs for the `DielectricWorkChain` that will be'
+                    'used to calculate the non-analytical constants.'
+                )
             },
             exclude=(
-                'clean_workdir', 'scf.pw.structure', 'options.symprec', 'options.distinguish_kinds',
-                'options.is_symmetry'
+                'clean_workdir', 'scf.pw.structure', 'options.symprec',
+                'options.distinguish_kinds', 'options.is_symmetry'
             )
         )
         spec.input_namespace(
@@ -145,52 +135,37 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             help='Options for how to run the workflow.',
         )
         spec.input(
-            'options.run_parallel',
-            valid_type=bool,
-            non_db=True,
-            default=True,
+            'options.run_parallel', valid_type=bool, non_db=True, default=True,
             help='Whether running dielectric workchain and forces calculations in parallel.',
         )
         spec.input(
-            'options.sleep_submission_time',
-            valid_type=(int, float),
-            non_db=True,
-            default=3.0,
+            'options.sleep_submission_time', valid_type=(int, float), non_db=True, default=3.0,
             help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
         )
         spec.input(
-            'options.use_parent_folder',
-            valid_type=bool,
-            non_db=True,
-            default=False,
+            'options.use_parent_folder', valid_type=bool, non_db=True, default=False,
             help=(
                 'Whether to use the remote folder for the `DielectricWorkCahin` '
                 '(`False` is suggested when caching is activated).'
             ),
         )
         spec.input(
-            'clean_workdir',
-            valid_type=orm.Bool,
-            default=lambda: orm.Bool(False),
+            'clean_workdir', valid_type=orm.Bool, default=lambda: orm.Bool(False),
             help='If `True`, work directories of all called calculation will be cleaned at the end of execution.'
         )
         spec.inputs.validator = validate_inputs
 
         spec.output_namespace(
-            'supercells',
-            valid_type=orm.StructureData,
-            dynamic=True,
-            required=False,
+            'supercells', valid_type=orm.StructureData, dynamic=True, required=False,
             help='The supercells with displacements.'
         )
         spec.output_namespace(
-            'supercells_forces',
-            valid_type=orm.ArrayData,
-            required=True,
+            'supercells_forces', valid_type=orm.ArrayData, required=True,
             help='The forces acting on the atoms of each supercell.'
         )
         spec.output_namespace(
-            'supercells_energies', valid_type=orm.Float, required=False, help='The total energy of each supercell.'
+            'supercells_energies', valid_type=orm.Float, required=False,
+            help='The total energy of each supercell.'
         )
         spec.expose_outputs(
             DielectricWorkChain,
@@ -200,18 +175,19 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             },
         )
 
-        spec.exit_code(400, 'ERROR_FAILED_BASE_SCF', message='The initial supercell scf work chain failed.')
         spec.exit_code(
-            401,
-            'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
-            message=(
-                'The scf PwBaseWorkChain sub process in iteration '
-                'returned a non integer total magnetization (threshold exceeded).'
-            )
+            400, 'ERROR_FAILED_BASE_SCF',
+            message='The initial supercell scf work chain failed.'
         )
         spec.exit_code(
-            402, 'ERROR_SUB_PROCESS_FAILED', message='At least one sub processe did not finish successfully.'
+            401, 'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
+            message='The initial PwBaseWorkChain sub process returned a non integer total magnetization.'
         )
+        spec.exit_code(
+            402, 'ERROR_SUB_PROCESS_FAILED',
+            message='At least one sub processe did not finish successfully.'
+        )
+        # yapf: enable
 
     @classmethod
     def _validate_displacements(cls, value, _):
@@ -286,7 +262,10 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             ]
             for name in non_default_namelist:
                 if name in inputs['phonon_workchain']:
-                    value = to_aiida_type(inputs['phonon_workchain'][name])
+                    if name == 'displacement_generator':
+                        value = orm.Dic(inputs['phonon_workchain'][name])
+                    else:
+                        value = to_aiida_type(inputs['phonon_workchain'][name])
                     builder.phonon_workchain[name] = value
 
         builder.options = inputs['options']
@@ -405,7 +384,7 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
                     parameters['SYSTEM'].pop(name, None)
                 parameters['SYSTEM']['nbnd'] = base_out.output_parameters.base.attributes.get('number_of_bands')
                 tot_magnetization = base_out.output_parameters.base.attributes.get('total_magnetization')
-                parameters['SYSTEM']['tot_magnetization'] = tot_magnetization
+                parameters['SYSTEM']['tot_magnetization'] = abs(round(tot_magnetization))
                 if validate_tot_magnetization(tot_magnetization):
                     return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
 
@@ -433,10 +412,11 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
         for label, workchain in self.ctx.items():
             if label.startswith(self._RUN_PREFIX):
                 if workchain.is_finished_ok:
-                    forces = get_forces(workchain.outputs.output_trajectory)
+                    # forces = get_forces(workchain.outputs.output_trajectory)
+                    forces = workchain.outputs.output_trajectory
                     energy = get_energy(workchain.outputs.output_parameters)
-                    self.out(f'supercells_forces.{label}', forces)
-                    self.out(f'supercells_energies.{label}', energy)
+                    self.out(f"supercells_forces.forces_{label.split('_')[-1]}", forces)
+                    self.out(f"supercells_energies.energy_{label.split('_')[-1]}", energy)
                 else:
                     self.report(
                         f'PwBaseWorkChain with <PK={workchain.pk}> failed'

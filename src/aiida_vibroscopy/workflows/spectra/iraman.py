@@ -4,11 +4,15 @@
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import if_
-from aiida.plugins import DataFactory, WorkflowFactory
+from aiida.plugins import CalculationFactory, DataFactory, WorkflowFactory
 
 from aiida_vibroscopy.calculations.phonon_utils import extract_symmetry_info
-from aiida_vibroscopy.calculations.spectra_utils import elaborate_tensors, generate_vibrational_data
-from aiida_vibroscopy.data import VibrationalFrozenPhononData
+from aiida_vibroscopy.calculations.spectra_utils import (
+    elaborate_tensors,
+    generate_vibrational_data_from_force_constants,
+    generate_vibrational_data_from_phonopy,
+)
+from aiida_vibroscopy.data import VibrationalData, VibrationalFrozenPhononData
 
 from ..base import BaseWorkChain
 from ..dielectric.base import DielectricWorkChain
@@ -17,6 +21,8 @@ from .intensities_average import IntensitiesAverageWorkChain
 PreProcessData = DataFactory('phonopy.preprocess')
 PhonopyData = DataFactory('phonopy.phonopy')
 
+PhonopyCalculation = CalculationFactory('phonopy.phonopy')
+
 PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 
 
@@ -24,7 +30,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
     """
     Workchain for automatically compute IR and Raman spectra using finite displacements and fields.
     """
-
+    # yapf: disable
     @classmethod
     def define(cls, spec):
         """Define inputs, outputs, and outline."""
@@ -33,11 +39,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         spec.expose_inputs(
             IntensitiesAverageWorkChain,
             namespace='intensities_average',
-            namespace_options={
-                'required':
-                False,
-                'populate_defaults':
-                False,
+            namespace_options={'required': False, 'populate_defaults': False,
                 'help': (
                     'Inputs for the `IntensitiesAverageWorkChain` that will'
                     'be used to run the average calculation over intensities.'
@@ -45,20 +47,41 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             },
             exclude=('vibrational_data',)
         )
+        spec.expose_inputs(
+            PhonopyCalculation,
+            namespace='phonopy',
+            namespace_options={'required': False, 'populate_defaults': False,
+                'help': (
+                    'Inputs for the `PhonopyCalculation` that will'
+                    'be used to calculate the inter-atomic force constants.'
+                )
+            },
+            exclude=['phonopy_data', 'force_constants'],
+        )
 
         spec.outline(
-            cls.setup, cls.run_base_supercell, cls.inspect_base_supercell, cls.set_reference_kpoints,
-            if_(cls.should_run_parallel)(cls.run_parallel,).else_(
+            cls.setup,
+            cls.run_base_supercell,
+            cls.inspect_base_supercell,
+            cls.set_reference_kpoints,
+            if_(cls.should_run_parallel)(
+                cls.run_parallel,
+            ).else_(
                 cls.run_forces,
                 cls.run_dielectric,
-            ), cls.inspect_all_runs, cls.run_raw_results,
+            ),
+            cls.inspect_all_runs,
+            cls.set_phonopy_data,
+            if_(cls.should_run_phonopy)(
+              cls.run_phonopy,
+            ),
+            cls.run_raw_results,
             if_(cls.should_run_average)(
                 cls.run_intensities_averaged,
                 cls.show_results,
             )
         )
 
-        spec.expose_outputs(IntensitiesAverageWorkChain)
         spec.output_namespace(
             'output_intensities_average',
             dynamic=True,
@@ -67,7 +90,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         )
         spec.output_namespace(
             'vibrational_data',
-            valid_type=VibrationalFrozenPhononData,
+            valid_type=(VibrationalData, VibrationalFrozenPhononData),
             dynamic=True,
             help=(
                 'The phonopy data with supercells displacements, forces and (optionally)'
@@ -76,8 +99,18 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         )
 
         spec.exit_code(
-            403, 'ERROR_AVERAGING_FAILED', message='The averaging procedure for intensities had an unexpected error.'
+            403, 'ERROR_PHONOPY_FAILED',
+            message='The phonopy calculation did not finish correctly.'
         )
+        spec.exit_code(
+            404, 'ERROR_NO_FORCE_CONSTANTS',
+            message='The phonopy calculation did not produce the force constants output.'
+        )
+        spec.exit_code(
+            405, 'ERROR_AVERAGING_FAILED',
+            message='The averaging procedure for intensities had an unexpected error.'
+        )
+        # yapf: enable
 
     @classmethod
     def get_protocol_filepath(cls):
@@ -153,6 +186,41 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         self.report(f'submitting `DielectricWorkChain` <PK={future.pk}>')
         self.to_context(**{key: future})
 
+    def set_phonopy_data(self):
+        """Set the `PhonopyData` in context for force constants calculation."""
+        kwargs = {'forces_index': orm.Int(-1), **self.outputs['supercells_forces']}
+
+        self.ctx.phonopy_data = self.ctx.preprocess_data.calcfunctions.generate_phonopy_data(**kwargs)
+
+    def should_run_phonopy(self):
+        """Return whether to run a PhonopyCalculation."""
+        return 'phonopy' in self.inputs
+
+    def run_phonopy(self):
+        """Run a `PhonopyCalculation` to get the force constants."""
+        inputs = AttributeDict(self.exposed_inputs(PhonopyCalculation, namespace='phonopy'))
+        inputs['phonopy_data'] = self.ctx.phonopy_data
+
+        key = 'phonopy_calculation'
+        inputs.metadata.call_link_label = key
+
+        future = self.submit(PhonopyCalculation, **inputs)
+        self.report(f'submitting `PhonopyCalculation` <PK={future.pk}>')
+        self.to_context(**{key: future})
+
+    def inspect_phonopy(self):
+        """Inspect that the `PhonopyCalculation` finished successfully."""
+        calc = self.ctx.phonopy_calculation
+
+        if calc.is_finished_ok:
+            try:
+                self.ctx.force_constants = calc.outputs.output_force_constants
+            except AttributeError:
+                return self.exit_codes.ERROR_NO_FORCE_CONSTANTS
+        else:
+            self.report(f'PhonopyCalculation failed with exit status {calc.exit_status}')
+            return self.exit_codes.ERROR_PHONOPY_FAILED
+
     def run_raw_results(self):
         """Run results generating outputs for post-processing and visualization."""
         self.ctx.vibrational_data = {}
@@ -163,12 +231,15 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         for key, tensors in tensors_dict.items():
 
             tensors = elaborate_tensors(self.ctx.preprocess_data, tensors)
-            kwargs = {'tensors': tensors, **self.outputs['supercells_forces']}
 
-            vibrational_data = generate_vibrational_data(
-                preprocess_data=self.ctx.preprocess_data,
-                **kwargs,
-            )
+            if self.should_run_phonopy():
+                vibrational_data = generate_vibrational_data_from_force_constants(
+                    preprocess_data=self.ctx.phonopy_data, force_constants=self.ctx.force_constants, tensors=tensors
+                )
+            else:
+                vibrational_data = generate_vibrational_data_from_phonopy(
+                    phonopy_data=self.ctx.phonopy_data, tensors=tensors
+                )
 
             self.ctx.vibrational_data[key] = vibrational_data
 

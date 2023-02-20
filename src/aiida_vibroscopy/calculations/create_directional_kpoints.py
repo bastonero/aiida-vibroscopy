@@ -38,7 +38,7 @@ def create_directional_kpoints(structure, direction, parallel_distance, orthogon
 
         kpoints_para = KpointsData()
         kpoints_para.set_cell_from_structure(structure)
-        distance = parallel_distance.value * weigth if weigth > epsilon else orthogonal_distance.value
+        distance = parallel_distance.value / weigth if weigth > epsilon else orthogonal_distance.value
         kpoints_para.set_kpoints_mesh_from_density(distance, force_parity=force_parity.value)
         mesh_para = kpoints_para.get_kpoints_mesh()[0]
 

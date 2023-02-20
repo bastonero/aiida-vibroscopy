@@ -141,7 +141,7 @@ class VibrationalMixin:
         sum_rules=False,
         **kwargs
     ):
-        """Return the Raman tensors (in angstrom^2/sqrt(AMU)) for each phonon mode,
+        """Return the Raman tensors (in (angstrom/AMU)^1/2) for each phonon mode,
         along with frequencies (cm-1) and irreps labels.
 
         :param nac_direction: non-analytical direction in fractional coordinates
@@ -236,7 +236,7 @@ class VibrationalMixin:
         return results
 
     def run_polarized_raman_intensities(self, pol_incoming, pol_outgoing, **kwargs):
-        """Return polarized Raman intensities (in angstrom^4/AMU) with frequencies (cm-1) and irreps labels.
+        """Return polarized Raman intensities (in angstrom/AMU) with frequencies (cm-1) and irreps labels.
 
         :param pol_incoming: light polarization vector of the incoming light
             (laser) in crystal/fractional coordinates
@@ -270,7 +270,7 @@ class VibrationalMixin:
         return (raman_intensities, freqs, labels)
 
     def run_powder_raman_intensities(self, quadrature_order=None, **kwargs):
-        """Return unpolarized powder Raman intensities (in angstrom^4/AMU)
+        """Return unpolarized powder Raman intensities (in angstrom/AMU)
         in the two common setups of polarized and unpolarized
         scattering, with frequencies (cm-1) and labels.
 

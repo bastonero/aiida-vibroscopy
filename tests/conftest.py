@@ -517,10 +517,10 @@ def generate_dielectric_workchain_node():
 
 
 @pytest.fixture
-def generate_vibrational_data(generate_structure):
+def generate_vibrational_data_from_forces(generate_structure):
     """Generate a `VibrationalFrozenPhononData`."""
 
-    def _generate_vibrational_data(dielectric=None, born_charges=None, dph0=None, nlo=None, forces=None):
+    def _generate_vibrational_data_from_forces(dielectric=None, born_charges=None, dph0=None, nlo=None, forces=None):
         """Return a `VibrationalFrozenPhononData` with bulk silicon as structure."""
         from aiida.plugins import DataFactory
         import numpy
@@ -567,8 +567,8 @@ def generate_vibrational_data(generate_structure):
         if forces is not None:
             vibrational_data.set_forces(forces)
         else:
-            vibrational_data.set_forces([[[1, 0, 0], [-1, 0, 0]], [[2, 0, 0], [-2, 0, 0]]])
+            vibrational_data.set_forces(sets_of_forces=[[[1, 0, 0], [-1, 0, 0]], [[2, 0, 0], [-2, 0, 0]]])
 
         return vibrational_data
 
-    return _generate_vibrational_data
+    return _generate_vibrational_data_from_forces

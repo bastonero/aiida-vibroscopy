@@ -4,7 +4,7 @@
 __all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive', 'validate_nac')
 
 
-def validate_tot_magnetization(tot_magnetization, thr=0.1):
+def validate_tot_magnetization(tot_magnetization, thr=0.2):
     """
     Set the tot magnetization input key equal to the round value of tot_magnetization and return TRUE if
     the latter does not exceed the given threshold from its original value.

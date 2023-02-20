@@ -4,9 +4,9 @@ import pytest
 
 
 @pytest.mark.usefixtures('aiida_profile')
-def test_methods(generate_vibrational_data):
+def test_methods(generate_vibrational_data_from_forces):
     """Test `VibrationalMixin` methods."""
-    vibrational_data = generate_vibrational_data()
+    vibrational_data = generate_vibrational_data_from_forces()
 
     vibrational_data.run_raman_susceptibility_tensors()
     vibrational_data.run_polarization_vectors()
@@ -17,9 +17,9 @@ def test_methods(generate_vibrational_data):
 
 
 @pytest.mark.usefixtures('aiida_profile')
-def test_powder_methods(generate_vibrational_data):
+def test_powder_methods(generate_vibrational_data_from_forces):
     """Test `VibrationalMixin` powder spectra methods."""
-    vibrational_data = generate_vibrational_data()
+    vibrational_data = generate_vibrational_data_from_forces()
 
     vibrational_data.run_powder_raman_intensities(quadrature_order=3)
     vibrational_data.run_powder_ir_intensities(quadrature_order=3)

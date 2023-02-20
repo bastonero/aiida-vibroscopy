@@ -24,7 +24,7 @@ class HarmonicWorkChain(BaseWorkChain):
     for frozen phonons calculations. Non-analytical constants are computed
     via finite differences as well through finite electric fields.
     """
-
+    # yapf: disable
     @classmethod
     def define(cls, spec):
         """Define inputs, outputs, and outline."""
@@ -55,21 +55,27 @@ class HarmonicWorkChain(BaseWorkChain):
             cls.setup,
             cls.run_base_supercell,
             cls.inspect_base_supercell,
-            if_(cls.should_run_parallel
-                )(cls.run_parallel,).else_(cls.run_forces,
-                                           if_(cls.should_run_dielectric)(cls.run_dielectric,)),
+            cls.set_reference_kpoints,
+            if_(cls.should_run_parallel)(
+                cls.run_parallel
+            ).else_(
+                cls.run_forces,
+                if_(cls.should_run_dielectric)(
+                    cls.run_dielectric,
+                    )
+                ),
             cls.inspect_all_runs,
             cls.run_results,
         )
 
         spec.output(
-            'phonopy_data',
-            valid_type=PhonopyData,
+            'phonopy_data', valid_type=PhonopyData,
             help=(
                 'The phonopy data with supercells displacements, forces'
                 'and (optionally) nac parameters to use in the post-processing calculation.'
             ),
         )
+        # yapf: enable
 
     @classmethod
     def get_protocol_filepath(cls):
@@ -198,8 +204,8 @@ class HarmonicWorkChain(BaseWorkChain):
             else:
                 nac_parameters = elaborate_tensors(self.ctx.preprocess_data, tensors)
 
-        full_phonopy_data = self.ctx.preprocess_data.calcfunctions.generate_full_phonopy_data(
-            nac_parameters=nac_parameters, **self.outputs['supercells_forces']
+        full_phonopy_data = self.ctx.preprocess_data.calcfunctions.generate_phonopy_data(
+            nac_parameters=nac_parameters, forces_index=orm.Int(-1), **self.outputs['supercells_forces']
         )
 
         self.out('phonopy_data', full_phonopy_data)

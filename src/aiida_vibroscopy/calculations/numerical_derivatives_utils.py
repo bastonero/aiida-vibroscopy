@@ -166,7 +166,17 @@ def compute_susceptibility_derivatives(
                 for subkey, subvalue in value.items():
                     raw_data[key].update({subkey: subvalue})
 
-    data_0 = raw_data.pop('null_field')
+    data_0 = raw_data.pop('null_field', None)
+
+    if data_0 is None:
+        key = list(raw_data.keys())[0]
+        subkey = list(raw_data[key].keys())[0]
+        traj = raw_data[key][subkey].clone()
+        forces_shape = traj.get_array('forces').shape
+        dipole_shape = traj.get_array('electronic_dipole_cartesian_axes').shape
+        traj.set_array('forces', np.zeros(forces_shape))
+        traj.set_array('electronic_dipole_cartesian_axes', np.zeros(dipole_shape))
+        data_0 = traj
 
     # Taking the missing data from symmetry
     if preprocess_data.is_symmetry:
@@ -175,7 +185,8 @@ def compute_susceptibility_derivatives(
         )
 
     # Conversion factors
-    dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
+    # dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
+    dchi_factor = (forces_si_to_au * CONSTANTS.bohr_to_ang**2) / volume  # --> angstrom^-1
     chi2_factor = 0.5 * (4 * pi) * 100 / (volume_au_units * efield_au_to_si)  # --> pm/Volt
 
     # Variables
@@ -310,7 +321,7 @@ def compute_susceptibility_derivatives(
         chis_data.update({key_order: deepcopy(chis_array_data)})
 
     units_data = orm.Dict({
-        'raman_tensors': r'$\AA^2$',
+        'raman_tensors': r'$1/\AA$',
         'nlo_susceptibility': 'pm/V',
     })
 
@@ -344,7 +355,17 @@ def compute_nac_parameters(
                 for subkey, subvalue in value.items():
                     raw_data[key].update({subkey: subvalue})
 
-    data_0 = raw_data.pop('null_field')
+    data_0 = raw_data.pop('null_field', None)
+
+    if data_0 is None:
+        key = list(raw_data.keys())[0]
+        subkey = list(raw_data[key].keys())[0]
+        traj = raw_data[key][subkey].clone()
+        forces_shape = traj.get_array('forces').shape
+        dipole_shape = traj.get_array('electronic_dipole_cartesian_axes').shape
+        traj.set_array('forces', np.zeros(forces_shape))
+        traj.set_array('electronic_dipole_cartesian_axes', np.zeros(dipole_shape))
+        data_0 = traj
 
     # Taking the missing data from symmetry
     if preprocess_data.is_symmetry:

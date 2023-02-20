@@ -17,10 +17,9 @@ __all__ = (
     'compute_raman_space_average',
     'compute_raman_susceptibility_tensors',
     'compute_polarization_vectors',
-    'compute_polarization_vectors',
     'get_supercells_for_hubbard',
     'elaborate_susceptibility_derivatives',
-    'generate_vibrational_data',
+    'generate_vibrational_data_from_forces',
 )
 
 
@@ -150,8 +149,9 @@ def compute_raman_susceptibility_tensors(
     sum_rules=False,
     degeneracy_tolerance=1e-5,
 ):
-    """Return the Raman tensors (in angstrom^2/sqrt(AMU)) along with
+    """Return the Raman tensors (in (Angstrom/AMU)^(1/2)) along with
     each phonon mode with frequencies (cm-1) and labels.
+    The volume used is the volume of the unitcell.
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
     :param nac_direction: non-analytical direction in reciprocal
@@ -181,6 +181,10 @@ def compute_raman_susceptibility_tensors(
 
     if nac_direction.shape != (3,):
         raise ValueError('the array is not of the correct shape')
+
+    volume = phonopy_instance.unitcell.volume
+    sqrt_volume = np.sqrt(volume)
+    raman_tensors *= volume
 
     rcell = np.linalg.inv(phonopy_instance.primitive.cell)
     q_direction = np.dot(rcell, nac_direction)  # in Cartesian coordinates
@@ -229,9 +233,9 @@ def compute_raman_susceptibility_tensors(
         nlo_term = np.dot(nlo_susceptibility, q_direction)  # (3, 3) | (i, j)
 
         nlo_correction = -(UNITS_FACTORS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
-        raman_susceptibility_tensors = raman_susceptibility_tensors + nlo_correction
+        raman_susceptibility_tensors += nlo_correction
 
-    return (raman_susceptibility_tensors, freqs, labels)
+    return (raman_susceptibility_tensors / sqrt_volume, freqs, labels)
 
 
 def compute_polarization_vectors(
@@ -287,13 +291,14 @@ def compute_polarization_vectors(
         borns -= sum_rule_correction
 
     # Here we check we do not have empty array.
-    if neigvs.tolist():
+    # E.g. happening in non-polar crystals, such as Si
+    if not neigvs.tolist():
         return (np.array([]) for _ in range(3))
 
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
     # borns  shape|indices = (num atoms, 3, 3) | (I, i, k)
     # The contraction is performed over I and k, resulting in (n, i) polarization vectors.
-    pol_vectors = UNITS_FACTORS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/AMU
+    pol_vectors = UNITS_FACTORS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/sqrt(AMU)
 
     return (pol_vectors, freqs, labels)
 
@@ -424,7 +429,9 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
 
 
 @calcfunction
-def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.ArrayData, **forces_dict):
+def generate_vibrational_data_from_forces(
+    preprocess_data: PreProcessData, tensors: orm.ArrayData, forces_index=None, **forces_dict
+):
     """Create a VibrationalFrozenPhononData node from a PreProcessData node,
     storing forces and dielectric properties for spectra calculation.
 
@@ -433,9 +440,11 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
 
     :param tensors: ArrayData with arraynames `dielectric`, `born_charges`
         and eventual `raman_tensors`, `nlo_susceptibility`
+    :param forces_index: Int if a TrajectoryData is given, in order to
+        get the correct slice of the array. In QuantumESPRESSO it should be 0 or -1.
     :param forces_dict: dictionary of supercells forces as ArrayData stored
         as `forces`, each Data labelled in the dictionary in the format
-        `{prefix}_{suffix}`. The prefix is common and the suffix
+        `forces_{suffix}`. The prefix is common and the suffix
         corresponds to the suffix number of the supercell with
         displacement label given from the
         `get_supercells_with_displacements` method.
@@ -450,32 +459,22 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
         .. note: if residual forces would be stored, label it with 0 as suffix.
     """
     VibrationalFrozenPhononData = DataFactory('vibroscopy.fp')
-
-    # Getting the prefix
-    for key in forces_dict:
-        try:
-            int(key.split('_')[-1])
-            # dumb way of getting the prefix including cases of multiple `_`, e.g. `force_calculation_001`
-            prefix = key[:-(len(key.split('_')[-1]) + 1)]
-        except ValueError as err:
-            raise ValueError(f'{key} is not an acceptable key, must finish with an int number.') from err
+    prefix = 'forces'
 
     forces_0 = forces_dict.pop(f'{prefix}_0', None)
+    # Setting the dictionary of forces
+    dict_of_forces = {}
 
-    # Setting force sets array
-    force_sets = [0 for _ in forces_dict]
-
-    # Filling arrays in numeric order determined by the key label
     for key, value in forces_dict.items():
-        index = int(key.split('_')[-1])
-        force_sets[index - 1] = value.get_array('forces')
+        if key.startswith(prefix):
+            dict_of_forces[key] = value.get_array('forces')
 
-    # Finilizing force sets array
-    sets_of_forces = np.array(force_sets)
+    if forces_index is not None:
+        forces_index = forces_index.value
 
     # Setting data on a new PhonopyData
     vibrational_data = VibrationalFrozenPhononData(preprocess_data=preprocess_data)
-    vibrational_data.set_forces(sets_of_forces=sets_of_forces)
+    vibrational_data.set_forces(dict_of_forces=dict_of_forces, forces_index=forces_index)
 
     if forces_0 is not None:
         vibrational_data.set_residual_forces(forces=forces_0.get_array('forces'))
@@ -489,3 +488,102 @@ def generate_vibrational_data(preprocess_data: PreProcessData, tensors: orm.Arra
         pass
 
     return vibrational_data
+
+
+@calcfunction
+def generate_vibrational_data_from_phonopy(phonopy_data, tensors: orm.ArrayData):
+    """Create a `VibrationalData` node from a `Phonopy` node,
+    storing the force constants and dielectric properties for spectra calculation.
+
+    :param tensors: ArrayData with arraynames `dielectric`, `born_charges`
+        and eventual `raman_tensors`, `nlo_susceptibility`
+    """
+    VibrationalData = DataFactory('vibroscopy.vibrational')
+
+    # Getting the force constants
+    ph = phonopy_data.get_phonopy_instance()
+    ph.produce_force_constants()
+    force_constants = ph.force_constants
+
+    # Setting data on a new PhonopyData
+    vibrational_data = VibrationalData(
+        structure=phonopy_data.get_unitcell(),
+        supercell_matrix=phonopy_data.supercell_matrix,
+        primitive_matrix=phonopy_data.primitive_matrix,
+        symprec=phonopy_data.symprec,
+        is_symmetry=phonopy_data.is_symmetry,
+    )
+
+    vibrational_data.set_force_constants(force_constants)
+
+    vibrational_data.set_dielectric(tensors.get_array('dielectric'))
+    vibrational_data.set_born_charges(tensors.get_array('born_charges'))
+    try:
+        vibrational_data.set_raman_tensors(tensors.get_array('raman_tensors'))
+        vibrational_data.set_nlo_susceptibility(tensors.get_array('nlo_susceptibility'))
+    except KeyError:
+        pass
+
+    return vibrational_data
+
+
+@calcfunction
+def generate_vibrational_data_from_force_constants(preprocess_data, force_constants, tensors: orm.ArrayData):
+    """Create a `VibrationalData` node from a `PreProcessData` and force constants ArrayData,
+    storing the force constants and dielectric properties for spectra calculation.
+
+    :param force_constants: ArrayData with arrayname `force_constants`
+    :param tensors: ArrayData with arraynames `dielectric`, `born_charges`
+        and eventual `raman_tensors`, `nlo_susceptibility`
+    """
+    VibrationalData = DataFactory('vibroscopy.vibrational')
+
+    # Setting data on a new PhonopyData
+    vibrational_data = VibrationalData(
+        structure=preprocess_data.get_unitcell(),
+        supercell_matrix=preprocess_data.supercell_matrix,
+        primitive_matrix=preprocess_data.primitive_matrix,
+        symprec=preprocess_data.symprec,
+        is_symmetry=preprocess_data.is_symmetry,
+    )
+
+    vibrational_data.set_force_constants(force_constants.get_array('force_constants'))
+    vibrational_data.set_dielectric(tensors.get_array('dielectric'))
+    vibrational_data.set_born_charges(tensors.get_array('born_charges'))
+    try:
+        vibrational_data.set_raman_tensors(tensors.get_array('raman_tensors'))
+        vibrational_data.set_nlo_susceptibility(tensors.get_array('nlo_susceptibility'))
+    except KeyError:
+        pass
+
+    return vibrational_data
+
+
+@calcfunction
+def subtract_residual_forces(ref_meshes, meshes_dict, **kwargs):
+    """It subtract the residual forces of the reference null fields
+    related to the finite electric fields."""
+    ref_meshes_ = ref_meshes.get_list()
+    meshes_dict_ = meshes_dict.get_dict()
+
+    ref_trajectories = kwargs['ref_trajectories']
+    old_trajectories = kwargs['old_trajectories']
+
+    new_trajectories = {}
+
+    for field_label, field_trajectories in old_trajectories.items():
+        mesh = meshes_dict_[field_label]
+        ref_index = ref_meshes_.index(mesh)
+        ref_force = ref_trajectories[str(ref_index)].get_array('forces')
+
+        new_trajectories[field_label] = {}
+
+        for index, field_trajectory in field_trajectories.items():
+            new_traj = field_trajectory.clone()
+            old_force = new_traj.get_array('forces')
+
+            new_traj.set_array('forces', old_force - ref_force)
+
+            new_trajectories[field_label][str(index)] = new_traj
+
+    return new_trajectories

@@ -117,6 +117,7 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
     process.out(f'supercells_forces.scf_supercell_1', forces_1)
     process.out(f'supercells_forces.scf_supercell_2', forces_2)
 
+    process.set_phonopy_data()
     process.run_raw_results()
 
     assert 'vibrational_data' in process.outputs
@@ -127,15 +128,15 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
 
 
 #@pytest.mark.usefixtures('aiida_profile_clean')
-def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data):
+def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data_from_forces):
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
     from aiida.orm import Dict
     options = Dict({'quadrature_order': 3})
     process = generate_workchain_iraman(append_inputs={'intensities_average': {'options': options}})
 
     process.ctx.vibrational_data = {
-        'numerical_order_2_step_1': generate_vibrational_data(),
-        'numerical_order_4': generate_vibrational_data(),
+        'numerical_order_2_step_1': generate_vibrational_data_from_forces(),
+        'numerical_order_4': generate_vibrational_data_from_forces(),
     }
 
     process.run_intensities_averaged()

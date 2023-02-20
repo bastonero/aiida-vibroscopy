@@ -4,13 +4,13 @@ import pytest
 
 
 @pytest.fixture(name='generate_workchain_average')
-def generate_workchain_average_fixture(generate_workchain, generate_vibrational_data):
+def generate_workchain_average_fixture(generate_workchain, generate_vibrational_data_from_forces):
     """Generate an instance of a `IntensitiesAverageWorkChain`."""
 
     def _generate_workchain_average(append_inputs=None, return_inputs=False):
         from aiida import orm
         entry_point = 'vibroscopy.spectra.intensities_average'
-        vibrational_data = generate_vibrational_data()
+        vibrational_data = generate_vibrational_data_from_forces()
         options = orm.Dict({'quadrature_order': 3})
 
         inputs = {
