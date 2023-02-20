@@ -7,8 +7,8 @@ from .vibro_mixin import VibrationalMixin
 
 ForceConstantsData = DataFactory('phonopy.force_constants')
 
-__all__ = ('VibrationalLinearResponseData',)
+__all__ = ('VibrationalData',)
 
 
-class VibrationalLinearResponseData(ForceConstantsData, VibrationalMixin):
+class VibrationalData(ForceConstantsData, VibrationalMixin):
     """Vibrational data for IR and Raman spectra from linear response."""
