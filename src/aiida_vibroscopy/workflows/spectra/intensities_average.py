@@ -14,8 +14,8 @@ def compute_ir_average(**kwargs):
     :return: ArrayData with arraynames `intensities`, `frequencies`, `labels`
     """
     vibro_data = kwargs['vibro_data']
-    options = kwargs['options']
-    intensities, freqs, labels = vibro_data.run_powder_ir_intensities(**options)
+    parameters = kwargs['parameters']
+    intensities, freqs, labels = vibro_data.run_powder_ir_intensities(**parameters)
     array = orm.ArrayData()
 
     array.set_array('intensities', intensities)
@@ -32,8 +32,8 @@ def compute_raman_average(**kwargs):
     :return: ArrayData with arraynames `intensities`, `frequencies`, `labels`
     """
     vibro_data = kwargs['vibro_data']
-    options = kwargs['options']
-    intensities_hh, intensities_hv, freqs, labels = vibro_data.run_powder_raman_intensities(**options)
+    parameters = kwargs['parameters']
+    intensities_hh, intensities_hv, freqs, labels = vibro_data.run_powder_raman_intensities(**parameters)
     array = orm.ArrayData()
 
     array.set_array('intensities_HH', intensities_hh)
@@ -77,7 +77,7 @@ class IntensitiesAverageWorkChain(WorkChain):
             ),
         )
         spec.input(
-            'options',
+            'parameters',
             valid_type=orm.Dict,
             default=lambda: orm.Dict({'quadrature_order': 41}),
             help='Options for averaging on the non-analytical directions.'
@@ -115,7 +115,7 @@ class IntensitiesAverageWorkChain(WorkChain):
     def run_results(self):
         """Run averaging procedure."""
         vibrational_data = self.inputs.vibrational_data
-        kwargs = {'vibro_data': vibrational_data, 'options': self.inputs.options}
+        kwargs = {'vibro_data': vibrational_data, 'parameters': self.inputs.parameters}
 
         self.report('IR averaging calcfunction started')
         ir_average = compute_ir_average(**kwargs)
@@ -123,15 +123,15 @@ class IntensitiesAverageWorkChain(WorkChain):
         self.out('ir_averaged', ir_average)
 
         if vibrational_data.has_raman_parameters():
-            options = kwargs['options'].get_dict()
+            parameters = kwargs['parameters'].get_dict()
 
             try:
-                options['with_nlo'] = options.pop('with_nlo')
+                parameters['with_nlo'] = parameters.pop('with_nlo')
             except KeyError:
                 if vibrational_data.has_nlo():
-                    options['with_nlo'] = True
+                    parameters['with_nlo'] = True
 
-            kwargs['options'] = orm.Dict(options)
+            kwargs['parameters'] = orm.Dict(parameters)
 
             self.report('Raman averaging calcfunction started')
             raman_average = compute_raman_average(**kwargs)

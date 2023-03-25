@@ -141,13 +141,16 @@ def compute_susceptibility_derivatives(
     **kwargs
 ):
     """
-    Return the third derivative of the total energy in respect to
-    one phonon and two electric fields, times volume factor.
+    Return the Raman (1/Angstrom) and the non-linear optical susceptibility (pm/V) tensors.
 
-    :note: the number of arrays depends on the accuracy.
+    ..note:
+        * If the numerical accuracy order is greater than 2, arrays at lower orders are given as well.
+        * Units are 1/Angstrom for Raman tensors, normalized using the UNITCELL volume.
+        * Units are pm/V for non-linear optical susceptibility
+        * Raman tensors indecis: (atomic,  atomic displacement, electric field, electric field)
 
-    :return: dictionary with ArrayData having arraynames:
-        * `raman_tensors` containing (num_atoms, 3, 3, 3) arrays (second index refers to atomic displacements);
+    :return: dictionary with ArrayData namespaces having arraynames:
+        * `raman_tensors` containing (num_atoms, 3, 3, 3) arrays;
         * `nlo_susceptibility` containing (3, 3, 3) arrays;
         And a key `units` as orm.Dict containing the units of the tensors.
     """
@@ -333,12 +336,16 @@ def compute_nac_parameters(
     preprocess_data: PreProcessData, electric_field: orm.Float, accuracy_order: orm.Int, **kwargs
 ) -> dict:
     """
-    Return epsilon and born charges to second order in finite electric fields (central difference).
+    Return high frequency dielectric and Born charge tensors using central difference schemes.
 
-    :note: the number of arrays depends on the accuracy.
+    ..note:
+        * Units are in atomic units, meaning:
+            1. Dielectric tensor in vacuum permittivity units.
+            2. Born charges in electric charge units.
+        * Born charges tensors indecis: (atomic, electric field, atomic displacement)
 
-    :return: dictionary with ArrayData having arraynames:
-        * `born_charges` as containing (num_atoms, 3, 3) arrays (third index refers to atomic displacements);
+    :return: dictionary with ArrayData namespaces having arraynames:
+        * `born_charges` as containing (num_atoms, 3, 3) arrays
         * `dielectric` as containing (3, 3) arrays.
     """
     structure = preprocess_data.get_unitcell()

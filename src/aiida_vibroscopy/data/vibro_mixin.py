@@ -39,7 +39,16 @@ class VibrationalMixin:
     @property
     def raman_tensors(self):
         """Get the derivatives of the susceptibility tensor in respect
-        to atomic positions in Cartesian coordinates.
+        to atomic positions (dChi/du) in Cartesian coordinates.
+
+        .. note:
+            * The shape should correspond to the primitive cell.
+            * Again, units in 1/Angstrom, normalized using the unitcell volume.
+            * Indices are as follows:
+                1. Atomic index.
+                2. Atomic displacement index.
+                3. Polarization index (i.e. referring to electric field derivative).
+                4. Same as 3.
         """
         try:
             value = self.get_array('raman_tensors')
@@ -49,13 +58,18 @@ class VibrationalMixin:
 
     def set_raman_tensors(self, raman_tensors):
         """Set the derivatives of the susceptibility tensor in respect to atomic
-        positions in Cartesian coordinates.
+        positions (dChi/du) in Cartesian coordinates; units in 1/Angstrom.
 
-        .. note: it is assumed that the reference system is the same (if not the one)
-            of the primitive cell.
+        .. note:
+            * The shape should correspond to the primitive cell.
+            * Again, units in 1/Angstrom, normalized using the unitcell volume.
+            * Indices are as follows:
+                1. Atomic index.
+                2. Atomic displacement index.
+                3. Polarization index (i.e. referring to electric field derivative).
+                4. Same as 3.
 
         :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3)
-            array like (first index refers to forces);
 
         :raises:
             * TypeError: if the format is not compatible or of the correct type
@@ -85,9 +99,9 @@ class VibrationalMixin:
         return value
 
     def set_nlo_susceptibility(self, nlo_susceptibility):
-        """Set the non linear optical susceptibility tensor in Cartesian coordinates.
+        """Set the non linear optical susceptibility tensor (pm/V) in Cartesian coordinates.
 
-        .. note: it is assumed that the reference system is the same (if not the one) of the primitive cell.
+        .. note: units in pm/V
 
         :param dielectric: (3, 3, 3) array like
 
@@ -141,10 +155,10 @@ class VibrationalMixin:
         sum_rules=False,
         **kwargs
     ):
-        """Return the Raman tensors (in (angstrom/AMU)^1/2) for each phonon mode,
+        """Return the Raman susceptibility tensors ( (Angstrom/AMU)^(1/2) ) for each phonon mode,
         along with frequencies (cm-1) and irreps labels.
 
-        :param nac_direction: non-analytical direction in fractional coordinates
+        :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
             in reciprocal space; (3,) shape list or numpy.ndarray
         :param with_nlo: whether to use or not non-linear optical susceptibility
             correction (Froehlich term), defaults to True
@@ -197,7 +211,7 @@ class VibrationalMixin:
         along with frequencies (cm-1) and irreps labels.
 
         :param nac_direction: non-analytical direction
-        :type nac_direction: non-analytical direction in fractional coordinates
+        :type nac_direction: non-analytical direction in fractional coordinates (primitive cell)
             in reciprocal space; space(3,) shape list or numpy.ndarray
         :param use_irreps: whether to use irreducible representations in the
             selection of modes, defaults to True
@@ -291,18 +305,22 @@ class VibrationalMixin:
             raman_hh, raman_hv = compute_raman_space_average(raman_susceptibility_tensors=raman_susceptibility_tensors)
 
         else:
+            cell = self.get_phonopy_instance().primitive.cell
+
             scheme = _get_scheme_from_order(quadrature_order)
-            points = scheme.points.transpose()
+            points = scheme.points.T
             weights = scheme.weights
+
             freqs = []
             labels = []
+
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip(points, weights):
-                cell = self.get_phonopy_instance().primitive.cell
                 q_crystal = np.dot(cell, q)  # in reciprocal fractional/crystal coordinates
                 q_tensors, q_freqs, q_labels = self.run_raman_susceptibility_tensors(
-                    **kwargs, **{'nac_direction': q_crystal}
+                    nac_direction=q_crystal,
+                    **kwargs,
                 )
 
                 q_raman_hh, q_raman_hv = compute_raman_space_average(raman_susceptibility_tensors=q_tensors)

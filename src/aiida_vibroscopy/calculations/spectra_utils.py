@@ -36,7 +36,7 @@ def compute_active_modes(
     polarization vectors and Raman tensors.
 
     :param nac_direction: (3,) shape list, indicating non analytical
-        direction in fractional reciprocal space coordinates
+        direction in fractional reciprocal (primitive cell) space coordinates
     :param selection_rule: str, can be `raman` or `ir`;
         it uses symmetry in the selection of the modes
         for a specific type of process.
@@ -71,7 +71,7 @@ def compute_active_modes(
 
     bands_indices = irreps.band_indices
     characters = irreps.characters.real
-    labels = irreps._get_ir_labels()
+    labels = irreps._get_ir_labels()  #pylint: disable=protected-access
 
     mode_index = 0
 
@@ -149,25 +149,24 @@ def compute_raman_susceptibility_tensors(
     sum_rules=False,
     degeneracy_tolerance=1e-5,
 ):
-    """Return the Raman tensors (in (Angstrom/AMU)^(1/2)) along with
-    each phonon mode with frequencies (cm-1) and labels.
-    The volume used is the volume of the unitcell.
+    """Return the Raman susceptibility tensors ( (Angstrom/AMU)^(1/2) ),
+    frequencies (cm-1) and labels.
+
+    ..note:
+        Unitcell volume for Raman tensor as normalization (in case non-primitive cell was used).
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in reciprocal
-        space coordinates (only direction is meaningful)
-    :param raman_tensors: derivatives of the susceptibility
-        in respect to atomic positions in Cartesian coordinates and in angstrom^2
+    :param nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+    :param raman_tensors: dChi/du in Cartesian coordinates (in 1/Angstrom)
     :param nlo_susceptibility: non linear optical susceptibility
-        in Cartesian coordinates and in pm/V
-    :type nac_direction: (3,) shape list or numpy.ndarray
+        in Cartesian coordinates (in pm/V)
     :param use_irreps: whether to use irreducible representations
         in the selection of modes, defaults to True
     :type use_irreps: bool, optional
     :param degeneracy_tolerance: degeneracy tolerance for
         irreducible representation
 
-    :return: tuple (Raman tensors, frequencies, labels)
+    :return: tuple (Raman susc. tensors, frequencies, labels)
     """
     try:
         nac_direction = nac_direction()
@@ -250,7 +249,7 @@ def compute_polarization_vectors(
     for each phonon mode with frequencies (cm-1) and labels.
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in fractional coordinates
+    :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
         in reciprocal space
     :type nac_direction: (3,) shape list or numpy.ndarray
     :param use_irreps: whether to use irreducible representations
@@ -473,7 +472,7 @@ def generate_vibrational_data_from_forces(
         forces_index = forces_index.value
 
     # Setting data on a new PhonopyData
-    vibrational_data = VibrationalFrozenPhononData(preprocess_data=preprocess_data)
+    vibrational_data = VibrationalFrozenPhononData(preprocess_data=preprocess_data.clone())
     vibrational_data.set_forces(dict_of_forces=dict_of_forces, forces_index=forces_index)
 
     if forces_0 is not None:
