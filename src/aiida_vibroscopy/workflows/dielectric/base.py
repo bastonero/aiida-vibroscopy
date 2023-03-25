@@ -689,7 +689,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok} # pylint: disable=locally-disabled, line-too-long
                 output_data.update({f'fields_data.{label}':field_data})
                 self.ctx.data.update({label:field_data})
-        # self.out_many(output_data)
+        self.out_many(output_data)
 
         for key, workchains in self.ctx.items():
             if key.startswith('field_index_'):
