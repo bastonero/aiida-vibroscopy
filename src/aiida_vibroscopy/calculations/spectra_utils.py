@@ -168,14 +168,6 @@ def compute_raman_susceptibility_tensors(
 
     :return: tuple (Raman susc. tensors, frequencies, labels)
     """
-    try:
-        nac_direction = nac_direction()
-    except TypeError:
-        pass
-
-    if not isinstance(nac_direction, (list, np.ndarray)) or not isinstance(use_irreps, bool):
-        raise TypeError('the input is not of the correct type')
-
     nac_direction = np.array(nac_direction)
 
     if nac_direction.shape != (3,):
@@ -260,19 +252,6 @@ def compute_polarization_vectors(
 
     :return: tuple (polarization vectors, frequencies, labels)
     """
-    try:
-        nac_direction = nac_direction()
-    except TypeError:
-        pass
-
-    if not isinstance(nac_direction, (list, np.ndarray)) or not isinstance(use_irreps, bool):
-        raise TypeError('the input is not of the correct type')
-
-    nac_direction = np.array(nac_direction)
-
-    if nac_direction.shape != (3,):
-        raise ValueError('the array is not of the correct shape')
-
     selection_rule = 'ir' if use_irreps else None
 
     freqs, neigvs, labels = compute_active_modes(

@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=redefined-outer-name
 """Initialise a text database and profile for pytest."""
-from collections.abc import Mapping
 import io
 import os
 import pathlib
-import shutil
 import tempfile
 
 import pytest
@@ -171,7 +169,7 @@ def sssp(aiida_profile, generate_upf_data):
                 'cutoff_rho': 240.0,
             }
 
-        label = 'SSSP/1.1/PBE/efficiency'
+        label = 'SSSP/1.2/PBE/efficiency'
         family = SsspFamily.create_from_folder(dirpath, label)
 
     family.set_cutoffs(cutoffs, stringency, unit='Ry')
