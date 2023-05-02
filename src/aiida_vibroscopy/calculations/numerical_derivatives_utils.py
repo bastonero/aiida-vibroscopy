@@ -104,7 +104,7 @@ def central_derivatives_calculator(
 
 def _build_tensor_from_voigt(voigt, order, index=None):
     """Auxiliary function for reconstructing tensors from voigt notation."""
-    if order == 1:
+    if order == 1:  # effective charges, dielectric tensors
         tensor = np.zeros((3, 3))
         for j in range(3):
             if index is not None:
@@ -113,7 +113,7 @@ def _build_tensor_from_voigt(voigt, order, index=None):
                 tensor[j] = voigt[j]
         return tensor
 
-    if order == 2:
+    if order == 2:  # chi(2), raman tensors
         tensor = np.zeros((3, 3, 3))
         for k in range(3):
             for j in range(6):

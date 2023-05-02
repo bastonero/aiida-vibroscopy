@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Mixin for aiida-vibroscopy DataTypes."""
+from __future__ import annotations
+
 import numpy as np
 
 from aiida_vibroscopy.calculations.spectra_utils import (
@@ -56,7 +58,7 @@ class VibrationalMixin:
             value = None
         return value
 
-    def set_raman_tensors(self, raman_tensors):
+    def set_raman_tensors(self, raman_tensors: list[list[list[list]]]):
         """Set the derivatives of the susceptibility tensor in respect to atomic
         positions (dChi/du) in Cartesian coordinates; units in 1/Angstrom.
 
@@ -69,14 +71,12 @@ class VibrationalMixin:
                 3. Polarization index (i.e. referring to electric field derivative).
                 4. Same as 3.
 
-        :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3)
+        :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3) shape list
 
         :raises:
             * TypeError: if the format is not compatible or of the correct type
             * ValueError: if the format is not compatible or of the correct type
         """
-        # self._if_can_modify()
-
         if not isinstance(raman_tensors, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
 
@@ -89,7 +89,7 @@ class VibrationalMixin:
             raise ValueError('the array is not of the correct shape')
 
     @property
-    def nlo_susceptibility(self):
+    def nlo_susceptibility(self) -> list[list[list]]:
         """Get the non linear optical susceptibility tensor in Cartesian coordinates."""
         try:
             value = self.base.attributes.get('nlo_susceptibility')
@@ -98,7 +98,7 @@ class VibrationalMixin:
             value = None
         return value
 
-    def set_nlo_susceptibility(self, nlo_susceptibility):
+    def set_nlo_susceptibility(self, nlo_susceptibility: list):
         """Set the non linear optical susceptibility tensor (pm/V) in Cartesian coordinates.
 
         .. note: units in pm/V
@@ -154,7 +154,7 @@ class VibrationalMixin:
         degeneracy_tolerance=1e-5,
         sum_rules=False,
         **kwargs
-    ):
+    ) -> tuple[list[list], list[float], list[str]]:
         """Return the Raman susceptibility tensors ( (Angstrom/AMU)^(1/2) ) for each phonon mode,
         along with frequencies (cm-1) and irreps labels.
 
@@ -166,10 +166,16 @@ class VibrationalMixin:
         :param use_irreps: whether to use irreducible representations
             in the selection of modes, defaults to True
         :type use_irreps: bool, optional
-        :param sum_rules: whether to apply sum rules to the derivatives
-            of the susceptibility in respect to atomic positions
+        :param sum_rules: whether to apply sum rules and symmetrize force constants
+            by point and space group symmetries
         :type sum_rules: bool, optional
-        :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+        :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+            * factor_nac: factor for non-analytical corrections;
+                float, defaults to Hartree*Bohr
 
         :return: tuple (Raman tensors, frequencies, irreps labels)
         """
@@ -220,6 +226,12 @@ class VibrationalMixin:
             susceptibility in respect to atomic positions
         :type sum_rules: bool, optional
         :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+            * factor_nac: factor for non-analytical corrections;
+                float, defaults to Hartree*Bohr
 
         :return: tuple (polarization vectors, frequencies, irreps labels)
         """
@@ -283,12 +295,12 @@ class VibrationalMixin:
 
         return (raman_intensities, freqs, labels)
 
-    def run_powder_raman_intensities(self, quadrature_order=None, **kwargs):
+    def run_powder_raman_intensities(self, quadrature_order: int | None = None, **kwargs):
         """Return unpolarized powder Raman intensities (in angstrom/AMU)
-        in the two common setups of polarized and unpolarized
+        in the two common setups of polarized (HH) and unpolarized (HV)
         scattering, with frequencies (cm-1) and labels.
 
-        .. note: to obtain the total unpolarized intensities,
+        .. note: to obtain the total powder intensities,
             sum the two returned arrays of the intensities.
 
         :param quadrature_order: algebraic order to perform the integration
@@ -338,7 +350,24 @@ class VibrationalMixin:
         :param pol_incoming: light polarization vector of the
             incident beam light in crystal coordinates
         :type pol_incoming: list or numpy.ndarray of shape (3,)
-        :param kwargs: keys of `.run_polarization_vectors` method
+        :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+            * nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+                in reciprocal space; space(3,) shape list or numpy.ndarray
+            * use_irreps: whether to use irreducible representations in the
+                selection of modes, defaults to True; bool, optional
+            * sum_rules: whether to apply sum rules to the derivatives of the
+                susceptibility in respect to atomic positions; bool, optional
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+            * factor_nac: factor for non-analytical corrections;
+                float, defaults to Hartree*Bohr
+
+        :return: tuple(intensities, frequencies, labels).
+            Units are:
+                * Intensities: (Debey/Angstrom)^2/AMU
+                * Frequencies: cm^-1
         """
         if not isinstance(pol_incoming, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -364,10 +393,24 @@ class VibrationalMixin:
 
         :param quadrature_order: algebraic order to perform the integration
             on the sphere of nac directions
-        :type pol_incoming: int, optional
-        :param kwargs: keys of `.run_polarization_vectors` method
+        :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+            * nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+                in reciprocal space; space(3,) shape list or numpy.ndarray
+            * use_irreps: whether to use irreducible representations in the
+                selection of modes, defaults to True; bool, optional
+            * sum_rules: whether to apply sum rules to the derivatives of the
+                susceptibility in respect to atomic positions; bool, optional
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+            * factor_nac: factor for non-analytical corrections;
+                float, defaults to Hartree*Bohr
 
-        :return: (IR intensities, frequencies, labels)
+        :return: tuple(intensities, frequencies, labels).
+            Units are:
+                * Intensities: (Debey/Angstrom)^2/AMU
+                * Frequencies: cm^-1
         """
         ir_intensities = []
 
