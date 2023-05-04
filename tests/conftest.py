@@ -169,7 +169,7 @@ def sssp(aiida_profile, generate_upf_data):
                 'cutoff_rho': 240.0,
             }
 
-        label = 'SSSP/1.2/PBE/efficiency'
+        label = 'SSSP/1.2/PBEsol/efficiency'
         family = SsspFamily.create_from_folder(dirpath, label)
 
     family.set_cutoffs(cutoffs, stringency, unit='Ry')
@@ -369,10 +369,10 @@ def generate_inputs_dielectric(generate_inputs_pw):
 
 
 @pytest.fixture
-def generate_inputs_iraman(generate_inputs_pw, generate_inputs_dielectric):
+def generate_inputs_iraman(generate_inputs_pw):
     """Generate an instance of inputs for `IRamanSpectraWorkChain`."""
 
-    def _generate_inputs_iraman(append_inputs=None, return_inputs=False):
+    def _generate_inputs_iraman(append_inputs=None):
         inputs_pw = generate_inputs_pw()
         structure = inputs_pw.pop('structure')
         kpoints = inputs_pw.pop('kpoints')

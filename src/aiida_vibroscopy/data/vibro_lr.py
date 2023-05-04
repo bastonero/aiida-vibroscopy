@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Mixin for aiida-vibroscopy DataTypes."""
+"""Mixin for vibrational data."""
 
 from aiida.plugins import DataFactory
 
@@ -11,4 +11,4 @@ __all__ = ('VibrationalData',)
 
 
 class VibrationalData(ForceConstantsData, VibrationalMixin):
-    """Vibrational data for IR and Raman spectra from linear response."""
+    """Vibrational data for IR and Raman spectra."""

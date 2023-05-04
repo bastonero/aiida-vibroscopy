@@ -14,9 +14,7 @@ from aiida_vibroscopy.utils.validation import validate_positive
 
 
 def validate_data(data, _):
-    """
-    Validate the `data` namespace inputs.
-    """
+    """Validate the `data` namespace inputs."""
     control_null_namespace = 0  # must be 1
 
     for label in data:
@@ -34,15 +32,14 @@ def validate_data(data, _):
 
 
 class NumericalDerivativesWorkChain(WorkChain):
-    r"""
-    Workchain that computes first and second order derivatives
-    of forces and polarization in respect to
-    polarization, to obtain dielectric tensor, Born effective charges,
-    susceptibility derivatives in respect to atomic position and
-    polarization (i.e. non linear optical susceptibility) to be used
-    to compute Raman susceptibility tensors.
+    r"""Workchain carrying out numerical derivatives.
 
-    Forces and polarization must passed as TrajectoryData
+    It computes the first and second order derivatives
+    of forces and polarization in respect to electric field,
+    to obtain dielectric tensor, Born effective charges,
+    non linear optical susceptibility and Raman tensors.
+
+    Forces and polarization must be passed as TrajectoryData
     as a dictionary in `data`. Numerical derivatives can have
     different number of evaluation points, depending on order and accuracy.
     The price to pay is the standardization of the structure of
@@ -100,6 +97,7 @@ class NumericalDerivativesWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
+        """Define the process specification."""
         super().define(spec)
 
         # yapf: disable

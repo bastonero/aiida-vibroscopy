@@ -3,8 +3,8 @@
 import pytest
 
 
-@pytest.fixture(name='generate_workchain_average')
-def generate_workchain_average_fixture(generate_workchain, generate_vibrational_data_from_forces):
+@pytest.fixture
+def generate_workchain_average(generate_workchain, generate_vibrational_data_from_forces):
     """Generate an instance of a `IntensitiesAverageWorkChain`."""
 
     def _generate_workchain_average(append_inputs=None, return_inputs=False):
@@ -31,6 +31,7 @@ def generate_workchain_average_fixture(generate_workchain, generate_vibrational_
     return _generate_workchain_average
 
 
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_results(generate_workchain_average):
     """Test `IntensitiesAverageWorkChain.run_results` method."""
     process = generate_workchain_average()

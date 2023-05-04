@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """Validation function utilities."""
+from __future__ import annotations
 
 __all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive', 'validate_nac')
 
 
-def validate_tot_magnetization(tot_magnetization, thr=0.2):
-    """
-    Set the tot magnetization input key equal to the round value of tot_magnetization and return TRUE if
-    the latter does not exceed the given threshold from its original value.
+def validate_tot_magnetization(tot_magnetization: float, thr: float = 0.2) -> bool:
+    """Round the total magnetization input and return true if within threshold.
+
     This is needed because 'tot_magnetization' must be an integer in the aiida-quantumespresso input parameters.
     """
     int_tot_magnetization = round(tot_magnetization, 0)
-
     return abs(tot_magnetization - int_tot_magnetization) > thr
 
 

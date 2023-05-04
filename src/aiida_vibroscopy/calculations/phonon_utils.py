@@ -71,10 +71,8 @@ def extract_orders(**kwargs):
 
 
 @calcfunction
-def get_forces(trajectory: orm.TrajectoryData):
-    """Return the `forces` array of `trajectory` into an ArrayData
-    extracting the last set.
-    """
+def get_forces(trajectory: orm.TrajectoryData) -> orm.ArrayData:
+    """Extract the `forces` array from a TrajectoryData."""
     from aiida.orm import ArrayData
     forces = ArrayData()
     forces.set_array('forces', trajectory.get_array('forces')[-1])
@@ -82,16 +80,15 @@ def get_forces(trajectory: orm.TrajectoryData):
 
 
 @calcfunction
-def get_energy(parameters: orm.Dict):
+def get_energy(parameters: orm.Dict) -> orm.Float:
     """Convert the `energy` attribute of `parameters` into a Float."""
     from aiida.orm import Float
     return Float(parameters.base.attributes.get('energy'))
 
 
 @calcfunction
-def get_non_analytical_constants(dielectric: orm.ArrayData, born_charges: orm.ArrayData):
-    """Return a joint ArrayData from two ArrayData having dielectric and
-    Born effective charges, respectively.
+def get_non_analytical_constants(dielectric: orm.ArrayData, born_charges: orm.ArrayData) -> orm.ArrayData:
+    """Return a joint ArrayData  with dielectric and Born effective charges tensors.
 
     :param dielectric: ArrayData having an arrayname `dielectric`
     :param born_charges: ArrayData having an arrayname `born_charges`
@@ -110,8 +107,9 @@ def elaborate_non_analytical_constants(
     born_charges=None,
     nac_parameters=None,
 ):
-    """Return the non analytical constants in the primitive cell
-    considering the supercell matrix, in order to maintain consistency.
+    """Return the non analytical constants in the primitive cell.
+
+    It uses the unique atoms referring to the supercell matrix.
     """
     from aiida.orm import ArrayData
     from phonopy.structure.symmetry import symmetrize_borns_and_epsilon

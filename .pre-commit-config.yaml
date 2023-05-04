@@ -7,6 +7,11 @@ repos:
     -   id: fix-encoding-pragma
     -   id: mixed-line-ending
     -   id: trailing-whitespace
+        exclude: >-
+            (?x)^(
+                tests/.*.*out|
+                tests/.*.in$
+            )$
 
 -   repo: https://github.com/ikamensh/flynt/
     rev: '0.76'
@@ -34,3 +39,15 @@ repos:
         entry: pylint
         types: [python]
         language: system
+
+
+-   repo: https://github.com/PyCQA/pydocstyle
+    rev: '6.1.1'
+    hooks:
+    -   id: pydocstyle
+        exclude: >
+            (?x)^(
+                docs/.*|
+                tests/.*(?<!\.py)$
+            )$
+        additional_dependencies: ['toml']

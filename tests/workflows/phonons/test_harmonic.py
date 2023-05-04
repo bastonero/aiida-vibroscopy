@@ -57,7 +57,7 @@ def generate_valid_nac_parameters():
     return nac
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_valididation_inputs(generate_workchain_harmonic, generate_preprocess_data):
     """Test `HarmonicWorkChain` inizialisation with secure inputs."""
     preprocess_data = generate_preprocess_data()
@@ -89,13 +89,12 @@ def test_valididation_inputs(generate_workchain_harmonic, generate_preprocess_da
         }
     }, 'Displacement options must be of the correct type; got invalid values [True].')),
 )
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_invalid_inputs(
     generate_workchain_harmonic, generate_inputs_dielectric, generate_preprocess_data, generate_structure, parameters,
     message
 ):
     """Test `DielectricWorkChain` validation methods."""
-
     if 'dielectric_workchain' in parameters:
         dielectric_inputs = generate_inputs_dielectric(electric_field_scale=1.0)
         dielectric_inputs['scf']['pw'].pop('structure')
@@ -138,7 +137,7 @@ def test_invalid_inputs(
         (False),
     ),
 )
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_setup(generate_workchain_harmonic, generate_preprocess_data, generate_structure, parameters):
     """Test `HarmonicWorkChain` setep method."""
     from aiida.plugins import DataFactory
@@ -162,7 +161,7 @@ def test_setup(generate_workchain_harmonic, generate_preprocess_data, generate_s
     assert process.ctx.plus_hubbard == False
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, generate_inputs_dielectric):
     """Test `HarmonicWorkChain` setep method."""
     append_inputs = {'structure': generate_structure()}
@@ -178,7 +177,7 @@ def test_setup_with_dielectric(generate_workchain_harmonic, generate_structure, 
     assert process.ctx.run_parallel == True
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_forces(generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node):
     """Test `HarmonicWorkChain.run_forces` method."""
     append_inputs = {'structure': generate_structure(), 'options': {'sleep_submission_time': 0.1}}
@@ -198,7 +197,7 @@ def test_run_forces(generate_workchain_harmonic, generate_structure, generate_ba
     assert 'scf_supercell_1' in process.ctx
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_dielectric(
     generate_workchain_harmonic, generate_structure, generate_base_scf_workchain_node, generate_inputs_dielectric
 ):
@@ -228,15 +227,12 @@ def test_run_dielectric(
     ('is_magnetic'),
     ((True), (False)),
 )
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_results(
     generate_workchain_harmonic, generate_structure, generate_dielectric_workchain_node, generate_inputs_dielectric,
-    is_magnetic
+    is_magnetic, generate_trajectory
 ):
     """Test `HarmonicWorkChain.run_results` method."""
-    from aiida import orm
-    import numpy
-
     dielectric_inputs = generate_inputs_dielectric(electric_field_scale=1.0)
     dielectric_inputs['scf']['pw'].pop('structure')
     dielectric_inputs.pop('clean_workdir')
@@ -253,13 +249,11 @@ def test_run_results(
     process.ctx.dielectric_workchain = generate_dielectric_workchain_node(raman=False)
     process.ctx.is_magnetic = is_magnetic
 
-    forces_1 = orm.ArrayData()
-    forces_1.set_array('forces', numpy.full((2, 3), 1))
-    forces_2 = orm.ArrayData()
-    forces_2.set_array('forces', numpy.full((2, 3), -1))
+    forces_1 = generate_trajectory()
+    forces_2 = generate_trajectory()
 
-    process.out(f'supercells_forces.scf_supercell_1', forces_1)
-    process.out(f'supercells_forces.scf_supercell_2', forces_2)
+    process.out(f'supercells_forces.forces_1', forces_1)
+    process.out(f'supercells_forces.forces_2', forces_2)
 
     process.run_results()
 

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-Physical and conversion factor constants.
-Whenever possible, we try to use the constants defined in
-:py:mod:qe_tools._constants, but some of them are missing.
-"""
+"""Physical and conversion factor constants."""
+# Whenever possible, we try to use the constants defined in
+# :py:mod:`qe_tools._constants`, but some of them are missing.
 from math import pi, sqrt
 from types import SimpleNamespace
 

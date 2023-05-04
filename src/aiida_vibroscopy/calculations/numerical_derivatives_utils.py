@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Calcfunctions utils for numerical derivatives workchain."""
+from __future__ import annotations
+
 from copy import deepcopy
-from math import pi, sqrt
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -27,8 +28,9 @@ __all__ = (
 )
 
 
-def get_central_derivatives_coefficients(accuracy: int, order: int):
-    """Return an array with the central derivatives coefficients in 0.
+def get_central_derivatives_coefficients(accuracy: int, order: int) -> list[int]:
+    r"""Return an array with the central derivatives coefficients.
+
     Implementation following `Math. Comp. 51 (1988), 699-706`.
 
     .. note: non standard format. They are provided as:
@@ -71,9 +73,9 @@ def get_central_derivatives_coefficients(accuracy: int, order: int):
 def central_derivatives_calculator(
     step_size: float, order: int, vector_name: str, data_0: orm.TrajectoryData, **field_data: orm.TrajectoryData
 ):
-    """Calculate the central difference derivatives with a certain displacement of a certain type,
-    i.e. forces or polarization. The accuracy of the central finite difference is determined
-    by the number of keys in data.
+    r"""Calculate the central difference derivatives.
+
+    The accuracy of the central finite difference is determined by the number of keys in data.
 
     :param step_size: step size for finite differenciation
     :param order: order of the derivative
@@ -102,8 +104,25 @@ def central_derivatives_calculator(
     return derivative / denominator
 
 
-def _build_tensor_from_voigt(voigt, order, index=None):
-    """Auxiliary function for reconstructing tensors from voigt notation."""
+def build_tensor_from_voigt(voigt, order: int, index: int | None = None) -> np.ndarray:
+    """Auxiliary function for reconstructing tensors from voigt notation.
+
+    The Voigt notation is as follows:
+        * XX -> 0
+        * YY -> 1
+        * ZZ -> 2
+        * YZ -> 3
+        * XZ -> 4
+        * XY -> 5
+
+    :param voigt: tensors in contracted Voigt form
+    :param order: tensor rank; if 2, it uses the Taylor expansion as in
+        `Umari & Pasquarello, Diamond and Rel. Mat., (2005)` to reconstruct
+        the offdiagonal tensors
+    :param index: atomic index; used for Born effective charges and Raman tensors
+
+    :return: tensors in expanded form
+    """
     if order == 1:  # effective charges, dielectric tensors
         tensor = np.zeros((3, 3))
         for j in range(3):
@@ -139,9 +158,8 @@ def _build_tensor_from_voigt(voigt, order, index=None):
 def compute_susceptibility_derivatives(
     preprocess_data: PreProcessData, electric_field: orm.Float, diagonal_scale: orm.Float, accuracy_order: orm.Int,
     **kwargs
-):
-    """
-    Return the Raman (1/Angstrom) and the non-linear optical susceptibility (pm/V) tensors.
+) -> dict:
+    """Return the Raman (1/Angstrom) and the non-linear optical susceptibility (pm/V) tensors.
 
     ..note:
         * If the numerical accuracy order is greater than 2, arrays at lower orders are given as well.
@@ -149,10 +167,10 @@ def compute_susceptibility_derivatives(
         * Units are pm/V for non-linear optical susceptibility
         * Raman tensors indecis: (atomic,  atomic displacement, electric field, electric field)
 
-    :return: dictionary with ArrayData namespaces having arraynames:
+    :return: dictionary with :class:`~aiida.orm.ArrayData` having keys:
         * `raman_tensors` containing (num_atoms, 3, 3, 3) arrays;
         * `nlo_susceptibility` containing (3, 3, 3) arrays;
-        And a key `units` as orm.Dict containing the units of the tensors.
+        * `units` as :class:`~aiida.orm.Dict` containing the units of the tensors.
     """
     structure = preprocess_data.get_unitcell()
     volume = structure.get_cell_volume()  # angstrom^3
@@ -190,7 +208,7 @@ def compute_susceptibility_derivatives(
     # Conversion factors
     # dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
     dchi_factor = (forces_si_to_au * CONSTANTS.bohr_to_ang**2) / volume  # --> angstrom^-1
-    chi2_factor = 0.5 * (4 * pi) * 100 / (volume_au_units * efield_au_to_si)  # --> pm/Volt
+    chi2_factor = 0.5 * (4 * np.pi) * 100 / (volume_au_units * efield_au_to_si)  # --> pm/Volt
 
     # Variables
     field_step = electric_field.value
@@ -243,12 +261,12 @@ def compute_susceptibility_derivatives(
         # Now we build the actual tensor, using the symmetry properties of i <--> j .
         # Building dChi[I,k;i,j] from dChi[I,k;l]
         for index in range(num_atoms):
-            tensor_ = _build_tensor_from_voigt(voigt=dchi_voigt, order=2, index=index)
+            tensor_ = build_tensor_from_voigt(voigt=dchi_voigt, order=2, index=index)
             dchi_tensor.append(tensor_)
         dchi_tensor = np.array(dchi_tensor)
         # Now we build the actual tensor, using the symmetry properties of i <--> j .
         # Building Chi2[k;i,j] from Chi2[k;l]
-        chi2_tensor = _build_tensor_from_voigt(voigt=chi2_voigt, order=2)
+        chi2_tensor = build_tensor_from_voigt(voigt=chi2_voigt, order=2)
 
         # Doing the symmetrization in case
         dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
@@ -301,10 +319,10 @@ def compute_susceptibility_derivatives(
             data[key].pop(str(accuracy - 2))
 
         for index in range(num_atoms):
-            dchi_tensor.append(_build_tensor_from_voigt(voigt=dchi_voigt, order=2, index=index))
+            dchi_tensor.append(build_tensor_from_voigt(voigt=dchi_voigt, order=2, index=index))
         dchi_tensor = np.array(dchi_tensor)
 
-        chi2_tensor = _build_tensor_from_voigt(voigt=chi2_voigt, order=2)
+        chi2_tensor = build_tensor_from_voigt(voigt=chi2_voigt, order=2)
 
         # Doing the symmetrization in case
         dchi_tensor, chi2_tensor = symmetrize_susceptibility_derivatives(
@@ -335,8 +353,7 @@ def compute_susceptibility_derivatives(
 def compute_nac_parameters(
     preprocess_data: PreProcessData, electric_field: orm.Float, accuracy_order: orm.Int, **kwargs
 ) -> dict:
-    """
-    Return high frequency dielectric and Born charge tensors using central difference schemes.
+    """Return high frequency dielectric and Born charge tensors using central difference schemes.
 
     ..note:
         * Units are in atomic units, meaning:
@@ -344,7 +361,7 @@ def compute_nac_parameters(
             2. Born charges in electric charge units.
         * Born charges tensors indecis: (atomic, electric field, atomic displacement)
 
-    :return: dictionary with ArrayData namespaces having arraynames:
+    :return: dictionary with ArrayData having keys:
         * `born_charges` as containing (num_atoms, 3, 3) arrays
         * `dielectric` as containing (3, 3) arrays.
     """
@@ -381,8 +398,8 @@ def compute_nac_parameters(
         )
 
     # Conversion factors
-    bec_factor = forces_si_to_au / sqrt(2)
-    chi_factor = 4 * pi / volume_au_units
+    bec_factor = forces_si_to_au / np.sqrt(2)
+    chi_factor = 4 * np.pi / volume_au_units
 
     # Variables
     field_step = electric_field.value
@@ -426,12 +443,12 @@ def compute_nac_parameters(
 
         # Now we build the actual tensor.
         # Epsilon
-        chi_tensor = _build_tensor_from_voigt(voigt=chi_voigt, order=1)
+        chi_tensor = build_tensor_from_voigt(voigt=chi_voigt, order=1)
         eps_tensor = chi_factor * chi_tensor + np.eye(3)  # eps = 4.pi.X +1
         # Effective Born charges
         for index in range(num_atoms):
             # ATTENTION: here we need to remember to take the transpose of each single tensor from finite differences.
-            bec_ = _build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
+            bec_ = build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
             bec_tensor.append(bec_.T)
         bec_tensor = np.array(bec_tensor)
 
@@ -483,11 +500,11 @@ def compute_nac_parameters(
 
         # Now we build the actual tensor.
         # Epsilon
-        chi_tensor = _build_tensor_from_voigt(voigt=chi_voigt, order=1)
+        chi_tensor = build_tensor_from_voigt(voigt=chi_voigt, order=1)
         eps_tensor = chi_factor * chi_tensor + np.eye(3)  # eps = 4.pi.X +1
         # Effective Born charges
         for index in range(num_atoms):
-            bec_ = _build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
+            bec_ = build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
             bec_tensor.append(bec_.T)
         bec_tensor = np.array(bec_tensor)
 

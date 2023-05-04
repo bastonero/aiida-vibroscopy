@@ -41,7 +41,7 @@ def generate_intensities_workchain_node():
     return _generate_intensities_workchain_node
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_setup(generate_workchain_iraman):
     """Test `IRamanSpectraWorkChain` setup method."""
     process = generate_workchain_iraman()
@@ -54,7 +54,7 @@ def test_setup(generate_workchain_iraman):
     assert process.ctx.plus_hubbard == False
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_forces` method."""
     append_inputs = {'options': {'sleep_submission_time': 0.1}}
@@ -75,7 +75,7 @@ def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node)
     assert 'scf_supercell_1' in process.ctx
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_node):
     """Test `IRamanSpectraWorkChain.run_dielectric` method."""
     append_inputs = {'options': {'sleep_submission_time': 0.1}}
@@ -96,26 +96,19 @@ def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_n
     ('raman'),
     ((True), (False)),
 )
-#@pytest.mark.usefixtures('aiida_profile_clean')
-def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchain_node, raman):
+@pytest.mark.usefixtures('aiida_profile')
+def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchain_node, raman, generate_trajectory):
     """Test `IRamanSpectraWorkChain.run_raw_results` method."""
-    from aiida import orm
-    import numpy
-
     process = generate_workchain_iraman()
 
     process.setup()
     process.ctx.dielectric_workchain = generate_dielectric_workchain_node(raman=raman)
 
-    forces_1 = orm.ArrayData()
-    forces_1.set_array('forces', numpy.full((2, 3), 1))
-    forces_1.store()
-    forces_2 = orm.ArrayData()
-    forces_2.set_array('forces', numpy.full((2, 3), -1))
-    forces_2.store()
+    forces_1 = generate_trajectory()
+    forces_2 = generate_trajectory()
 
-    process.out(f'supercells_forces.scf_supercell_1', forces_1)
-    process.out(f'supercells_forces.scf_supercell_2', forces_2)
+    process.out(f'supercells_forces.forces_1', forces_1)
+    process.out(f'supercells_forces.forces_2', forces_2)
 
     process.set_phonopy_data()
     process.run_raw_results()
@@ -127,7 +120,7 @@ def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchai
     assert 'numerical_accuracy_4' in process.outputs['vibrational_data']
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data_from_forces):
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
     from aiida.orm import Dict
@@ -149,7 +142,7 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
         assert key in ['numerical_order_2_step_1', 'numerical_order_4']
 
 
-#@pytest.mark.usefixtures('aiida_profile_clean')
+@pytest.mark.usefixtures('aiida_profile')
 def test_show_results(generate_workchain_iraman, generate_intensities_workchain_node):
     """Test `IRamanSpectraWorkChain.show_results` method."""
     from aiida.common import AttributeDict

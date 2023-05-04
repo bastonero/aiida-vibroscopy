@@ -65,7 +65,7 @@ def test_spin_type(fixture_code, generate_structure):
 
 
 def test_overrides_dielectric(fixture_code, generate_structure):
-    """Test ``DielectricWorkChain.get_builder_from_protocol`` with ``spin_type`` keyword."""
+    """Test ``DielectricWorkChain.get_builder_from_protocol`` with overrides."""
     code = fixture_code('quantumespresso.pw')
     structure = generate_structure('silicon')
 

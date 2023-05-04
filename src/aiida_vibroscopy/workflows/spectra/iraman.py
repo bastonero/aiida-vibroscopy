@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Automatic IR and Raman spectra calculations using Phonopy and Quantum ESPRESSO."""
-
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import if_
@@ -27,9 +26,13 @@ PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 
 
 class IRamanSpectraWorkChain(BaseWorkChain):
+    """Workchain for automatically compute IR and Raman spectra using finite displacements and fields.
+
+    For other details of the sub-workchains used, see also:
+        * :class:`~aiida_vibroscopy.workflows.dielectric.base.DielectricWorkChain` for finite fields
+        * :class:`~aiida_vibroscopy.workflows.base.BaseWorkChain` for finite displacements
     """
-    Workchain for automatically compute IR and Raman spectra using finite displacements and fields.
-    """
+
     # yapf: disable
     @classmethod
     def define(cls, spec):
@@ -82,6 +85,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             )
         )
 
+        spec.expose_outputs(IntensitiesAverageWorkChain, namespace_options={'required': False})
         spec.output_namespace(
             'output_intensities_average',
             dynamic=True,
@@ -147,7 +151,7 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         return builder
 
     def setup(self):
-        """Setup the workflow generating the PreProcessData."""
+        """Set up the workflow generating the PreProcessData."""
         preprocess_inputs = {'structure': self.inputs.structure}
         for pp_input in ['symprec', 'is_symmetry', 'displacement_generator', 'distinguish_kinds']:
             if pp_input in AttributeDict(self.inputs.phonon_workchain):
@@ -271,5 +275,8 @@ class IRamanSpectraWorkChain(BaseWorkChain):
                 return self.exit_codes.ERROR_AVERAGING_FAILED
 
             out_key = f'output_intensities_average.{key}'
-            out_dict = {out_key: {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain)}}
+            out_dict = {out_key: {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain, agglomerate=False)}}
+
+            print(out_dict)
+
             self.out_many(out_dict)

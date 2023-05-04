@@ -1,0 +1,12 @@
+{
+  "name": "Lebedev(007)",
+  "domain": "U3",
+  "degree": 7,
+  "test_tolerance": 4.440892098500626e-15,
+  "comments": ["precision improved with quadpy-optimize"],
+  "data": {
+    "a1": [[4.761904761904772e-2]],
+    "a2": [[3.809523809523815e-2]],
+    "a3": [[3.214285714285716e-2]]
+  }
+}
