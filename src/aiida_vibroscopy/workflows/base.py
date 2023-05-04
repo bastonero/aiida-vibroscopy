@@ -50,9 +50,7 @@ def validate_inputs(inputs, _):
 
 
 class BaseWorkChain(WorkChain, ProtocolMixin):
-    """
-    Base class for `phonons` and `spectra` workchains.
-    """
+    """Base class for `phonons` and `spectra` workchains."""
 
     _ENABLED_DISPLACEMENT_GENERATOR_FLAGS = {
         'distance': [float],
@@ -160,7 +158,7 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             help='The supercells with displacements.'
         )
         spec.output_namespace(
-            'supercells_forces', valid_type=orm.ArrayData, required=True,
+            'supercells_forces', valid_type=(orm.ArrayData, orm.TrajectoryData), required=True,
             help='The forces acting on the atoms of each supercell.'
         )
         spec.output_namespace(
@@ -318,8 +316,10 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             return self.exit_codes.ERROR_FAILED_BASE_SCF
 
     def set_reference_kpoints(self):
-        """Set the Context variables for the kpoints for the sub WorkChains,
-        in order to call only once the `create_kpoints_from_distance` calcfunction."""
+        """Set the Context variables for the kpoints for the sub WorkChains.
+
+        It allows calling only once the `create_kpoints_from_distance` calcfunction.
+        """
         key_list = ['phonon_workchain']
         if 'dielectric_workchain' in self.inputs:
             if 'kpoints_parallel_distance' not in self.inputs.dielectric_workchain:
@@ -342,7 +342,7 @@ class BaseWorkChain(WorkChain, ProtocolMixin):
             self.ctx[f'{key}_kpoints'] = kpoints
 
     def run_parallel(self):
-        """It runs in parallel forces calculations and dielectric workchain."""
+        """Run in parallel forces calculations and dielectric workchain."""
         self.run_forces()
         self.run_dielectric()
 

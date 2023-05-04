@@ -1,0 +1,9 @@
+{
+  "name": "Lebedev(003)",
+  "domain": "U3",
+  "degree": 3,
+  "test_tolerance": 5.744e-16,
+  "data": {
+    "a1": [[0.16666666666666666]]
+  }
+}

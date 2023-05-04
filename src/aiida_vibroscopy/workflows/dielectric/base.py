@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Base workflow for dielectric properties calculation from finite fields."""
-from math import sqrt
+from __future__ import annotations
+
 import time
 
 from aiida import orm
@@ -29,8 +30,8 @@ def compute_critical_electric_field(
     parameters: orm.Dict,
     bands: orm.BandsData,
     structure: orm.StructureData,
-):
-    'Return the estimated electric field as Egap/(e*a*Nk) in Ry a.u. .'
+) -> orm.Float:
+    """Return the estimated electric field as Egap/(e*a*Nk) in Ry a.u. ."""
     _, band_gap = find_bandgap(bands, number_electrons=parameters['number_of_electrons'])
 
     kmesh = np.array(parameters.base.attributes.get('monkhorst_pack_grid'))
@@ -42,10 +43,11 @@ def compute_critical_electric_field(
 
 
 @calcfunction
-def add_zero_polarization(trajectory: orm.TrajectoryData):
+def add_zero_polarization(trajectory: orm.TrajectoryData) -> orm.TrajectoryData:
     """Add a null `electronic_dipole_cartesian_axes` to a converged SCF TrajectoryData.
 
-    :return: a clone of the input `TrajectoryData` with a null electric dipole"""
+    :return: a clone of the input `TrajectoryData` with a null electric dipole
+    """
     new_trajectory = trajectory.clone()
     new_trajectory.set_array('electronic_dipole_cartesian_axes', np.array([[0., 0., 0.]]))
 
@@ -53,17 +55,15 @@ def add_zero_polarization(trajectory: orm.TrajectoryData):
 
 
 @calcfunction
-def get_electric_field_step(critical_electric_field: orm.Float, accuracy: orm.Int):
+def get_electric_field_step(critical_electric_field: orm.Float, accuracy: orm.Int) -> orm.Float:
     """Return the central difference displacement step."""
     norm = critical_electric_field.value
-    if norm > 1.e-4:
-        norm = norm / 10.
-        return orm.Float(2 * norm / accuracy.value)
+    norm = 0.001 if norm > 1.e-3 else norm
     return orm.Float(2 * norm / accuracy.value)
 
 
 @calcfunction
-def get_accuracy_from_critical_field(norm: orm.Float):
+def get_accuracy_from_critical_field(norm: orm.Float) -> orm.Int:
     """Return the central difference accuracy.
 
     :param norm: intensity of critical electric field in Ry a.u.
@@ -101,9 +101,11 @@ def validate_inputs(inputs, _):
 
 
 class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many-public-methods
-    """Workchain that for a given input structure can compute the dielectric tensor at
-    high frequency, the Born effective charges, the derivatives of the susceptibility (dielectric) tensor
-    using finite fields in the electric enthalpy.
+    """Workchain computing different second and third order tensors.
+
+    It computes the high frequency dielectric tensor, the Born effective charges,
+    the non-linear optical susceptibility and Raman tensors
+    using homogeneous small electric fields via the electric enthalpy functional.
     """
 
     _DEFAULT_NBERRYCYC = 1
@@ -114,6 +116,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
     @classmethod
     def define(cls, spec):
+        """Define the process specification."""
         super().define(spec)
         # yapf: disable
         spec.input(
@@ -162,7 +165,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         )
         spec.input_namespace('central_difference', help='The inputs for the central difference scheme.')
         spec.input('central_difference.diagonal_scale',
-            valid_type=orm.Float, default=lambda: orm.Float(1/sqrt(2)), validator=validate_positive,
+            valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)), validator=validate_positive,
             help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).'
         )
         spec.input('central_difference.accuracy', valid_type=orm.Int, required=False, validator=validate_accuracy,
@@ -362,8 +365,10 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             self.ctx.is_magnetic = False
 
     def set_reference_kpoints(self):
-        """Set the Context variables for the kpoints for the sub WorkChains,
-        in order to call only once the `create_kpoints_from_distance` calcfunction."""
+        """Set the Context variables for the kpoints for the sub WorkChains.
+
+        It allows for calling only once the `create_kpoints_from_distance` calcfunction.
+        """
         from aiida_vibroscopy.calculations.create_directional_kpoints import create_directional_kpoints
 
         try:
@@ -582,7 +587,6 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
     def run_null_field_scfs(self):
         """Run electric enthalpy scf with zero electric field."""
-
         inputs = self.get_inputs(electric_field_vector=[0.,0.,0.])
         if 'parent_scf' in self.inputs:
             inputs.pw.parent_folder = self.inputs.parent_scf
@@ -626,7 +630,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         self.out('critical_electric_field', self.ctx.critical_electric_field)
 
     def run_electric_field_scfs(self):
-        """Running scf with different electric fields for central difference."""
+        """Run scf with different electric fields for central difference."""
         # Here we can already truncate `numbers`` from the very beginning using symmetry analysis
         signs = [1.0,-1.0]
         for number, bool_signs in zip(self.ctx.numbers, self.ctx.signs):

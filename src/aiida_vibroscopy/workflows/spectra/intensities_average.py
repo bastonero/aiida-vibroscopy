@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Workflow for numerical averaging of vibrational intensities. """
+"""Workflow for numerical averaging of vibrational intensities."""
+from __future__ import annotations
+
 from aiida import orm
 from aiida.engine import WorkChain, calcfunction
 import numpy as np
@@ -8,10 +10,15 @@ from aiida_vibroscopy.data import VibrationalData, VibrationalFrozenPhononData
 
 
 @calcfunction
-def compute_ir_average(**kwargs):
-    """Return ArrayData of infra-red average.
+def compute_ir_average(**kwargs) -> orm.ArrayData:
+    """Return infrared average.
 
-    :return: ArrayData with arraynames `intensities`, `frequencies`, `labels`
+    :param kwargs: it must contain the following key-value pairs:
+        * `vibro_data`: a :class:`~aiida_vibroscopy.data.VibrationalData` node
+        * `parameters`: dict containing the parameters for the averaging;
+            see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_ir_intensities`
+
+    :return: :class:`~aiida.orm.ArrayData` with arraynames `intensities`, `frequencies`, `labels`
     """
     vibro_data = kwargs['vibro_data']
     parameters = kwargs['parameters']
@@ -27,9 +34,14 @@ def compute_ir_average(**kwargs):
 
 @calcfunction
 def compute_raman_average(**kwargs):
-    """Return ArrayData of Raman average.
+    """Return Raman average.
 
-    :return: ArrayData with arraynames `intensities`, `frequencies`, `labels`
+    :param kwargs: it must contain the following key-value pairs:
+        * `vibro_data`: a :class:`~aiida_vibroscopy.data.VibrationalData` node
+        * `parameters`: dict containing the parameters for the averaging;
+            see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_raman_intensities`
+
+    :return: :class:`~aiida.orm.ArrayData` with arraynames `intensities`, `frequencies`, `labels`
     """
     vibro_data = kwargs['vibro_data']
     parameters = kwargs['parameters']
@@ -57,12 +69,11 @@ def validate_positive(value, _):
 
 
 class IntensitiesAverageWorkChain(WorkChain):
-    """
-    Workchain that computes IR and Raman spatial and q-direction average spectra.
-    """
+    """Workchain that computes IR and Raman spatial and q-direction average spectra."""
 
     @classmethod
     def define(cls, spec):
+        """Define inputs, outputs, and outline."""
         super().define(spec)
 
         spec.input(

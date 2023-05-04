@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Symmetry utils for vectors and tensors, and for pre/post analysis."""
+from __future__ import annotations
+
 from copy import deepcopy
 
 from aiida.orm import TrajectoryData
@@ -18,13 +20,32 @@ __all__ = (
 )
 
 
-def tensor_3rd_rank_transformation(rot, mat):
-    """Tensor transformation."""
+def tensor_3rd_rank_transformation(
+    rot: list[tuple[float, float, float]] | np.ndarray,
+    mat: list[list[tuple[float, float, float]]] | np.ndarray,
+) -> np.ndarray:
+    """Tensor transformation.
+
+    :param: rot: rotation transformation matrix, shape (3,3)
+    :param mat: tensor to be transformed, shape (3,3,3)
+    :return: transformed (3,3,3) tensor
+    """
     return np.tensordot(rot, np.tensordot(rot, np.tensordot(rot, mat, axes=[1, 0]), axes=[1, 1]), axes=[1, 2])
 
 
-def symmetrize_3nd_rank_tensor(tensor, symmetry_operations, lattice):
-    """Symmetrize a 3rd rank tensor using symmetry operations in the lattice."""
+def symmetrize_3nd_rank_tensor(
+    tensor: list[list[tuple[float, float, float]]] | np.ndarray,
+    symmetry_operations: tuple[list[list[float, float, float]]] | np.ndarray,
+    lattice: list[tuple[float, float, float]] | np.ndarray,
+) -> np.ndarray:
+    """Symmetrize a 3rd rank tensor using symmetry operations in the lattice.
+
+    :param tensor: tensor to be symmetrized, shape (3,3,3)
+    :param symmetry_operations: list of rotation matrices in crystal coordinates, each of shape (3,3)
+    :param lattice: the lattice in Cartesian coordinates as a (3,3) shape array
+
+    :return: new symmetrized tensor, (3,3,3) shape
+    """
     sym_cart = [similarity_transformation(lattice.T, r) for r in symmetry_operations]
     sum_tensor = np.zeros_like(tensor)
     for sym in sym_cart:
@@ -32,9 +53,27 @@ def symmetrize_3nd_rank_tensor(tensor, symmetry_operations, lattice):
     return sum_tensor / len(symmetry_operations)
 
 
-def take_average_of_dph0(dchi_ph0, rotations, translations, cell, symprec):
-    """Symmetrize :math:`\\frac{d \\Chi}{dr}` tensors in respect to space group symmetries
-    and applies sum rules (as in *M. Veiten et al., PRB, 71, 125107, (2005)*)."""
+def take_average_of_dph0(
+    dchi_ph0: np.ndarray,
+    rotations: list[np.ndarray],
+    translations: list[np.ndarray],
+    cell: np.ndarray,
+    symprec: float,
+) -> np.ndarray:
+    r"""Symmetrize :math:`\\frac{d \\Chi}{dr}` tensors.
+
+    Symmetrize in respect to space group symmetries and applies sum rules.
+    See e.g. *M. Veiten et al., PRB, 71, 125107, (2005)*.
+
+    :param dchi_ph0: the (nat, 3,3,3) tensor, second index referring to atomic displacements
+    :param rotations: list of symmetry rotations in crystal coordinates
+    :param translations: list of symmetry translations in crystal coordinates,
+        associated with the rotations (that form the space group symmetries)
+    :param cell: reference cell in Cartesian coordinates and in Angstrom
+    :param symprec: symmetry precision tolerance
+
+    :return: newly fully symmetrized by space group Raman tensors, shape (nat, 3, 3, 3)
+    """
     lattice = cell.cell
     positions = cell.scaled_positions
     dchi_ph0_ = np.zeros_like(dchi_ph0)
@@ -57,16 +96,16 @@ def take_average_of_dph0(dchi_ph0, rotations, translations, cell, symprec):
 
 
 def symmetrize_susceptibility_derivatives(
-    raman_tensors,
-    nlo_susceptibility,
-    ucell,
-    primitive_matrix=None,
-    primitive=None,
-    supercell_matrix=None,
-    symprec=1e-5,
-    is_symmetry=True,
-) -> tuple:
-    """Symmetrize susceptibility derivatives tensors (dChi/dr and Chi^2).
+    raman_tensors: np.ndarray,
+    nlo_susceptibility: np.ndarray,
+    ucell: np.ndarray,
+    primitive_matrix: np.ndarray | None = None,
+    primitive: np.ndarray | None = None,
+    supercell_matrix: np.ndarray | None = None,
+    symprec: float = 1e-5,
+    is_symmetry: bool = True,
+) -> tuple(np.ndarray, np.ndarray):
+    """Symmetrize susceptibility derivatives tensors (dChi/dr and Chi^(2)).
 
     :param raman_tensors: array_like dChi/dr tensors, shape=(unitcell_atoms, 3, 3, 3).
         Convention is to have the symmetric elements over the 2 and 3 indices,
@@ -146,14 +185,13 @@ def symmetrize_susceptibility_derivatives(
 
 def get_connected_fields_with_operations(
     phonopy_instance: Phonopy,
-    field_direction: list,
-) -> tuple:
+    field_direction: tuple[int, int, int],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return symmetry equivalent electric field direction (always with zeros ones).
 
     :param field_direction: (3,) shape list
 
-    :return: tuple as (numpy.ndarray,numpy.ndarray,numpy.ndarray),
-        containing equivalent fields and associated rotations and translations
+    :return: tuple containing equivalent fields and associated rotations and translations
     """
     lattice = phonopy_instance.unitcell.cell
     # We should probably use only the point group operations.
@@ -212,7 +250,9 @@ def transform_trajectory(
     symprec: float,
 ) -> TrajectoryData:
     """Transform and return the TrajectoryData using rotation and traslation symmetry operations.
-    Only `forces` and `electronic_dipole_cartesian_axes` are transformed."""
+
+    Only `forces` and `electronic_dipole_cartesian_axes` are transformed.
+    """
     new_trajectory = deepcopy(trajectory_data)
 
     forces = new_trajectory.get_array('forces')[-1]
@@ -250,8 +290,9 @@ def get_trajectories_from_symmetries(
     data_0: TrajectoryData,
     accuracy_order: int,
 ) -> dict:
-    """Return the full dictionary with transformed TrajectoryData using symmetry operation. Only `forces`
-    and `electronic_dipole_cartesian_axes` are transformed.
+    """Return the full dictionary with transformed TrajectoryData using symmetry operation.
+
+    Only `forces` and `electronic_dipole_cartesian_axes` are transformed.
 
     :return: dict following the standard conventions:
         * main fields are named `field_index_{index}`
@@ -307,11 +348,18 @@ def get_trajectories_from_symmetries(
     return full_data
 
 
-def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData, number_id: int) -> tuple:
-    """Return tuple with list of independent numbers to run
-    and corresponding list of [bool, bool] for the sign to run.
+def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData,
+                                      number_id: int) -> tuple[list[int], list[tuple[int, int]]]:
+    """Return independent numbers and corresponding sign to run.
 
-    :param number_id: 3 or 6 for second or third order derivatives, respectively."""
+    :param number_id: 3 or 6 for second or third order derivatives, respectively.
+
+    :return: tuple with elements:
+        1. List of independent numbers. 2 and 3 are favourite in respect to the
+        other directions, as they have a better implementation in Quantum ESPRESSO
+        2. A second list of lists, each containing two bools, one per sign,
+        respectively -1 and +1.
+    """
     phonopy_instance = preprocess_data.get_phonopy_instance()
     irr_numbers = list(range(number_id))
     irr_signs = [[True, True] for _ in range(number_id)]  # we start supposing having no symmetries

@@ -19,11 +19,13 @@ PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 
 
 class HarmonicWorkChain(BaseWorkChain):
+    """Workchain for frozen phonons calculations.
+
+    Non-analytical constants (NAC) are computed via finite differences through finite electric fields.
+    See :class:`~aiida_vibroscopy.workflows.DielectricWorkChain` for more details on how NAC are
+    carried out.
     """
-    Workchain for automatically compute all the pre-process data necessary
-    for frozen phonons calculations. Non-analytical constants are computed
-    via finite differences as well through finite electric fields.
-    """
+
     # yapf: disable
     @classmethod
     def define(cls, spec):
@@ -112,7 +114,7 @@ class HarmonicWorkChain(BaseWorkChain):
         return builder
 
     def setup(self):
-        """Setup the workflow generating the PreProcessData."""
+        """Set up the workflow generating the PreProcessData."""
         if 'preprocess_data' in self.inputs:
             preprocess = self.inputs.preprocess_data
             if 'displacement_generator' in self.inputs.phonon_workchain:
@@ -153,7 +155,7 @@ class HarmonicWorkChain(BaseWorkChain):
         return self.ctx.run_dielectric
 
     def run_parallel(self):
-        """It runs in parallel forces calculations and dielectric workchain."""
+        """Run in parallel forces calculations and dielectric workchain."""
         self.run_forces()
         self.run_dielectric()
 

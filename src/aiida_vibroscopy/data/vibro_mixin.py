@@ -10,25 +10,9 @@ from aiida_vibroscopy.calculations.spectra_utils import (
     compute_raman_space_average,
     compute_raman_susceptibility_tensors,
 )
+from aiida_vibroscopy.utils.integration.lebedev import LebedevScheme
 
 __all__ = ('VibrationalMixin',)
-
-
-def _get_scheme_from_order(order):
-    """Get scheme for U3 integration."""
-    import quadpy
-    from quadpy.u3 import _lebedev
-
-    scheme = quadpy.u3.get_good_scheme(order)
-
-    if scheme is None:
-        try:
-            key = str(order).zfill(3)
-            scheme = getattr(_lebedev, f'lebedev_{key}')()
-        except (KeyError, AttributeError) as err:
-            raise NotImplementedError('quadrature order  not implemented.') from err
-
-    return scheme
 
 
 class VibrationalMixin:
@@ -40,17 +24,21 @@ class VibrationalMixin:
 
     @property
     def raman_tensors(self):
-        """Get the derivatives of the susceptibility tensor in respect
-        to atomic positions (dChi/du) in Cartesian coordinates.
+        r"""Get the Raman tensors in Cartesian coordinates.
+
+        .. important:: with Raman tensors we mean
+            :math:\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}
 
         .. note:
-            * The shape should correspond to the primitive cell.
-            * Again, units in 1/Angstrom, normalized using the unitcell volume.
+            * Units in 1/Angstrom, normalized using the UNIT cell volume.
+            * The shape should match the primitive cell.
             * Indices are as follows:
                 1. Atomic index.
                 2. Atomic displacement index.
                 3. Polarization index (i.e. referring to electric field derivative).
                 4. Same as 3.
+
+        :return: (number of atoms in the primitive cell, 3, 3, 3) shape array
         """
         try:
             value = self.get_array('raman_tensors')
@@ -58,20 +46,22 @@ class VibrationalMixin:
             value = None
         return value
 
-    def set_raman_tensors(self, raman_tensors: list[list[list[list]]]):
-        """Set the derivatives of the susceptibility tensor in respect to atomic
-        positions (dChi/du) in Cartesian coordinates; units in 1/Angstrom.
+    def set_raman_tensors(self, raman_tensors: list | np.ndarray):
+        r"""Set the Raman tensors in Cartesian coordinates.
+
+        .. important:: with Raman tensors we mean
+            :math:\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}
 
         .. note:
-            * The shape should correspond to the primitive cell.
-            * Again, units in 1/Angstrom, normalized using the unitcell volume.
+            * Units in 1/Angstrom, normalized using the UNIT cell volume.
+            * The shape should match the primitive cell.
             * Indices are as follows:
                 1. Atomic index.
                 2. Atomic displacement index.
                 3. Polarization index (i.e. referring to electric field derivative).
                 4. Same as 3.
 
-        :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3) shape list
+        :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3) shape array
 
         :raises:
             * TypeError: if the format is not compatible or of the correct type
@@ -89,8 +79,11 @@ class VibrationalMixin:
             raise ValueError('the array is not of the correct shape')
 
     @property
-    def nlo_susceptibility(self) -> list[list[list]]:
-        """Get the non linear optical susceptibility tensor in Cartesian coordinates."""
+    def nlo_susceptibility(self) -> np.ndarray:
+        """Get the non linear optical susceptibility tensor in Cartesian coordinates.
+
+        :return: (3,3,3) shape array
+        """
         try:
             value = self.base.attributes.get('nlo_susceptibility')
             value = np.array(value)
@@ -98,8 +91,8 @@ class VibrationalMixin:
             value = None
         return value
 
-    def set_nlo_susceptibility(self, nlo_susceptibility: list):
-        """Set the non linear optical susceptibility tensor (pm/V) in Cartesian coordinates.
+    def set_nlo_susceptibility(self, nlo_susceptibility: list | np.ndarray):
+        """Set the non linear optical susceptibility tensor in Cartesian coordinates.
 
         .. note: units in pm/V
 
@@ -121,18 +114,42 @@ class VibrationalMixin:
         else:
             raise ValueError('the array is not of the correct shape')
 
-    def has_raman_parameters(self):
-        """Returns wheter or not the Data has derivatives of susceptibility for Raman spectra."""
+    def has_raman_parameters(self) -> bool:
+        """Return wheter or not the Data has derivatives of susceptibility for Raman spectra."""
         return self.raman_tensors is not None
 
-    def has_nlo(self):
-        """Returns wheter or not the Data has non linear optical susceptibility tensor."""
+    def has_nlo(self) -> bool:
+        """Return wheter or not the Data has non linear optical susceptibility tensor."""
         return self.nlo_susceptibility is not None
 
     def run_active_modes(
-        self, degeneracy_tolerance=1.e-5, nac_direction=None, selection_rule=None, sr_thr=1e-4, **kwargs
-    ):
-        """Get active modes frequencies, eigenvectors and labels."""
+        self,
+        degeneracy_tolerance: float = 1.e-5,
+        nac_direction: None | list[float, float, float] = None,
+        selection_rule: str | None = None,
+        sr_thr: float = 1e-4,
+        **kwargs
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Get active modes frequencies, eigenvectors and irreducible representation labels.
+
+        Inputs as in :func:`~aiida_virboscopy.calculations.spectra_utils.compute_active_modes`
+
+        :param nac_direction: (3,) shape list, indicating non analytical
+            direction in fractional reciprocal (primitive cell) space coordinates
+        :param selection_rule: str, can be `raman` or `ir`;
+            it uses symmetry in the selection of the modes
+            for a specific type of process.
+        :param sr_thr: float, threshold for selection
+            rule (the analytical value is 0).
+        :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+
+        :return: tuple of (frequencies in cm-1, normalized eigenvectors, labels);
+            normalized eigenvectors is an array of shape (num modes, num atoms, 3).
+        """
         phonopy_instance = self.get_phonopy_instance(**kwargs)
 
         if phonopy_instance.force_constants is None:
@@ -148,15 +165,18 @@ class VibrationalMixin:
 
     def run_raman_susceptibility_tensors(
         self,
-        nac_direction=lambda: [0, 0, 0],
-        with_nlo=True,
-        use_irreps=True,
-        degeneracy_tolerance=1e-5,
-        sum_rules=False,
-        **kwargs
-    ) -> tuple[list[list], list[float], list[str]]:
-        """Return the Raman susceptibility tensors ( (Angstrom/AMU)^(1/2) ) for each phonon mode,
-        along with frequencies (cm-1) and irreps labels.
+        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        with_nlo: bool = True,
+        use_irreps: bool = True,
+        degeneracy_tolerance: float = 1e-5,
+        sum_rules: bool = False,
+        **kwargs,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return the Raman susceptibility tensors, frequencies and representation labels.
+
+        .. note:: Units are:
+                * Intensities: Anstrom/AMU
+                * Frequencies: cm-1
 
         :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
             in reciprocal space; (3,) shape list or numpy.ndarray
@@ -174,8 +194,6 @@ class VibrationalMixin:
                 bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
                 using point group symmetry; bool, defaults to self.is_symmetry
-            * factor_nac: factor for non-analytical corrections;
-                float, defaults to Hartree*Bohr
 
         :return: tuple (Raman tensors, frequencies, irreps labels)
         """
@@ -211,10 +229,18 @@ class VibrationalMixin:
         return results
 
     def run_polarization_vectors(
-        self, nac_direction=lambda: [0, 0, 0], use_irreps=True, degeneracy_tolerance=1e-5, sum_rules=False, **kwargs
-    ):
-        """Return the polarization vectors (in (debey/angstrom)/sqrt(AMU) ) for each phonon mode,
-        along with frequencies (cm-1) and irreps labels.
+        self,
+        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        use_irreps: bool = True,
+        degeneracy_tolerance: float = 1e-5,
+        sum_rules: bool = False,
+        **kwargs
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return the polarization vectors, frequencies and representation labels.
+
+        .. note:: Units are:
+                * Intensities: (Debey/Angstrom)^2/AMU
+                * Frequencies: cm-1
 
         :param nac_direction: non-analytical direction
         :type nac_direction: non-analytical direction in fractional coordinates (primitive cell)
@@ -230,8 +256,6 @@ class VibrationalMixin:
                 bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
                 using point group symmetry; bool, defaults to self.is_symmetry
-            * factor_nac: factor for non-analytical corrections;
-                float, defaults to Hartree*Bohr
 
         :return: tuple (polarization vectors, frequencies, irreps labels)
         """
@@ -261,8 +285,17 @@ class VibrationalMixin:
 
         return results
 
-    def run_polarized_raman_intensities(self, pol_incoming, pol_outgoing, **kwargs):
-        """Return polarized Raman intensities (in angstrom/AMU) with frequencies (cm-1) and irreps labels.
+    def run_polarized_raman_intensities(
+        self,
+        pol_incoming: tuple[float, float, float],
+        pol_outgoing: tuple[float, float, float],
+        **kwargs,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return polarized Raman intensities.
+
+        .. note:: Units are:
+                * Intensities: Anstrom/AMU
+                * Frequencies: cm-1
 
         :param pol_incoming: light polarization vector of the incoming light
             (laser) in crystal/fractional coordinates
@@ -272,6 +305,13 @@ class VibrationalMixin:
         :type pol_outgoing: list or numpy.ndarray of shape (3,)
         :param kwargs: keys of
         :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
+            * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+            * use_irreps: whether to use irreducible representations
+                in the selection of modes, defaults to True; bool, optional
+            * degeneracy_tolerance: degeneracy tolerance for
+                irreducible representation
+
+        :return: tuple (Raman intensities, frequencies, labels)
         """
         if not isinstance(pol_incoming, (list, np.ndarray)) or not isinstance(pol_outgoing, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -295,18 +335,27 @@ class VibrationalMixin:
 
         return (raman_intensities, freqs, labels)
 
-    def run_powder_raman_intensities(self, quadrature_order: int | None = None, **kwargs):
-        """Return unpolarized powder Raman intensities (in angstrom/AMU)
-        in the two common setups of polarized (HH) and unpolarized (HV)
-        scattering, with frequencies (cm-1) and labels.
+    def run_powder_raman_intensities(self,
+                                     quadrature_order: int | None = None,
+                                     **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Return powder Raman intensities.
 
-        .. note: to obtain the total powder intensities,
-            sum the two returned arrays of the intensities.
+        ..important: it computes the common setups of polarized (HH) and unpolarized (HV)
+        scattering. To obtain the total powder intensities, sum the two returned arrays of the intensities.
+
+        .. note:: Units are:
+                * Intensities: Anstrom/AMU
+                * Frequencies: cm-1
 
         :param quadrature_order: algebraic order to perform the integration
             on the sphere of nac directions
         :param kwargs: keys of
         :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
+            * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+            * use_irreps: whether to use irreducible representations
+                in the selection of modes, defaults to True; bool, optional
+            * degeneracy_tolerance: degeneracy tolerance for
+                irreducible representation
 
         :return: (Raman intensities HH, Raman intensities HV, frequencies, labels)
         """
@@ -319,7 +368,7 @@ class VibrationalMixin:
         else:
             cell = self.get_phonopy_instance().primitive.cell
 
-            scheme = _get_scheme_from_order(quadrature_order)
+            scheme = LebedevScheme.from_order(quadrature_order)
             points = scheme.points.T
             weights = scheme.weights
 
@@ -343,9 +392,13 @@ class VibrationalMixin:
 
         return (np.array(raman_hh).flatten(), np.array(raman_hv).flatten(), np.array(freqs), labels)
 
-    def run_polarized_ir_intensities(self, pol_incoming, **kwargs):
-        """Return polarized IR intensities (in (debey/angstrom)^2/AMU)
-        with frequencies (cm-1) and irreps labels.
+    def run_polarized_ir_intensities(self, pol_incoming: tuple[float, float, float],
+                                     **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return polarized IR intensities.
+
+        .. note:: Units are:
+            * Intensities: (Debey/Angstrom)^2/AMU
+            * Frequencies: cm^-1
 
         :param pol_incoming: light polarization vector of the
             incident beam light in crystal coordinates
@@ -387,9 +440,14 @@ class VibrationalMixin:
 
         return (ir_intensities, freqs, labels)
 
-    def run_powder_ir_intensities(self, quadrature_order=None, **kwargs):
-        """Return unpolarized powder IR intensities (in (debey/angstrom)^2/AMU)
-        with frequencies (cm-1) and labels.
+    def run_powder_ir_intensities(self,
+                                  quadrature_order: int | None = None,
+                                  **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return powder IR intensities, frequencies, and labels.
+
+        .. note:: Units are:
+            * Intensities: (Debey/Angstrom)^2/AMU
+            * Frequencies: cm^-1
 
         :param quadrature_order: algebraic order to perform the integration
             on the sphere of nac directions
@@ -420,8 +478,8 @@ class VibrationalMixin:
             for pol in pol_vectors:
                 ir_intensities.append(np.dot(pol, pol))
         else:
-            scheme = _get_scheme_from_order(quadrature_order)
-            points = scheme.points.transpose()
+            scheme = LebedevScheme.from_order(quadrature_order)
+            points = scheme.points.T
             weights = scheme.weights
             freqs = []
             labels = []
@@ -442,28 +500,5 @@ class VibrationalMixin:
     @staticmethod
     def get_available_quadrature_order_schemes():
         """Return the available orders for quadrature integration on the nac direction unitary sphere."""
-        import quadpy
-        from quadpy.u3 import _lebedev
-
-        print('Max order guaranteed is: 131.')
-        print('Good schemes are available for the following quadrature orders:')
-
-        orders = ''
-        last = 0  # the last good scheme
-        for i in range(132):
-            if quadpy.u3.get_good_scheme(i) is not None:
-                orders += f'{i} '
-                last = i
-        print(orders)
-
-        print(f'Other quadrature orders above {last} are available within the Lebedev scheme:')
-
-        orders = ''
-        for i in range(last + 1, 132):
-            key = str(i).zfill(3)
-            try:
-                getattr(_lebedev, f'lebedev_{key}')
-                orders += f'{int(key)} '
-            except (KeyError, AttributeError):
-                pass
-        print(orders)
+        from aiida_vibroscopy.utils.integration.lebedev import get_available_quadrature_order_schemes
+        get_available_quadrature_order_schemes()
