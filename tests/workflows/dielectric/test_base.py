@@ -117,6 +117,19 @@ def test_invalid_inputs(generate_workchain_dielectric, generate_inputs_dielectri
         generate_workchain_dielectric(inputs=inputs)
 
 
+@pytest.mark.parametrize('key', ('-nk', '-npools'))
+def test_invalid_scf_parallelization(generate_workchain_dielectric, generate_inputs_dielectric, key):
+    """Test `DielectricWorkChain` validation method for parallelization."""
+    from aiida.orm import Dict
+
+    match = 'pool parallelization for electric field is not implemented'
+    inputs = generate_inputs_dielectric()
+    inputs['scf']['pw']['settings'] = Dict({'cmdline': [key, '2']})
+
+    with pytest.raises(ValueError, match=match):
+        generate_workchain_dielectric(inputs=inputs)
+
+
 @pytest.mark.parametrize(
     'property_input', (
         'ir', 'born-charges', 'dielectric', 'nac', 'raman', 'bec', 'susceptibility-derivative',
