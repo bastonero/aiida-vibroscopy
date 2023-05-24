@@ -24,6 +24,7 @@ def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
             'settings': {
                 'sleep_submission_time': 0.
             },
+            'symmetry': {},
         }
 
         if return_inputs:
@@ -63,7 +64,7 @@ def test_valididation_inputs(generate_workchain_phonon):
 )
 @pytest.mark.usefixtures('aiida_profile')
 def test_invalid_inputs(generate_workchain_phonon, parameters, message):
-    """Test `DielectricWorkChain` validation methods."""
+    """Test `PhononWorkChain` validation methods."""
     if 'supercell_matrix' in parameters:
         inputs = generate_workchain_phonon(return_inputs=True)
         inputs.update({'supercell_matrix': orm.List(parameters['supercell_matrix'])})
