@@ -96,8 +96,19 @@ def validate_inputs(inputs, _):
             'cannot evaluate numerical accuracy when `electric_field_step` '
             'is specified but `accuracy` is not in `central_difference`'
         )
+
     if 'kpoints_parallel_distance' in inputs and 'kpoints_distance' not in inputs['scf']:
         return '`kpoints_parallel_distance` works only when specifying `scf.kpoints_distance`'
+
+    if 'settings' in inputs['scf']['pw']:
+        settings = inputs['scf']['pw']['settings'].get_dict()
+        cmdline = settings.get('cmdline', [])
+
+        for key in ['-nk', '-npools']:
+            if key in cmdline:
+                index = cmdline.index(key)
+                if int(cmdline[index + 1]) != 1:
+                    return 'pool parallelization for electric field is not implemented'
 
 
 class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many-public-methods
