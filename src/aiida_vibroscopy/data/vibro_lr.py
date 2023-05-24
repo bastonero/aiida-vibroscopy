@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 """Mixin for vibrational data."""
-
-from aiida.plugins import DataFactory
+from aiida_phonopy.data.force_constants import ForceConstantsData
 
 from .vibro_mixin import VibrationalMixin
-
-ForceConstantsData = DataFactory('phonopy.force_constants')
 
 __all__ = ('VibrationalData',)
 
 
-class VibrationalData(ForceConstantsData, VibrationalMixin):
+class VibrationalData(ForceConstantsData, VibrationalMixin):  # pylint: disable=too-many-ancestors
     """Vibrational data for IR and Raman spectra."""

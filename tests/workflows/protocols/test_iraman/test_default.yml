@@ -1,9 +1,10 @@
 clean_workdir: true
-dielectric_workchain:
-  kpoints_parallel_distance: 0.1
+dielectric:
+  clean_workdir: true
+  kpoints_parallel_distance: 0.2
   property: raman
   scf:
-    kpoints_distance: 0.15
+    kpoints_distance: 0.4
     kpoints_force_parity: false
     pw:
       code: test.quantumespresso.pw@localhost
@@ -21,7 +22,7 @@ dielectric_workchain:
           tprnfor: true
           tstress: true
         ELECTRONS:
-          conv_thr: 4.0e-10
+          conv_thr: 2.0e-12
           electron_maxstep: 80
           mixing_beta: 0.4
         SYSTEM:
@@ -33,10 +34,12 @@ dielectric_workchain:
           smearing: cold
       pseudos:
         Si: Si<md5=57fa15d98af99972c7b7aa5c179b0bb8>
-options:
-  run_parallel: true
-  sleep_submission_time: 3.0
-phonon_workchain:
+  settings:
+    sleep_submission_time: 1.0
+phonon:
+  clean_workdir: true
+  displacement_generator:
+    distance: 0.01
   scf:
     kpoints_distance: 0.15
     kpoints_force_parity: false
@@ -56,7 +59,7 @@ phonon_workchain:
           tprnfor: true
           tstress: true
         ELECTRONS:
-          conv_thr: 4.0e-10
+          conv_thr: 2.0e-12
           electron_maxstep: 80
           mixing_beta: 0.4
         SYSTEM:
@@ -68,4 +71,13 @@ phonon_workchain:
           smearing: cold
       pseudos:
         Si: Si<md5=57fa15d98af99972c7b7aa5c179b0bb8>
+  settings:
+    sleep_submission_time: 1.0
+settings:
+  run_parallel: true
+  use_primitive_cell: false
 structure: Si2
+symmetry:
+  distinguish_kinds: false
+  is_symmetry: true
+  symprec: 1.0e-05

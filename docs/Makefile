@@ -6,6 +6,7 @@ SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = build
+AIIDAWORKDIR  = source/local_module/_aiida_*
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
@@ -24,10 +25,10 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) source
 customdefault:
 	$(SPHINXBUILD) -b html -nW --keep-going $(ALLSPHINXOPTS) $(BUILDDIR)/html
 
-all: html
+all: html view
 
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR); rm -rf $(AIIDAWORKDIR)
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
@@ -36,4 +37,4 @@ html:
 
 
 view:
-	xdg-open $(BUILDDIR)/html/index.html
+	open $(BUILDDIR)/html/index.html

@@ -64,7 +64,7 @@ class LebedevScheme:
 
         filepath = files(schemas) / f'lebedev_{str(order).zfill(3)}.json'
 
-        with open(filepath, mode='w', encoding='utf-8') as handle:
+        with open(filepath, mode='r', encoding='utf-8') as handle:
             content = json.load(handle)
 
         data = content['data']

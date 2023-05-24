@@ -3,12 +3,14 @@
 from aiida.orm import Dict
 import pytest
 
+from aiida_vibroscopy.workflows.dielectric.base import DielectricWorkChain
+
 
 @pytest.fixture
 def generate_elfield_scf_workchain_node():
     """Generate an instance of `WorkflowNode`."""
 
-    def _generate_scf_workchain_node(polarization=None, forces=None, volume=None):
+    def _generate_scf_workchain_node(exit_status=0, polarization=None, forces=None, volume=None):
         from aiida.common import LinkType
         from aiida.orm import KpointsData, TrajectoryData, WorkflowNode
         import numpy as np
@@ -22,7 +24,7 @@ def generate_elfield_scf_workchain_node():
         node.base.links.add_incoming(kpoints, link_type=LinkType.INPUT_WORK, link_label='kpoints')
 
         node.store()
-        node.set_exit_status(0)
+        node.set_exit_status(exit_status)
         node.set_process_state(ProcessState.FINISHED)
 
         if volume is None:
@@ -73,50 +75,6 @@ def generate_workchain_dielectric(generate_workchain, generate_inputs_dielectric
     return _generate_workchain_dielectric
 
 
-@pytest.fixture
-def generate_base_scf_workchain_node(fixture_localhost):
-    """Generate an instance of `WorkflowNode`."""
-
-    def _generate_base_scf_workchain_node():
-        from aiida.common import LinkType
-        from aiida.orm import RemoteData, TrajectoryData, WorkflowNode
-        import numpy as np
-        from plumpy.process_states import ProcessState
-
-        node = WorkflowNode().store()
-        node.set_exit_status(0)
-        node.set_process_state(ProcessState.FINISHED)
-
-        parameters = Dict({
-            'volume': 1.0,
-            'number_of_bands': 5,
-            'convergence_info': {
-                'scf_conv': {
-                    'scf_error': 1e-10
-                }
-            }
-        }).store()
-        parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
-
-        remote_folder = RemoteData(computer=fixture_localhost, remote_path='/tmp').store()
-        remote_folder.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
-        remote_folder.store()
-
-        trajectory = TrajectoryData()
-        trajectory.set_array('forces', np.array([[[0., 0., 0.], [0., 0., 0.]]]))
-        stepids = np.array([1])
-        times = stepids * 0.0
-        cells = np.array([[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]])
-        positions = np.array([[[0., 0., 0.], [0., 0., 0.]]])
-        trajectory.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg', 'O'], positions=positions, times=times)
-        trajectory.store()
-        trajectory.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_trajectory')
-
-        return node
-
-    return _generate_base_scf_workchain_node
-
-
 @pytest.mark.usefixtures('aiida_profile')
 def test_valididation_inputs(generate_workchain_dielectric, generate_inputs_dielectric):
     """Test `DielectricWorkChain` validation methods."""
@@ -147,31 +105,30 @@ def test_valididation_inputs(generate_workchain_dielectric, generate_inputs_diel
             'property': 'raman',
         }, (
             'cannot evaluate numerical accuracy when `electric_field_step` '
-            'is specified but `central_difference.accuracy` is not'
+            'is specified but `accuracy` is not in `central_difference`'
         )),
     ),
 )
 @pytest.mark.usefixtures('aiida_profile')
 def test_invalid_inputs(generate_workchain_dielectric, generate_inputs_dielectric, parameters, message):
     """Test `DielectricWorkChain` validation methods."""
-    with pytest.raises(ValueError) as exception:
+    with pytest.raises(ValueError, match=message):
         inputs = generate_inputs_dielectric(**parameters)
         generate_workchain_dielectric(inputs=inputs)
 
-    assert message in str(exception.value)
 
-
-@pytest.mark.usefixtures('aiida_profile')
-def test_valid_property_inputs(generate_workchain_dielectric, generate_inputs_dielectric):
-    """Test `DielectricWorkChain` validation methods."""
-    properties = (
+@pytest.mark.parametrize(
+    'property_input', (
         'ir', 'born-charges', 'dielectric', 'nac', 'raman', 'bec', 'susceptibility-derivative',
         'non-linear-susceptibility', 'IR', 'Born-Charges', 'Dielectric', 'NAC', 'BEC', 'Raman',
         'susceptibility-derivative', 'non-linear-susceptibility'
     )
-    for property in properties:
-        inputs = generate_inputs_dielectric(**{'property': property})
-        generate_workchain_dielectric(inputs=inputs)
+)
+@pytest.mark.usefixtures('aiida_profile')
+def test_valid_property_inputs(generate_workchain_dielectric, generate_inputs_dielectric, property_input):
+    """Test `DielectricWorkChain` validation methods."""
+    inputs = generate_inputs_dielectric(**{'property': property_input})
+    generate_workchain_dielectric(inputs=inputs)
 
 
 @pytest.mark.parametrize(
@@ -269,6 +226,19 @@ def test_run_base_scf(generate_workchain_dielectric, generate_inputs_dielectric)
     assert 'base_scf' in process.ctx
 
 
+@pytest.mark.parametrize(('expected_result', 'exit_status'),
+                         ((None, 0), (DielectricWorkChain.exit_codes.ERROR_FAILED_BASE_SCF, 312)))
+@pytest.mark.usefixtures('aiida_profile')
+def test_inspect_base_scf(
+    generate_workchain_dielectric, generate_base_scf_workchain_node, expected_result, exit_status
+):
+    """Test `DielectricWorkChain.inspect_base_scf`."""
+    process = generate_workchain_dielectric()
+    process.ctx.base_scf = generate_base_scf_workchain_node(exit_status=exit_status)
+    result = process.inspect_base_scf()
+    assert result == expected_result
+
+
 @pytest.mark.usefixtures('aiida_profile')
 def test_run_nscf(generate_workchain_dielectric, generate_inputs_dielectric, generate_base_scf_workchain_node):
     """Test `DielectricWorkChain.run_nscf`."""
@@ -278,10 +248,21 @@ def test_run_nscf(generate_workchain_dielectric, generate_inputs_dielectric, gen
     process.setup()
     process.set_reference_kpoints()
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
 
     process.run_nscf()
     assert 'nscf' in process.ctx
+
+
+@pytest.mark.parametrize(('expected_result', 'exit_status'),
+                         ((None, 0), (DielectricWorkChain.exit_codes.ERROR_FAILED_NSCF, 312)))
+@pytest.mark.usefixtures('aiida_profile')
+def test_inspect_nscf(generate_workchain_dielectric, generate_base_scf_workchain_node, expected_result, exit_status):
+    """Test `DielectricWorkChain.inspect_nscf`."""
+    process = generate_workchain_dielectric()
+    process.ctx.nscf = generate_base_scf_workchain_node(exit_status=exit_status)
+    result = process.inspect_nscf()
+    assert result == expected_result
 
 
 @pytest.mark.parametrize(
@@ -374,7 +355,7 @@ def test_run_null_field_scfs(
     process.set_reference_kpoints()
     process.set_step_and_accuracy()
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
 
     process.run_null_field_scfs()
 
@@ -386,6 +367,20 @@ def test_run_null_field_scfs(
     else:
         assert process.ctx.is_parallel_distance
         assert len(process.ctx.null_fields) == len(process.ctx.kpoints_list)
+
+
+@pytest.mark.parametrize(('expected_result', 'exit_status'),
+                         ((None, 0),
+                          (DielectricWorkChain.exit_codes.ERROR_FAILED_ELFIELD_SCF.format(direction='`null`'), 312)))
+@pytest.mark.usefixtures('aiida_profile')
+def test_inspect_null_field_scfs(
+    generate_workchain_dielectric, generate_base_scf_workchain_node, expected_result, exit_status
+):
+    """Test `DielectricWorkChain.inspect_null_field_scfs`."""
+    process = generate_workchain_dielectric()
+    process.ctx.null_fields = [generate_base_scf_workchain_node(exit_status=exit_status)]
+    result = process.inspect_null_field_scfs()
+    assert result == expected_result
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -400,10 +395,10 @@ def test_run_electric_field_scfs(
     process.set_reference_kpoints()
     process.set_step_and_accuracy()
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
 
     process.run_null_field_scfs()
-    process.ctx.null_fields = [generate_base_scf_workchain_node()]
+    process.ctx.null_fields = [generate_base_scf_workchain_node(with_trajectory=True)]
 
     # First iteration faked simulation
     process.run_electric_field_scfs()
@@ -413,7 +408,7 @@ def test_run_electric_field_scfs(
         assert isinstance(process.ctx[key], list)
         assert len(process.ctx[key]) == 1
         process.ctx[key] = [
-            generate_base_scf_workchain_node(),
+            generate_base_scf_workchain_node(with_trajectory=True),
         ]
 
     assert process.ctx.iteration == 1
@@ -433,17 +428,17 @@ def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, g
     """Test `DielectricWorkChain.run_null_field_scfs`."""
     from aiida.orm import Bool
     inputs = generate_inputs_dielectric(electric_field_step=1.0, accuracy=4)
-    inputs['options']['is_symmetry'] = Bool(False)
+    inputs['symmetry']['is_symmetry'] = Bool(False)
     process = generate_workchain_dielectric(inputs=inputs)
 
     process.setup()
     process.set_reference_kpoints()
     process.set_step_and_accuracy()
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
 
     process.run_null_field_scfs()
-    process.ctx.null_fields = [generate_base_scf_workchain_node()]
+    process.ctx.null_fields = [generate_base_scf_workchain_node(with_trajectory=True)]
 
     assert len(process.ctx.numbers) == 6
 
@@ -458,8 +453,8 @@ def test_run_no_sym(generate_workchain_dielectric, generate_inputs_dielectric, g
         assert isinstance(process.ctx[key], list)
         assert len(process.ctx[key]) == 2
         process.ctx[key] = [
-            generate_base_scf_workchain_node(),
-            generate_base_scf_workchain_node(),
+            generate_base_scf_workchain_node(with_trajectory=True),
+            generate_base_scf_workchain_node(with_trajectory=True),
         ]
 
     assert process.ctx.iteration == 1
@@ -494,47 +489,30 @@ def test_run_fields_with_directional_kpoints(
     assert 'kpoints_list' in process.ctx
     assert num_kpoints == 2
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
 
     process.run_null_field_scfs()
-    process.ctx.null_fields = [generate_base_scf_workchain_node() for _ in range(num_kpoints)]
+    process.ctx.null_fields = [generate_base_scf_workchain_node(with_trajectory=True) for _ in range(num_kpoints)]
 
     process.run_electric_field_scfs()
 
 
+@pytest.mark.parametrize(('expected_result', 'exit_status'),
+                         ((None, 0),
+                          (DielectricWorkChain.exit_codes.ERROR_FAILED_ELFIELD_SCF.format(direction='1'), 312)))
 @pytest.mark.usefixtures('aiida_profile')
-def test_inspect(
-    generate_workchain_dielectric, generate_inputs_dielectric, generate_elfield_scf_workchain_node,
-    generate_base_scf_workchain_node
+def test_test_inspect_electric_field_scfs(
+    generate_workchain_dielectric, generate_elfield_scf_workchain_node, expected_result, exit_status
 ):
-    """Test `DielectricWorkChain.inspect_electric_field_scfs`."""
-    inputs = generate_inputs_dielectric(electric_field_step=1.0, accuracy=2)
-    process = generate_workchain_dielectric(inputs=inputs)
-    process.setup()
-    process.set_reference_kpoints()
-    process.set_step_and_accuracy()
-
-    process.ctx.accuracy = process.inputs.central_difference.accuracy
-    process.ctx.base_scf = generate_base_scf_workchain_node()
-    assert process.ctx.base_scf.is_finished_ok
-    process.inspect_base_scf()
-
-    # assert 'data' in process.ctx
-
-    process.run_null_field_scfs()
-    process.ctx.null_fields = [generate_base_scf_workchain_node()]
-
-    for i in range(6):
-        process.ctx[f'field_index_{i}'] = [
-            generate_elfield_scf_workchain_node(),
-            generate_elfield_scf_workchain_node(),
-        ]
-
-    process.inspect_electric_field_scfs()
-    # assert 'fields_data' in process.outputs
-    # assert 'num_diff_data' in process.ctx
-    # for i in range(6):
-    #     assert f'field_index_{i}' in process.outputs['fields_data']
+    """Test `DielectricWorkChain.test_inspect_electric_field_scfs`."""
+    process = generate_workchain_dielectric()
+    process.ctx.field_index_1 = [generate_elfield_scf_workchain_node(exit_status=exit_status)]
+    result = process.inspect_electric_field_scfs()
+    assert 'data' in process.ctx
+    assert 'meshes_dict' in process.ctx
+    assert result == expected_result
+    if exit_status == 0:
+        assert 'field_index_1' in process.outputs['fields_data']
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -550,7 +528,7 @@ def test_run_numerical_derivatives(
     process.set_step_and_accuracy()
     process.set_reference_kpoints()
 
-    process.ctx.base_scf = generate_base_scf_workchain_node()
+    process.ctx.base_scf = generate_base_scf_workchain_node(with_trajectory=True)
     process.inspect_base_scf()
 
     process.ctx['null_fields'] = [generate_elfield_scf_workchain_node()]

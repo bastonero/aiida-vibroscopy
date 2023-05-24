@@ -91,10 +91,10 @@ def validate_parent_scf(parent_scf, _):
 
 def validate_inputs(inputs, _):
     """Validate the entire inputs namespace."""
-    if 'electric_field_step' in inputs and 'accuracy' not in inputs['central_difference']:
+    if 'electric_field_step' in inputs['central_difference'] and 'accuracy' not in inputs['central_difference']:
         return (
             'cannot evaluate numerical accuracy when `electric_field_step` '
-            'is specified but `central_difference.accuracy` is not'
+            'is specified but `accuracy` is not in `central_difference`'
         )
     if 'kpoints_parallel_distance' in inputs and 'kpoints_distance' not in inputs['scf']:
         return '`kpoints_parallel_distance` works only when specifying `scf.kpoints_distance`'
@@ -119,17 +119,6 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         """Define the process specification."""
         super().define(spec)
         # yapf: disable
-        spec.input(
-            'electric_field_step',
-            valid_type=orm.Float,
-            required=False,
-            validator=validate_positive,
-            help=(
-                'Electric field step in Ry atomic units used in the numerical differenciation. '
-                'Only positive values. If not specified, an NSCF is run to evaluate the critical '
-                'electric field; an electric field step is then extracted to secure a stable SCF.'
-            )
-        )
         spec.input(
             'property',
             valid_type=str,
@@ -163,34 +152,53 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         spec.input('clean_workdir', valid_type=orm.Bool, default=lambda: orm.Bool(True),
             help='If `True`, work directories of all called calculation will be cleaned at the end of execution.'
         )
-        spec.input_namespace('central_difference', help='The inputs for the central difference scheme.')
-        spec.input('central_difference.diagonal_scale',
-            valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)), validator=validate_positive,
-            help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).'
+        spec.input_namespace(
+            'central_difference',
+            help='The inputs for the central difference scheme.'
         )
-        spec.input('central_difference.accuracy', valid_type=orm.Int, required=False, validator=validate_accuracy,
+        spec.input(
+            'central_difference.electric_field_step', valid_type=orm.Float, required=False,
+            help=(
+                'Electric field step in Ry atomic units used in the numerical differenciation. '
+                'Only positive values. If not specified, an NSCF is run to evaluate the critical '
+                'electric field; an electric field step is then extracted to secure a stable SCF.'
+            ),
+            validator=validate_positive,
+        )
+        spec.input(
+            'central_difference.diagonal_scale', valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)),
+            help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).',
+            validator=validate_positive,
+        )
+        spec.input(
+            'central_difference.accuracy', valid_type=orm.Int, required=False,
             help=('Central difference scheme accuracy to employ (i.e. number of points for derivative evaluation). '
                   'This must be an EVEN positive integer number. If not specified, an automatic '
-                  'choice is made upon the intensity of the critical electric field.')
+                  'choice is made upon the intensity of the critical electric field.'),
+            validator=validate_accuracy,
         )
         spec.input_namespace(
-            'options',
+            'settings',
             help='Options for how to run the workflow.',
         )
         spec.input(
-            'options.sleep_submission_time', valid_type=(int, float), non_db=True, default=3.0,
+            'settings.sleep_submission_time', valid_type=(int, float), non_db=True, default=3.0,
             help='Time in seconds to wait before submitting subsequent displaced structure scf calculations.',
         )
+        spec.input_namespace(
+            'symmetry',
+            help='Namespace for symmetry related inputs.',
+        )
         spec.input(
-            'options.symprec', valid_type=orm.Float, default=lambda:orm.Float(1e-5),
+            'symmetry.symprec', valid_type=orm.Float, default=lambda:orm.Float(1e-5),
             help='Symmetry tolerance for space group analysis on the input structure.',
         )
         spec.input(
-            'options.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(False),
+            'symmetry.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(False),
             help='Whether or not to distinguish atom with same species but different names with symmetries.',
         )
         spec.input(
-            'options.is_symmetry', valid_type=orm.Bool, default=lambda:orm.Bool(True),
+            'symmetry.is_symmetry', valid_type=orm.Bool, default=lambda:orm.Bool(True),
             help='Whether using or not the space group symmetries.',
         )
         spec.inputs.validator = validate_inputs
@@ -240,6 +248,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         spec.exit_code(404, 'ERROR_NON_INTEGER_TOT_MAGNETIZATION',
             message=('The scf PwBaseWorkChain sub process in iteration '
                     'returned a non integer total magnetization (threshold exceeded).'))
+        # yapf: enable
 
     @classmethod
     def _validate_properties(cls, value, _):
@@ -247,7 +256,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         if value.lower() not in cls._AVAILABLE_PROPERTIES:
             invalid_value = value.lower()
         else:
-            invalid_value=None
+            invalid_value = None
 
         if invalid_value is not None:
             return f'Got invalid or not implemented property value {invalid_value}.'
@@ -282,42 +291,31 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         scf = PwBaseWorkChain.get_builder_from_protocol(
             *args, overrides=inputs.get('scf', None), options=options, **kwargs
         )
-
         scf.pop('clean_workdir', None)
         scf['pw'].pop('parent_folder', None)
 
         builder = cls.get_builder()
 
-        if 'options' in inputs:
-            builder_options = {}
+        name = 'kpoints_parallel_distance'
+        if name in inputs:
+            builder[name] = orm.Float(inputs[name])
 
-            if 'sleep_submission_time' in inputs['options']:
-                builder_options.update({'sleep_submission_time': inputs['options']['sleep_submission_time']})
-
-            non_default_options = ['symprec', 'distinguish_kinds', 'is_symmetry']
-            for name in non_default_options:
-                if name in inputs['options']:
-                    value = to_aiida_type(inputs['options'][name])
-                    builder_options.update({name:value})
-
-            builder.options = builder_options
-
-        for name in ['electric_field_step', 'kpoints_parallel_distance']:
-            if name in inputs:
-                builder[name] = orm.Float(inputs[name])
-
-        non_default_difference = ['diagonal_scale', 'accuracy']
+        non_default_difference = ['diagonal_scale', 'accuracy', 'electric_field_step']
         if 'central_difference' in inputs:
             central_difference = {}
             for name in non_default_difference:
                 if name in inputs['central_difference']:
                     value = to_aiida_type(inputs['central_difference'][name])
-                    central_difference.update({name:value})
+                    central_difference.update({name: value})
             builder['central_difference'] = central_difference
 
         builder.scf = scf
         builder.clean_workdir = orm.Bool(inputs['clean_workdir'])
         builder.property = inputs['property']
+        builder['symmetry']['symprec'] = orm.Float(inputs['symmetry']['symprec'])
+        builder['symmetry']['distinguish_kinds'] = orm.Bool(inputs['symmetry']['distinguish_kinds'])
+        builder['symmetry']['is_symmetry'] = orm.Bool(inputs['symmetry']['is_symmetry'])
+        builder['settings']['sleep_submission_time'] = inputs['settings']['sleep_submission_time']
 
         return builder
 
@@ -327,39 +325,39 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         preprocess_data = PreProcessData(
             structure=self.inputs.scf.pw.structure,
-            symprec=self.inputs.options.symprec.value,
-            is_symmetry=self.inputs.options.is_symmetry.value,
-            distinguish_kinds=self.inputs.options.distinguish_kinds.value
+            symprec=self.inputs.symmetry.symprec.value,
+            is_symmetry=self.inputs.symmetry.is_symmetry.value,
+            distinguish_kinds=self.inputs.symmetry.distinguish_kinds.value
         )
 
         self.ctx.should_estimate_electric_field = True
         self.ctx.is_parallel_distance = 'kpoints_parallel_distance' in self.inputs
 
-        if 'electric_field_step' in self.inputs:
+        if 'electric_field_step' in self.inputs.central_difference:
             self.ctx.should_estimate_electric_field = False
-            self.ctx.electric_field_step = self.inputs.electric_field_step
+            self.ctx.electric_field_step = self.inputs.central_difference.electric_field_step
 
-        if self.inputs.property in ('ir','nac','born-charges','bec','dielectric'):
+        if self.inputs.property in ('ir', 'nac', 'born-charges', 'bec', 'dielectric'):
             self.ctx.numbers, self.ctx.signs = get_irreducible_numbers_and_signs(preprocess_data, 3)
-        elif self.inputs.property in ('raman','susceptibility-derivative','non-linear-susceptibility'):
+        elif self.inputs.property in ('raman', 'susceptibility-derivative', 'non-linear-susceptibility'):
             self.ctx.numbers, self.ctx.signs = get_irreducible_numbers_and_signs(preprocess_data, 6)
 
-        else: # it is impossible to get here due to input validation
+        else:  # it is impossible to get here due to input validation
             raise NotImplementedError(f'calculation of {self.inputs.property} not available')
 
         # Determine whether the system is to be treated as magnetic
         parameters = self.inputs.scf.pw.parameters.get_dict()
         nspin = parameters.get('SYSTEM', {}).get('nspin', 1)
-        if  nspin != 1:
+        if nspin != 1:
             self.report('system is treated to be magnetic because `nspin != 1` in `scf.pw.parameters` input.')
             self.ctx.is_magnetic = True
             if nspin == 2:
                 starting_magnetization = parameters.get('SYSTEM', {}).get('starting_magnetization', None)
                 tot_magnetization = parameters.get('SYSTEM', {}).get('tot_magnetization', None)
-                if  starting_magnetization is None and tot_magnetization is None:
+                if starting_magnetization is None and tot_magnetization is None:
                     raise NameError('Missing `*_magnetization` input in `scf.pw.parameters` while `nspin == 2`.')
             else:
-                raise NotImplementedError(f'nspin=`{nspin}` is not implemented in the code.') # are we sure???
+                raise NotImplementedError(f'nspin=`{nspin}` is not implemented in the code.')  # are we sure???
         else:
             # self.report('system is treated to be non-magnetic because `nspin == 1` in `scf.pw.parameters` input.')
             self.ctx.is_magnetic = False
@@ -388,7 +386,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             }
             kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
 
-        self.ctx.kpoints = kpoints # Needed for first SCF, and finite electric fields if needed
+        self.ctx.kpoints = kpoints  # Needed for first SCF, and finite electric fields if needed
 
         if self.ctx.is_parallel_distance:
             self.ctx.kpoints_dict = {}
@@ -410,7 +408,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             self.ctx.kpoints_list = []
 
             for kpoints in self.ctx.kpoints_dict.values():
-                mesh = kpoints.get_kpoints_mesh()[0] # not the offset
+                mesh = kpoints.get_kpoints_mesh()[0]  # not the offset
                 if not mesh in self.ctx.meshes:
                     self.ctx.meshes.append(mesh)
                     self.ctx.kpoints_list.append(kpoints)
@@ -439,24 +437,24 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         parameters['CONTROL'].update({
             'restart_mode': 'from_scratch',
             'lelfield': True,
-            'tprnfor': True, # must be True to compute forces
-            'tstress': False, # do not waste time computing stress tensor - not needed
+            'tprnfor': True,  # must be True to compute forces
+            'tstress': False,  # do not waste time computing stress tensor - not needed
         })
         parameters['ELECTRONS'].update({
             'efield_cart': electric_field_vector,
             'startingpot': 'file',
         })
-        parameters['CONTROL'].setdefault('disk_io', 'medium') # this allows smoother restart
+        parameters['CONTROL'].setdefault('disk_io', 'medium')  # this allows smoother restart
 
         base_out = self.ctx.base_scf.outputs
 
         # --- Field dependent settings
-        if electric_field_vector == [0,0,0]:
+        if electric_field_vector == [0, 0, 0]:
             # thr_init = max(1e-10, base_out.output_parameters.get_dict()['convergence_info']['scf_conv']['scf_error'])
             parameters['CONTROL']['nberrycyc'] = 1
             parameters['ELECTRONS'].update({
                 # 'diago_thr_init': thr_init,
-                'efield_phase': 'write', # write the polarization phase
+                'efield_phase': 'write',  # write the polarization phase
             })
         else:
             parameters['CONTROL'].setdefault('nberrycyc', self._DEFAULT_NBERRYCYC)
@@ -514,7 +512,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         key = 'base_scf'
         inputs.metadata.call_link_label = key
 
-        inputs.clean_workdir = orm.Bool(False) # the folder is needed for next calculations
+        inputs.clean_workdir = orm.Bool(False)  # the folder is needed for next calculations
 
         node = self.submit(PwBaseWorkChain, **inputs)
         self.to_context(**{key: node})
@@ -546,7 +544,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             'restart_mode': 'from_scratch',
         })
 
-        nbnd = outputs.output_parameters.base.attributes.get('number_of_bands')+10
+        nbnd = outputs.output_parameters.base.attributes.get('number_of_bands') + 10
         parameters['SYSTEM']['nbnd'] = nbnd
 
         for key in ('nberrycyc', 'lelfield', 'efield_cart'):
@@ -582,12 +580,12 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             self.ctx.electric_field_step = get_electric_field_step(self.ctx.critical_electric_field, self.ctx.accuracy)
             self.out('electric_field_step', self.ctx.electric_field_step)
 
-        self.ctx.max_iteration = int(self.ctx.accuracy.value/2)
+        self.ctx.max_iteration = int(self.ctx.accuracy.value / 2)
         self.ctx.iteration = 0
 
     def run_null_field_scfs(self):
         """Run electric enthalpy scf with zero electric field."""
-        inputs = self.get_inputs(electric_field_vector=[0.,0.,0.])
+        inputs = self.get_inputs(electric_field_vector=[0., 0., 0.])
         if 'parent_scf' in self.inputs:
             inputs.pw.parent_folder = self.inputs.parent_scf
         else:
@@ -632,16 +630,16 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
     def run_electric_field_scfs(self):
         """Run scf with different electric fields for central difference."""
         # Here we can already truncate `numbers`` from the very beginning using symmetry analysis
-        signs = [1.0,-1.0]
+        signs = [1.0, -1.0]
         for number, bool_signs in zip(self.ctx.numbers, self.ctx.signs):
-            norm = self.ctx.electric_field_step.value*(self.ctx.iteration +1)
-            if number in (3,4,5):
-                norm = norm*self.inputs.central_difference.diagonal_scale
+            norm = self.ctx.electric_field_step.value * (self.ctx.iteration + 1)
+            if number in (3, 4, 5):
+                norm = norm * self.inputs.central_difference.diagonal_scale
 
             # Here we can put a zip with True or False, but it depends on numbers, so even before check
             for sign, bool_sign in zip(signs, bool_signs):
                 if bool_sign:
-                    electric_field_vector = get_vector_from_number(number=number, value=sign*norm)
+                    electric_field_vector = get_vector_from_number(number=number, value=sign * norm)
                     inputs = self.get_inputs(electric_field_vector=electric_field_vector)
 
                     if self.ctx.is_parallel_distance:
@@ -651,7 +649,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     # * 0,1,2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
                     # * 0,1,2,3,4,5 for second order derivatives: l <--> ij --> {ij}k ;
                     #   precisely 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2
-                    key =  f'field_index_{number}' # adding the iteration as well?
+                    key = f'field_index_{number}'  # adding the iteration as well?
                     inputs.metadata.call_link_label = key
 
                     if not self.ctx.iteration == 0:
@@ -673,11 +671,11 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     # Symmetries can reduce this.
                     node = self.submit(PwBaseWorkChain, **inputs)
                     self.to_context(**{key: append_(node)})
-                    message = f'with electric field index {number} iteration #{self.ctx.iteration}'
+                    message = f'with electric field index {number} and sign {sign} iteration #{self.ctx.iteration}'
                     self.report(f'launching PwBaseWorkChain<{node.pk}> ' + message)
-                    time.sleep(self.inputs.options.sleep_submission_time)
+                    time.sleep(self.inputs.settings.sleep_submission_time)
 
-        self.ctx.iteration = self.ctx.iteration +1
+        self.ctx.iteration = self.ctx.iteration + 1
 
     def inspect_electric_field_scfs(self):
         """Inspect all previous pw workchains with electric fields."""
@@ -690,9 +688,11 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         for label, workchains in self.ctx.items():
             if label.startswith('field_index_'):
                 self.ctx.meshes_dict[label] = workchains[0].inputs.kpoints.get_kpoints_mesh()[0]
-                field_data = {str(i):wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok} # pylint: disable=locally-disabled, line-too-long
-                output_data.update({f'fields_data.{label}':field_data})
-                self.ctx.data.update({label:field_data})
+                field_data = {
+                    str(i): wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok
+                }  # pylint: disable=locally-disabled, line-too-long
+                output_data.update({f'fields_data.{label}': field_data})
+                self.ctx.data.update({label: field_data})
         self.out_many(output_data)
 
         for key, workchains in self.ctx.items():
@@ -724,16 +724,20 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
         inputs = {
             'data': self.ctx.new_data,
-            'electric_field_step':self.ctx.electric_field_step,
-            'structure':self.inputs.scf.pw.structure,
-            'accuracy_order':self.ctx.accuracy,
-            'diagonal_scale':self.inputs.central_difference.diagonal_scale,
-            'options':{
-                'symprec':self.inputs.options.symprec,
-                'is_symmetry':self.inputs.options.is_symmetry,
-                'distinguish_kinds':self.inputs.options.distinguish_kinds,
+            'structure': self.inputs.scf.pw.structure,
+            'central_difference': {
+                'electric_field_step': self.ctx.electric_field_step,
+                'accuracy': self.ctx.accuracy,
+                'diagonal_scale': self.inputs.central_difference.diagonal_scale,
             },
-            'metadata':{'call_link_label':'numerical_derivatives'}
+            'symmetry': {
+                'symprec': self.inputs.symmetry.symprec,
+                'is_symmetry': self.inputs.symmetry.is_symmetry,
+                'distinguish_kinds': self.inputs.symmetry.distinguish_kinds,
+            },
+            'metadata': {
+                'call_link_label': 'numerical_derivatives'
+            }
         }
 
         node = self.submit(NumericalDerivativesWorkChain, **inputs)

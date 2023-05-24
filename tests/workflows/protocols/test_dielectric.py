@@ -69,13 +69,13 @@ def test_overrides_dielectric(fixture_code, generate_structure):
     code = fixture_code('quantumespresso.pw')
     structure = generate_structure('silicon')
 
-    electric_field_step = 0.001
+    step = 0.001
     accuracy = 4
 
-    overrides = {'electric_field_step': electric_field_step, 'central_difference': {'accuracy': 4}}
+    overrides = {'central_difference': {'electric_field_step': step, 'accuracy': 4}}
     builder = DielectricWorkChain.get_builder_from_protocol(code, structure, overrides=overrides)
 
-    assert builder.electric_field_step == electric_field_step
+    assert builder.central_difference.electric_field_step == step
     assert builder.central_difference.accuracy == accuracy
 
 

@@ -30,6 +30,11 @@ repos:
         name: yapf
         types: [python]
         args: ['-i']
+        exclude: &exclude_files >
+            (?x)^(
+                docs/.*|
+                tests/.*(?<!\.py)$
+            )$
         additional_dependencies: ['toml']
 
 -   repo: local
@@ -45,9 +50,5 @@ repos:
     rev: '6.1.1'
     hooks:
     -   id: pydocstyle
-        exclude: >
-            (?x)^(
-                docs/.*|
-                tests/.*(?<!\.py)$
-            )$
+        exclude: *exclude_files
         additional_dependencies: ['toml']

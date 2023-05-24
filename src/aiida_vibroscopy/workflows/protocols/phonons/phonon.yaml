@@ -1,0 +1,30 @@
+default_inputs:
+    clean_workdir: true
+    displacement_generator:
+        distance: 0.01 # Angstrom
+    scf:
+        meta_parameters:
+            conv_thr_per_atom: 1.0e-12
+    settings:
+        sleep_submission_time: 1.0
+    symmetry:
+        symprec: 1.e-5
+        distinguish_kinds: false
+        is_symmetry: true
+    supercell_matrix: [2,2,2] # better to change to number times number of atoms
+default_protocol: moderate
+protocols:
+    moderate:
+        description: 'Protocol to perform a phonon calculation at normal precision at moderate computational cost.'
+    precise:
+        description: 'Protocol to perform a phonon calculation at high precision at higher computational cost.'
+        supercell_matrix: [3,3,3] # better to change to number times number of atoms
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-14
+    fast:
+        description: 'Protocol to perform a phonon calculation at low precision at minimal computational cost for testing purposes.'
+        supercell_matrix: [2,2,2] # better to change to number times number of atoms
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-10

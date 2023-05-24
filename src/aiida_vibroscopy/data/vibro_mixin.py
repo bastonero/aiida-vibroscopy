@@ -11,6 +11,7 @@ from aiida_vibroscopy.calculations.spectra_utils import (
     compute_raman_susceptibility_tensors,
 )
 from aiida_vibroscopy.utils.integration.lebedev import LebedevScheme
+from aiida_vibroscopy.utils.spectra import raman_prefactor
 
 __all__ = ('VibrationalMixin',)
 
@@ -27,7 +28,7 @@ class VibrationalMixin:
         r"""Get the Raman tensors in Cartesian coordinates.
 
         .. important:: with Raman tensors we mean
-            :math:\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}
+        :math:`\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}`
 
         .. note:
             * Units in 1/Angstrom, normalized using the UNIT cell volume.
@@ -41,7 +42,7 @@ class VibrationalMixin:
         :return: (number of atoms in the primitive cell, 3, 3, 3) shape array
         """
         try:
-            value = self.get_array('raman_tensors')
+            value = self.get_array('raman_tensors').copy()
         except (KeyError, AttributeError):
             value = None
         return value
@@ -50,7 +51,7 @@ class VibrationalMixin:
         r"""Set the Raman tensors in Cartesian coordinates.
 
         .. important:: with Raman tensors we mean
-            :math:\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}
+        :math:`\\frac{1}{\\Omega}\\frac{\\partial \\chi}{\\partial u}`
 
         .. note:
             * Units in 1/Angstrom, normalized using the UNIT cell volume.
@@ -62,10 +63,10 @@ class VibrationalMixin:
                 4. Same as 3.
 
         :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3) shape array
-
         :raises:
             * TypeError: if the format is not compatible or of the correct type
             * ValueError: if the format is not compatible or of the correct type
+
         """
         if not isinstance(raman_tensors, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -101,6 +102,7 @@ class VibrationalMixin:
         :raises:
             * TypeError: if the format is not compatible or of the correct type
             * ValueError: if the format is not compatible or of the correct type
+
         """
         self._if_can_modify()
 
@@ -126,29 +128,29 @@ class VibrationalMixin:
         self,
         degeneracy_tolerance: float = 1.e-5,
         nac_direction: None | list[float, float, float] = None,
-        selection_rule: str | None = None,
+        selection_rule: str['raman'] | str['ir'] | None = None,
         sr_thr: float = 1e-4,
         **kwargs
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple:
         """Get active modes frequencies, eigenvectors and irreducible representation labels.
 
         Inputs as in :func:`~aiida_virboscopy.calculations.spectra_utils.compute_active_modes`
 
         :param nac_direction: (3,) shape list, indicating non analytical
-            direction in fractional reciprocal (primitive cell) space coordinates
+        direction in fractional reciprocal (primitive cell) space coordinates
         :param selection_rule: str, can be `raman` or `ir`;
-            it uses symmetry in the selection of the modes
-            for a specific type of process.
+        it uses symmetry in the selection of the modes
+        for a specific type of process.
         :param sr_thr: float, threshold for selection
-            rule (the analytical value is 0).
+        rule (the analytical value is 0).
         :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
             * subtract_residual_forces: whether or not subract residual forces (if set);
-                bool, defaults to False
+            bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
-                using point group symmetry; bool, defaults to self.is_symmetry
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple of (frequencies in cm-1, normalized eigenvectors, labels);
-            normalized eigenvectors is an array of shape (num modes, num atoms, 3).
+        :return: tuple of numpy.ndarray (frequencies in cm-1, normalized eigenvectors, labels);
+        normalized eigenvectors is an array of shape (num modes, num atoms, 3).
         """
         phonopy_instance = self.get_phonopy_instance(**kwargs)
 
@@ -169,33 +171,33 @@ class VibrationalMixin:
         with_nlo: bool = True,
         use_irreps: bool = True,
         degeneracy_tolerance: float = 1e-5,
+        asr_sum_rules: bool = False,
+        symmetrize_fc: bool = False,
         sum_rules: bool = False,
         **kwargs,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple:
         """Return the Raman susceptibility tensors, frequencies and representation labels.
 
         .. note:: Units are:
-                * Intensities: Anstrom/AMU
-                * Frequencies: cm-1
+            * Raman susceptibility tensors: Anstrom/AMU
+            * Frequencies: cm-1
 
         :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
-            in reciprocal space; (3,) shape list or numpy.ndarray
+        in reciprocal space; (3,) shape list or numpy.ndarray
         :param with_nlo: whether to use or not non-linear optical susceptibility
-            correction (Froehlich term), defaults to True
-        :type with_nlo: bool, optional
+        correction (Froehlich term), defaults to True
         :param use_irreps: whether to use irreducible representations
-            in the selection of modes, defaults to True
-        :type use_irreps: bool, optional
-        :param sum_rules: whether to apply sum rules and symmetrize force constants
-            by point and space group symmetries
-        :type sum_rules: bool, optional
+        in the selection of modes, defaults to True
+        :param asr_sum_rules: whether to apply acoustic sum rules to the force constants
+        :param symmetrize_fc: whether to symmetrize the force constants using space group
+        :param sum_rules: whether to apply sum rules to Raman tensors
         :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
             * subtract_residual_forces: whether or not subract residual forces (if set);
-                bool, defaults to False
+            bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
-                using point group symmetry; bool, defaults to self.is_symmetry
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple (Raman tensors, frequencies, irreps labels)
+        :return: tuple of numpy.ndarray (Raman susc. tensors, frequencies, irreps labels)
         """
         try:
             nac_direction = nac_direction()
@@ -210,8 +212,9 @@ class VibrationalMixin:
         if phonopy_instance.force_constants is None:
             phonopy_instance.produce_force_constants()
 
-        if sum_rules:
+        if asr_sum_rules:
             phonopy_instance.symmetrize_force_constants()
+        if symmetrize_fc:
             phonopy_instance.symmetrize_force_constants_by_space_group()
 
         nlo_susceptibility = self.nlo_susceptibility if with_nlo else None
@@ -233,37 +236,37 @@ class VibrationalMixin:
         nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
         use_irreps: bool = True,
         degeneracy_tolerance: float = 1e-5,
+        asr_sum_rules: bool = False,
+        symmetrize_fc: bool = False,
         sum_rules: bool = False,
         **kwargs
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple:
         """Return the polarization vectors, frequencies and representation labels.
 
         .. note:: Units are:
-                * Intensities: (Debey/Angstrom)^2/AMU
-                * Frequencies: cm-1
+            * Intensities: (Debey/Angstrom)^2/AMU
+            * Frequencies: cm-1
 
-        :param nac_direction: non-analytical direction
-        :type nac_direction: non-analytical direction in fractional coordinates (primitive cell)
-            in reciprocal space; space(3,) shape list or numpy.ndarray
+        :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+        in reciprocal space; space(3,) shape :class:`list` or :class:`numpy.ndarray`
         :param use_irreps: whether to use irreducible representations in the
-            selection of modes, defaults to True
-        :type use_irreps: bool, optional
-        :param sum_rules: whether to apply sum rules to the derivatives of the
-            susceptibility in respect to atomic positions
-        :type sum_rules: bool, optional
+        selection of modes, defaults to True
+        :param asr_sum_rules: whether to apply acoustic sum rules to the force constants
+        :param symmetrize_fc: whether to symmetrize the force constants using space group
+        :param sum_rules: whether to charge neutrality to effective charge tensors
         :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
             * subtract_residual_forces: whether or not subract residual forces (if set);
-                bool, defaults to False
+            bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
-                using point group symmetry; bool, defaults to self.is_symmetry
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple (polarization vectors, frequencies, irreps labels)
+        :return: tuple of :class:`numpy.ndarray` (polarization vectors, frequencies, irreps labels)
         """
         try:
             nac_direction = nac_direction()
         except TypeError:
             pass
-        if not isinstance(use_irreps, bool) or not isinstance(sum_rules, bool):
+        if not isinstance(use_irreps, bool) or not isinstance(asr_sum_rules, bool):
             raise TypeError('the input is not of the correct type')
 
         phonopy_instance = self.get_phonopy_instance(**kwargs)
@@ -271,8 +274,9 @@ class VibrationalMixin:
         if phonopy_instance.force_constants is None:
             phonopy_instance.produce_force_constants()
 
-        if sum_rules:
+        if asr_sum_rules:
             phonopy_instance.symmetrize_force_constants()
+        if symmetrize_fc:
             phonopy_instance.symmetrize_force_constants_by_space_group()
 
         results = compute_polarization_vectors(
@@ -285,33 +289,45 @@ class VibrationalMixin:
 
         return results
 
-    def run_polarized_raman_intensities(
+    def run_single_crystal_raman_intensities(
         self,
         pol_incoming: tuple[float, float, float],
         pol_outgoing: tuple[float, float, float],
+        frequency_laser: float = 532,
+        temperature: float = 300,
+        absolute: bool = True,
         **kwargs,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return polarized Raman intensities.
+    ) -> tuple:
+        """Return polarized single crystal Raman intensities.
 
         .. note:: Units are:
-                * Intensities: Anstrom/AMU
-                * Frequencies: cm-1
+            * Intensities: sterad^-1 cm^-2 (if absolute==True)
+            * Frequencies: cm-1
 
         :param pol_incoming: light polarization vector of the incoming light
-            (laser) in crystal/fractional coordinates
-        :type pol_incoming: list or numpy.ndarray of shape (3,)
+        (laser) in crystal/fractional coordinates of the primitive cell;
+        :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param pol_outgoing: light polarization vector of the outgoing light
-            (scattered) in crystal/fractional coordinates
-        :type pol_outgoing: list or numpy.ndarray of shape (3,)
+        (scattered) in crystal/fractional coordinates of the primitive cell;
+        :class:`list` or :class:`numpy.ndarray` of shape (3,)
+        :param frequency_laser: laser frequency in nanometers
+        :param temperature: temperature in Kelvin
+        :param absolute: whether to use the prefactor for absolute theoretical cross-section units
         :param kwargs: keys of
-        :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
+        :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_raman_susceptibility_tensors` method
             * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
             * use_irreps: whether to use irreducible representations
-                in the selection of modes, defaults to True; bool, optional
-            * degeneracy_tolerance: degeneracy tolerance for
-                irreducible representation
+            in the selection of modes, defaults to True; bool, optional
+            * degeneracy_tolerance: degeneracy tolerance for irreducible representation
+            * asr_sum_rules: whether to apply acoustic sum rules to the force constants
+            * symmetrize_fc: whether to symmetrize the force constants using space group
+            * sum_rules: whether to apply sum rules to Raman tensors
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+            bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple (Raman intensities, frequencies, labels)
+        :return: tuple of numpy.ndarray (Raman intensities, frequencies, labels)
         """
         if not isinstance(pol_incoming, (list, np.ndarray)) or not isinstance(pol_outgoing, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -333,31 +349,45 @@ class VibrationalMixin:
         ]
         raman_intensities = [intensity**2 for intensity in raman_intensities]
 
-        return (raman_intensities, freqs, labels)
+        return (raman_intensities * raman_prefactor(freqs, frequency_laser, temperature, absolute), freqs, labels)
 
-    def run_powder_raman_intensities(self,
-                                     quadrature_order: int | None = None,
-                                     **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def run_powder_raman_intensities(
+        self,
+        quadrature_order: int | None = None,
+        frequency_laser: float = 532,
+        temperature: float = 300,
+        absolute: bool = True,
+        **kwargs
+    ) -> tuple:
         """Return powder Raman intensities.
 
         ..important: it computes the common setups of polarized (HH) and unpolarized (HV)
         scattering. To obtain the total powder intensities, sum the two returned arrays of the intensities.
 
         .. note:: Units are:
-                * Intensities: Anstrom/AMU
-                * Frequencies: cm-1
+            * Intensities: sterad^-1 cm^-2 (if absolute==True)
+            * Frequencies: cm-1
 
         :param quadrature_order: algebraic order to perform the integration
             on the sphere of nac directions
+        :param frequency_laser: laser frequency in nanometers
+        :param temperature: temperature in Kelvin
+        :param absolute: whether to use the prefactor for absolute theoretical cross-section units
         :param kwargs: keys of
-        :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_raman_susceptibility_tensors` method
+        :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_raman_susceptibility_tensors` method
             * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
             * use_irreps: whether to use irreducible representations
-                in the selection of modes, defaults to True; bool, optional
-            * degeneracy_tolerance: degeneracy tolerance for
-                irreducible representation
+            in the selection of modes, defaults to True; bool, optional
+            * degeneracy_tolerance: degeneracy tolerance for irreducible representation
+            * asr_sum_rules: whether to apply acoustic sum rules to the force constants
+            * symmetrize_fc: whether to symmetrize the force constants using space group
+            * sum_rules: whether to apply sum rules to Raman tensors
+            * subtract_residual_forces: whether or not subract residual forces (if set);
+            bool, defaults to False
+            * symmetrize_nac: whether or not to symmetrize the nac parameters
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: (Raman intensities HH, Raman intensities HV, frequencies, labels)
+        :return: tuple of numpy.ndarray (Raman intensities HH, Raman intensities HV, frequencies, labels)
         """
         raman_hh = []
         raman_hv = []
@@ -390,37 +420,39 @@ class VibrationalMixin:
                 freqs += q_freqs.tolist()
                 labels += q_labels
 
-        return (np.array(raman_hh).flatten(), np.array(raman_hv).flatten(), np.array(freqs), labels)
+        prefactor = raman_prefactor(np.array(freqs), frequency_laser, temperature, absolute)
+        return (
+            np.array(raman_hh).flatten() * prefactor, np.array(raman_hv).flatten() * prefactor, np.array(freqs), labels
+        )
 
-    def run_polarized_ir_intensities(self, pol_incoming: tuple[float, float, float],
-                                     **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return polarized IR intensities.
+    def run_single_crystal_ir_intensities(self, pol_incoming: tuple[float, float, float], **kwargs) -> tuple:
+        """Return polarized single crystal IR intensities.
 
         .. note:: Units are:
             * Intensities: (Debey/Angstrom)^2/AMU
             * Frequencies: cm^-1
 
         :param pol_incoming: light polarization vector of the
-            incident beam light in crystal coordinates
-        :type pol_incoming: list or numpy.ndarray of shape (3,)
-        :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
-            * nac_direction: non-analytical direction in fractional coordinates (primitive cell)
-                in reciprocal space; space(3,) shape list or numpy.ndarray
-            * use_irreps: whether to use irreducible representations in the
-                selection of modes, defaults to True; bool, optional
-            * sum_rules: whether to apply sum rules to the derivatives of the
-                susceptibility in respect to atomic positions; bool, optional
+        incident beam light in crystal coordinates of the primitive cell;
+        :class:`list` or :class:`numpy.ndarray` of shape (3,)
+        :param kwargs: keys of
+        :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
+            * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+            * use_irreps: whether to use irreducible representations
+            in the selection of modes, defaults to True
+            * degeneracy_tolerance: degeneracy tolerance for irreducible representation
+            * asr_sum_rules: whether to apply acoustic sum rules to the force constants
+            * symmetrize_fc: whether to symmetrize the force constants using space group
+            * sum_rules: whether to apply charge neutrality to effective charge tensors
             * subtract_residual_forces: whether or not subract residual forces (if set);
-                bool, defaults to False
+            bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
-                using point group symmetry; bool, defaults to self.is_symmetry
-            * factor_nac: factor for non-analytical corrections;
-                float, defaults to Hartree*Bohr
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple(intensities, frequencies, labels).
-            Units are:
-                * Intensities: (Debey/Angstrom)^2/AMU
-                * Frequencies: cm^-1
+        :return: tuple of numpy.ndarray (intensities, frequencies, labels). Units are:
+            * Intensities: (Debey/Angstrom)^2/AMU
+            * Frequencies: cm^-1
+
         """
         if not isinstance(pol_incoming, (list, np.ndarray)):
             raise TypeError('the input is not of the correct type')
@@ -438,11 +470,9 @@ class VibrationalMixin:
         ir_intensities = [np.dot(vector, pol_incoming_cart) for vector in pol_vectors]
         ir_intensities = [intensity**2 for intensity in ir_intensities]
 
-        return (ir_intensities, freqs, labels)
+        return (ir_intensities / freqs, freqs, labels)
 
-    def run_powder_ir_intensities(self,
-                                  quadrature_order: int | None = None,
-                                  **kwargs) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def run_powder_ir_intensities(self, quadrature_order: int | None = None, **kwargs) -> tuple:
         """Return powder IR intensities, frequencies, and labels.
 
         .. note:: Units are:
@@ -450,25 +480,25 @@ class VibrationalMixin:
             * Frequencies: cm^-1
 
         :param quadrature_order: algebraic order to perform the integration
-            on the sphere of nac directions
-        :param kwargs: keys of :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
-            * nac_direction: non-analytical direction in fractional coordinates (primitive cell)
-                in reciprocal space; space(3,) shape list or numpy.ndarray
-            * use_irreps: whether to use irreducible representations in the
-                selection of modes, defaults to True; bool, optional
-            * sum_rules: whether to apply sum rules to the derivatives of the
-                susceptibility in respect to atomic positions; bool, optional
+        on the sphere of nac directions
+        :param kwargs: keys of
+        :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
+            * nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+            * use_irreps: whether to use irreducible representations
+            in the selection of modes, defaults to True; bool, optional
+            * degeneracy_tolerance: degeneracy tolerance for irreducible representation
+            * asr_sum_rules: whether to apply acoustic sum rules to the force constants
+            * symmetrize_fc: whether to symmetrize the force constants using space group
+            * sum_rules: whether to apply charge neutrality to effective charge tensors
             * subtract_residual_forces: whether or not subract residual forces (if set);
-                bool, defaults to False
+            bool, defaults to False
             * symmetrize_nac: whether or not to symmetrize the nac parameters
-                using point group symmetry; bool, defaults to self.is_symmetry
-            * factor_nac: factor for non-analytical corrections;
-                float, defaults to Hartree*Bohr
+            using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple(intensities, frequencies, labels).
-            Units are:
-                * Intensities: (Debey/Angstrom)^2/AMU
-                * Frequencies: cm^-1
+        :return: tuple of numpy.ndarray (intensities, frequencies, labels). Units are:
+            * Intensities: (Debey/Angstrom)^2/AMU
+            * Frequencies: cm^-1
+
         """
         ir_intensities = []
 
@@ -495,7 +525,7 @@ class VibrationalMixin:
                     freqs.append(f)
                     labels.append(l)
 
-        return (np.array(ir_intensities), np.array(freqs), labels)
+        return (np.array(ir_intensities) / np.array(freqs), np.array(freqs), labels)
 
     @staticmethod
     def get_available_quadrature_order_schemes():

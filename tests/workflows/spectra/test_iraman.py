@@ -2,16 +2,37 @@
 """Tests for the :mod:`workflows.phonons.iraman` module."""
 import pytest
 
+from aiida_vibroscopy.workflows.spectra.iraman import IRamanSpectraWorkChain
+
 
 @pytest.fixture
-def generate_workchain_iraman(generate_workchain, generate_inputs_iraman):
-    """Generate an instance of a `DielectricWorkChain`."""
+def generate_workchain_iraman(generate_workchain, generate_inputs_pw_base):
+    """Generate an instance of a `IRamanSpectraWorkChain`."""
 
-    def _generate_workchain_iraman(inputs=None, **kwargs):
+    def _generate_workchain_iraman(append_inputs=None):
         entry_point = 'vibroscopy.spectra.iraman'
 
-        if inputs is None:
-            inputs = generate_inputs_iraman(**kwargs)
+        scf_inputs = generate_inputs_pw_base()
+        structure = scf_inputs['pw'].pop('structure')
+
+        inputs = {
+            'structure': structure,
+            'phonon': {
+                'scf': scf_inputs
+            },
+            'dielectric': {
+                'property': 'raman',
+                'scf': scf_inputs,
+                'settings': {
+                    'sleep_submission_time': 0.
+                }
+            },
+            'settings': {},
+            'symmetry': {},
+        }
+
+        if append_inputs is not None:
+            inputs.update(append_inputs)
 
         process = generate_workchain(entry_point, inputs)
 
@@ -24,11 +45,14 @@ def generate_workchain_iraman(generate_workchain, generate_inputs_iraman):
 def generate_intensities_workchain_node():
     """Generate an instance of `WorkflowNode`."""
 
-    def _generate_intensities_workchain_node():
+    def _generate_intensities_workchain_node(exit_status=0):
         from aiida.common import LinkType
         from aiida.orm import ArrayData, WorkflowNode
+        from plumpy import ProcessState
 
         node = WorkflowNode().store()
+        node.set_process_state(ProcessState.FINISHED)
+        node.set_exit_status(exit_status)
 
         ir_array = ArrayData().store()
         raman_array = ArrayData().store()
@@ -42,82 +66,33 @@ def generate_intensities_workchain_node():
 
 
 @pytest.mark.usefixtures('aiida_profile')
-def test_setup(generate_workchain_iraman):
-    """Test `IRamanSpectraWorkChain` setup method."""
+def test_initialization(generate_workchain_iraman):
+    """Test `IRamanSpectraWorkChain` initialization."""
+    generate_workchain_iraman()
+
+
+@pytest.mark.usefixtures('aiida_profile')
+def test_run_spectra(generate_workchain_iraman):
+    """Test `IRamanSpectraWorkChain.run_spectra`."""
     process = generate_workchain_iraman()
-    process.setup()
-
-    for key in ('preprocess_data', 'is_magnetic', 'plus_hubbard'):
-        assert key in process.ctx
-
-    assert process.ctx.run_parallel == True
-    assert process.ctx.plus_hubbard == False
+    process.run_spectra()
+    assert 'harmonic' in process.ctx
 
 
 @pytest.mark.usefixtures('aiida_profile')
-def test_run_forces(generate_workchain_iraman, generate_base_scf_workchain_node):
-    """Test `IRamanSpectraWorkChain.run_forces` method."""
-    append_inputs = {'options': {'sleep_submission_time': 0.1}}
-    process = generate_workchain_iraman(append_inputs=append_inputs)
+def test_inspect_process(generate_workchain_iraman):
+    """Test `IRamanSpectraWorkChain.inspect_process`."""
+    from aiida.orm import WorkflowNode
+    from plumpy import ProcessState
 
-    process.setup()
-    process.run_base_supercell()
-    process.set_reference_kpoints()
+    node = WorkflowNode().store()
+    node.set_process_state(ProcessState.FINISHED)
+    node.set_exit_status(400)
 
-    assert 'scf_supercell_0' in process.ctx
-
-    process.ctx.scf_supercell_0 = generate_base_scf_workchain_node()
-    process.run_forces()
-
-    assert 'supercells' in process.outputs
-    assert 'supercell_1' in process.outputs['supercells']
-    assert 'supercell_2' in process.outputs['supercells']
-    assert 'scf_supercell_1' in process.ctx
-
-
-@pytest.mark.usefixtures('aiida_profile')
-def test_run_dielectric(generate_workchain_iraman, generate_base_scf_workchain_node):
-    """Test `IRamanSpectraWorkChain.run_dielectric` method."""
-    append_inputs = {'options': {'sleep_submission_time': 0.1}}
-    process = generate_workchain_iraman(append_inputs=append_inputs)
-
-    process.setup()
-    process.run_base_supercell()
-    process.set_reference_kpoints()
-
-    process.ctx.scf_supercell_0 = generate_base_scf_workchain_node()
-
-    process.run_dielectric()
-
-    assert 'dielectric_workchain' in process.ctx
-
-
-@pytest.mark.parametrize(
-    ('raman'),
-    ((True), (False)),
-)
-@pytest.mark.usefixtures('aiida_profile')
-def test_run_raw_results(generate_workchain_iraman, generate_dielectric_workchain_node, raman, generate_trajectory):
-    """Test `IRamanSpectraWorkChain.run_raw_results` method."""
     process = generate_workchain_iraman()
-
-    process.setup()
-    process.ctx.dielectric_workchain = generate_dielectric_workchain_node(raman=raman)
-
-    forces_1 = generate_trajectory()
-    forces_2 = generate_trajectory()
-
-    process.out(f'supercells_forces.forces_1', forces_1)
-    process.out(f'supercells_forces.forces_2', forces_2)
-
-    process.set_phonopy_data()
-    process.run_raw_results()
-
-    assert 'vibrational_data' in process.outputs
-    assert 'vibrational_data' in process.ctx
-
-    assert 'numerical_accuracy_2_step_1' in process.outputs['vibrational_data']
-    assert 'numerical_accuracy_4' in process.outputs['vibrational_data']
+    process.ctx.harmonic = node
+    result = process.inspect_process()
+    assert result == IRamanSpectraWorkChain.exit_codes.ERROR_HARMONIC_WORKCHAIN_FAILED
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -143,8 +118,8 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
 
 
 @pytest.mark.usefixtures('aiida_profile')
-def test_show_results(generate_workchain_iraman, generate_intensities_workchain_node):
-    """Test `IRamanSpectraWorkChain.show_results` method."""
+def test_inspect_averaging(generate_workchain_iraman, generate_intensities_workchain_node):
+    """Test `IRamanSpectraWorkChain.inspect_averaging` method."""
     from aiida.common import AttributeDict
     process = generate_workchain_iraman()
 
@@ -157,7 +132,7 @@ def test_show_results(generate_workchain_iraman, generate_intensities_workchain_
     assert 'ir_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs
     assert 'raman_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs
 
-    process.show_results()
+    process.inspect_averaging()
 
     assert 'output_intensities_average' in process.outputs
     assert 'numerical_order_4' in process.outputs['output_intensities_average']
@@ -166,3 +141,17 @@ def test_show_results(generate_workchain_iraman, generate_intensities_workchain_
     for key in ['ir_averaged', 'raman_averaged']:
         assert key in process.outputs['output_intensities_average']['numerical_order_4']
         assert key in process.outputs['output_intensities_average']['numerical_order_2_step_1']
+
+
+@pytest.mark.usefixtures('aiida_profile')
+def test_inspect_averaging_error(generate_workchain_iraman, generate_intensities_workchain_node):
+    """Test `IRamanSpectraWorkChain.inspect_averaging` exit code."""
+    process = generate_workchain_iraman()
+
+    process.ctx.intensities_average = {
+        'numerical_order_2_step_1': generate_intensities_workchain_node(exit_status=300),
+        'numerical_order_4': generate_intensities_workchain_node(),
+    }
+
+    result = process.inspect_averaging()
+    assert result == IRamanSpectraWorkChain.exit_codes.ERROR_AVERAGING_WORKCHAIN_FAILED

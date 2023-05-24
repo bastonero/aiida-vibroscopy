@@ -1,21 +1,42 @@
 default_inputs:
-    clean_workdir: True
-    dielectric_workchain:
-        property: "ir"
-    phonon_workchain:
-        supercell_matrix: [2,2,2] # better to change to number times number of atoms
-    options:
-        run_parallel: True
-        sleep_submission_time: 3.0
+    clean_workdir: true
+    dielectric:
+        property: ir
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-12
+    phonon:
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-12
+    settings:
+        run_parallel: true
+        use_primitive_cell: false
+    symmetry:
+        symprec: 1.e-5
+        distinguish_kinds: false
+        is_symmetry: true
 default_protocol: moderate
 protocols:
     moderate:
-        description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'
+        description: 'Protocol to perform a full phonon calculation at normal precision at moderate computational cost.'
     precise:
-        description: 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'
-        phonon_workchain:
-            supercell_matrix: [3,3,3] # better to change to number times number of atoms
+        description: 'Protocol to perform a full phonon calculation at high precision at higher computational cost.'
+        dielectric:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-14
+        phonon:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-14
     fast:
-        description: 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'
-        phonon_workchain:
-            supercell_matrix: [2,2,2] # better to change to number times number of atoms
+        description: 'Protocol to perform a full phonon calculation at low precision at minimal computational cost for testing purposes.'
+        dielectric:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-10
+        phonon:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-10

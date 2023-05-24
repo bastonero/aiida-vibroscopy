@@ -1,14 +1,32 @@
 default_inputs:
     clean_workdir: True
     property: "raman"
-    kpoints_parallel_distance: 0.1
+    kpoints_parallel_distance: 0.2
+    scf:
+        kpoints_distance: 0.4
+        meta_parameters:
+            conv_thr_per_atom: 1.0e-12
+    settings:
+        sleep_submission_time: 1.0
+    symmetry:
+        symprec: 1.e-5
+        distinguish_kinds: false
+        is_symmetry: true
 default_protocol: moderate
 protocols:
     moderate:
         description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'
     precise:
         description: 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'
-        kpoints_parallel_distance: 0.075
+        kpoints_parallel_distance: 0.1
+        scf:
+            kpoints_distance: 0.4
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-14
     fast:
         description: 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'
-        kpoints_parallel_distance: 0.3
+        kpoints_parallel_distance: 0.4
+        scf:
+            kpoints_distance: 0.6
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-10

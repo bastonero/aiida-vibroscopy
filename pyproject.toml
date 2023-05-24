@@ -24,8 +24,8 @@ keywords = ['aiida', 'workflows']
 requires-python = '>=3.8'
 dependencies = [
     "aiida-core>=2.2.2",
-    "aiida-quantumespresso>=4.1.0",
-    "aiida-phonopy>=1.1.1",
+    "aiida-quantumespresso>=4.3.0",
+    "aiida-phonopy>=1.1.2",
     "phonopy>=2.16.0,<3.0.0",
 ]
 
@@ -45,13 +45,15 @@ tests = [
     'pytest-regressions~=2.3',
 ]
 docs = [
-    'sphinx~=4.1',
-    'sphinx-copybutton~=0.5.0',
-    'sphinx-book-theme~=0.3.2',
-    'sphinx-click~=4.0',
-    'sphinx-design~=0.0.13',
+    'myst-nb~=0.17',
+    'jupytext>=1.11.2,<1.15.0',
+    'sphinx-togglebutton',
+    'sphinx~=5.2',
+    'sphinx-copybutton~=0.5.2',
+    'sphinx-book-theme~=1.0.1',
+    'sphinx-design~=0.4.1',
     'sphinxcontrib-details-directive~=0.1.0',
-    'sphinx-autoapi',
+    'sphinx-autoapi~=2.0.1'
 ]
 
 [project.entry-points.'aiida.data']
@@ -62,6 +64,7 @@ docs = [
 "vibroscopy.dielectric" = "aiida_vibroscopy.workflows.dielectric.base:DielectricWorkChain"
 "vibroscopy.dielectric.numerical_derivatives" = "aiida_vibroscopy.workflows.dielectric.numerical_derivatives:NumericalDerivativesWorkChain"
 "vibroscopy.phonons.harmonic" = "aiida_vibroscopy.workflows.phonons.harmonic:HarmonicWorkChain"
+"vibroscopy.phonons.phonon" = "aiida_vibroscopy.workflows.phonons.base:PhononWorkChain"
 "vibroscopy.spectra.iraman" = "aiida_vibroscopy.workflows.spectra.iraman:IRamanSpectraWorkChain"
 "vibroscopy.spectra.intensities_average" = "aiida_vibroscopy.workflows.spectra.intensities_average:IntensitiesAverageWorkChain"
 

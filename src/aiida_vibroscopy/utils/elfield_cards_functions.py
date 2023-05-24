@@ -9,14 +9,21 @@ def get_vector_from_number(number: int, value: float) -> tuple[float, float, flo
     """Get the electric field vector from the number for finite differences.
 
     The Voigt notation is used:
-        * 0,1,2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
-        * 0,1,2,3,4,5 for second order derivatives: l <--> ij --> {ij}k ;
-            precisely 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2.
+
+    * 0, 1, 2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
+    * 0, 1, 2, 3, 4, 5 for second order derivatives: l <--> ij --> {ij}k ;
+        precisely (k = 0, 1, 2):
+        - 0 --> {00}k
+        - 1 --> {11}k
+        - 2 --> {22}k
+        - 3 --> {12}k
+        - 4 --> {02}k
+        - 5 --> {01}k
 
     :param number: the number according to Voigt notation to get the associated electric field vector
     :param value: value of the electric field
 
-    :returns: (3,) shape list
+    :return: (3,) shape list
     """
     if not number in (0, 1, 2, 3, 4, 5):
         raise ValueError('Only numbers from 0 to 5 are accepted')
