@@ -16,7 +16,8 @@ def compute_ir_average(**kwargs) -> orm.ArrayData:
     :param kwargs: it must contain the following key-value pairs:
         * `vibro_data`: a :class:`~aiida_vibroscopy.data.VibrationalData` node
         * `parameters`: dict containing the parameters for the averaging;
-            see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_ir_intensities`
+        see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_ir_intensities`
+
 
     :return: :class:`~aiida.orm.ArrayData` with arraynames `intensities`, `frequencies`, `labels`
     """
@@ -39,7 +40,7 @@ def compute_raman_average(**kwargs):
     :param kwargs: it must contain the following key-value pairs:
         * `vibro_data`: a :class:`~aiida_vibroscopy.data.VibrationalData` node
         * `parameters`: dict containing the parameters for the averaging;
-            see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_raman_intensities`
+        see also :func:`~aiida_vibroscopy.data.VibrationalMixin.run_powder_raman_intensities`
 
     :return: :class:`~aiida.orm.ArrayData` with arraynames `intensities`, `frequencies`, `labels`
     """
@@ -93,11 +94,6 @@ class IntensitiesAverageWorkChain(WorkChain):
             default=lambda: orm.Dict({'quadrature_order': 41}),
             help='Options for averaging on the non-analytical directions.'
         )
-        # spec.input('quadrature_order', valid_type=orm.Int,
-        # default=lambda: orm.Int(41), validator=validate_positive,
-        # help='The order for the numerical quadrature on the sphere
-        # (for non-analytical direction averaging).'
-        # )
 
         spec.outline(cls.run_results,)
 
@@ -113,15 +109,6 @@ class IntensitiesAverageWorkChain(WorkChain):
             help='Contains Born effective charges tensors computed in Cartesian coordinates.'
         )
         spec.output('units', valid_type=orm.Dict, required=False, help='Units of intensities and frequencies.')
-
-        # spec.exit_code(
-        #     400, 'ERROR_AVERAGING_IR', message='The averaging procedure for IR intensities had an unexpected error.'
-        # )
-        # spec.exit_code(
-        #     401,
-        #     'ERROR_AVERAGING_RAMAN',
-        #     message='The averaging procedure for Raman intensities had an unexpected error.'
-        # )
 
     def run_results(self):
         """Run averaging procedure."""

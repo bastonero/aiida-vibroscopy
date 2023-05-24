@@ -83,7 +83,7 @@ def serialize_builder():
 
     def serialize_data(data):
         # pylint: disable=too-many-return-statements
-        from aiida.orm import AbstractCode, BaseType, Data, Dict, KpointsData, RemoteData, SinglefileData
+        from aiida.orm import AbstractCode, BaseType, Data, Dict, KpointsData, List, RemoteData, SinglefileData
         from aiida.plugins import DataFactory
 
         StructureData = DataFactory('core.structure')
@@ -100,6 +100,9 @@ def serialize_builder():
 
         if isinstance(data, Dict):
             return data.get_dict()
+
+        if isinstance(data, List):
+            return data.get_list()
 
         if isinstance(data, StructureData):
             return data.get_formula()
@@ -205,11 +208,13 @@ def generate_workchain():
 def generate_structure():
     """Return a `StructureData` representing bulk silicon."""
 
-    def _generate_structure(structure_id=None):
+    def _generate_structure(structure_id=None, hubbard=False):
         """Return a `StructureData` representing bulk silicon."""
         from aiida.orm import StructureData
+        from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
 
         if structure_id is None:
+            name = 'O'
             cell = [[3.9625313477, -3.9625313477, 0.0], [-3.9625313477, 0.0, 3.9625313477],
                     [0.0, -3.9625313477, -3.9625313477]]
             structure = StructureData(cell=cell)
@@ -217,11 +222,17 @@ def generate_structure():
             structure.append_atom(position=(1.98126567385, 1.98126567385, 1.98126567385), symbols='O', name='O')
 
         if structure_id == 'silicon':
+            name = 'Si'
             param = 5.43
             cell = [[param / 2., param / 2., 0], [param / 2., 0, param / 2.], [0, param / 2., param / 2.]]
             structure = StructureData(cell=cell)
             structure.append_atom(position=(0., 0., 0.), symbols='Si', name='Si')
             structure.append_atom(position=(param / 4., param / 4., param / 4.), symbols='Si', name='Si')
+
+        if hubbard:
+            structure = HubbardStructureData.from_structure(structure)
+            structure.initialize_onsites_hubbard(name, '2p')
+
         return structure
 
     return _generate_structure
@@ -331,6 +342,29 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
 
 
 @pytest.fixture
+def generate_inputs_phonopy(fixture_code):
+    """Generate default inputs for a `PhonopyCalculation."""
+
+    def _generate_inputs_pw():
+        """Generate default inputs for a `PhonopyCalculation."""
+        from aiida.orm import Dict
+        from aiida_quantumespresso.utils.resources import get_default_options
+
+        parameters = Dict({'bands': 'auto'})
+        inputs = {
+            'code': fixture_code('phonopy.phonopy'),
+            'parameters': parameters,
+            'metadata': {
+                'options': get_default_options()
+            }
+        }
+
+        return inputs
+
+    return _generate_inputs_pw
+
+
+@pytest.fixture
 def generate_inputs_dielectric(generate_inputs_pw):
     """Generate default inputs for a `DielectricWorkChain`."""
 
@@ -351,61 +385,23 @@ def generate_inputs_dielectric(generate_inputs_pw):
                 'kpoints': kpoints,
             },
             'clean_workdir': Bool(clean_workdir),
-            'options': {
+            'settings': {
                 'sleep_submission_time': 0.
-            }
+            },
+            'central_difference': {},
+            'symmetry': {},
         }
 
         if electric_field_step is not None:
-            inputs['electric_field_step'] = Float(electric_field_step)
+            inputs['central_difference']['electric_field_step'] = Float(electric_field_step)
         if accuracy is not None:
-            inputs['central_difference'] = {'accuracy': Int(accuracy)}
+            inputs['central_difference']['accuracy'] = Int(accuracy)
         if diagonal_scale is not None:
-            inputs['central_difference'] = {'diagonal_scale': Float(diagonal_scale)}
+            inputs['central_difference']['diagonal_scale'] = Float(diagonal_scale)
 
         return AttributeDict(inputs)
 
     return _generate_inputs_dielectric
-
-
-@pytest.fixture
-def generate_inputs_iraman(generate_inputs_pw):
-    """Generate an instance of inputs for `IRamanSpectraWorkChain`."""
-
-    def _generate_inputs_iraman(append_inputs=None):
-        inputs_pw = generate_inputs_pw()
-        structure = inputs_pw.pop('structure')
-        kpoints = inputs_pw.pop('kpoints')
-
-        inputs = {
-            'structure': structure,
-            'phonon_workchain': {
-                'scf': {
-                    'pw': inputs_pw,
-                    'kpoints': kpoints,
-                }
-            },
-            'dielectric_workchain': {
-                'property': 'raman',
-                'scf': {
-                    'pw': inputs_pw,
-                    'kpoints': kpoints
-                },
-                'options': {
-                    'sleep_submission_time': 0.
-                }
-            },
-            'options': {
-                'sleep_submission_time': 0.
-            }
-        }
-
-        if append_inputs is not None:
-            inputs.update(append_inputs)
-
-        return inputs
-
-    return _generate_inputs_iraman
 
 
 @pytest.fixture(scope='session')
@@ -443,30 +439,41 @@ def generate_inputs_pw_base(generate_inputs_pw):
 
 
 @pytest.fixture
-def generate_base_scf_workchain_node(fixture_localhost):
+def generate_base_scf_workchain_node(fixture_localhost, generate_trajectory):
     """Generate an instance of `WorkflowNode`."""
 
-    def _generate_base_scf_workchain_node():
+    def _generate_base_scf_workchain_node(exit_status=0, with_trajectory=False):
         from aiida import orm
         from aiida.common import LinkType
         from aiida.plugins.entry_point import format_entry_point_string
-
-        computer = fixture_localhost
-        entry_point_name = 'quantumespresso.pw'
-
-        entry_point = format_entry_point_string('aiida.calculations', entry_point_name)
-        calcjob_node = orm.CalcJobNode(computer=computer, process_type=entry_point)
-        calcjob_node.store()
+        from plumpy import ProcessState
 
         node = orm.WorkflowNode().store()
+        node.set_process_state(ProcessState.FINISHED)
+        node.set_exit_status(exit_status)
 
-        parameters = orm.Dict({'number_of_bands': 5}).store()
+        # Add output Dict
+        parameters = orm.Dict({
+            'number_of_bands': 5,
+            'total_magnetization': 1,
+            'volume': 10,
+        }).store()
         parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
 
-        remote_folder = orm.RemoteData(computer=computer, remote_path='/tmp').store()
+        # Add a CalcJob node with RemoteData
+        entry_point = format_entry_point_string('aiida.calculations', 'quantumespresso.pw')
+        calcjob_node = orm.CalcJobNode(computer=fixture_localhost, process_type=entry_point)
+        calcjob_node.store()
+
+        remote_folder = orm.RemoteData(computer=fixture_localhost, remote_path='/tmp').store()
         remote_folder.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='remote_folder')
         remote_folder.base.links.add_incoming(calcjob_node, link_type=LinkType.CREATE, link_label='remote_folder')
         remote_folder.store()
+
+        # Add TrajectoryData output
+        if with_trajectory:
+            trajectory = generate_trajectory()
+            trajectory.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_trajectory')
 
         return node
 
@@ -570,3 +577,24 @@ def generate_vibrational_data_from_forces(generate_structure):
         return vibrational_data
 
     return _generate_vibrational_data_from_forces
+
+
+@pytest.fixture
+def generate_phonopy_calcjob_node():
+    """Generate an instance of `CalcJobNode`."""
+
+    def _generate_phonopy_calcjob_node(exit_status=0):
+        from aiida import orm
+        from aiida.common import LinkType
+        from plumpy import ProcessState
+
+        node = orm.CalcJobNode().store()
+        node.set_process_state(ProcessState.FINISHED)
+        node.set_exit_status(exit_status)
+
+        parameters = orm.Dict({'some': 'output'}).store()
+        parameters.base.links.add_incoming(node, link_type=LinkType.CREATE, link_label='output_parameters')
+
+        return node
+
+    return _generate_phonopy_calcjob_node

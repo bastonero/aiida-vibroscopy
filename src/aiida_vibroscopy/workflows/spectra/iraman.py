@@ -2,35 +2,21 @@
 """Automatic IR and Raman spectra calculations using Phonopy and Quantum ESPRESSO."""
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
-from aiida.engine import if_
-from aiida.plugins import CalculationFactory, DataFactory, WorkflowFactory
+from aiida.engine import WorkChain, if_
+from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 
-from aiida_vibroscopy.calculations.phonon_utils import extract_symmetry_info
-from aiida_vibroscopy.calculations.spectra_utils import (
-    elaborate_tensors,
-    generate_vibrational_data_from_force_constants,
-    generate_vibrational_data_from_phonopy,
-)
-from aiida_vibroscopy.data import VibrationalData, VibrationalFrozenPhononData
-
-from ..base import BaseWorkChain
 from ..dielectric.base import DielectricWorkChain
+from ..phonons.base import PhononWorkChain
+from ..phonons.harmonic import HarmonicWorkChain
 from .intensities_average import IntensitiesAverageWorkChain
 
-PreProcessData = DataFactory('phonopy.preprocess')
-PhonopyData = DataFactory('phonopy.phonopy')
 
-PhonopyCalculation = CalculationFactory('phonopy.phonopy')
-
-PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
-
-
-class IRamanSpectraWorkChain(BaseWorkChain):
+class IRamanSpectraWorkChain(WorkChain, ProtocolMixin):
     """Workchain for automatically compute IR and Raman spectra using finite displacements and fields.
 
     For other details of the sub-workchains used, see also:
         * :class:`~aiida_vibroscopy.workflows.dielectric.base.DielectricWorkChain` for finite fields
-        * :class:`~aiida_vibroscopy.workflows.base.BaseWorkChain` for finite displacements
+        * :class:`~aiida_vibroscopy.workflows.phonons.base.PhononWorkChain` for finite displacements
     """
 
     # yapf: disable
@@ -39,9 +25,25 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         """Define inputs, outputs, and outline."""
         super().define(spec)
 
+        # yapf: disable
         spec.expose_inputs(
-            IntensitiesAverageWorkChain,
-            namespace='intensities_average',
+            HarmonicWorkChain,
+            namespace_options={'required': True, 'populate_defaults': False,},
+            exclude=('dielectric', 'phonon.supercell_matrix', 'phonopy'),
+        )
+        spec.expose_inputs(
+            DielectricWorkChain, namespace='dielectric',
+            namespace_options={
+                'required': True, 'populate_defaults': False,
+                'help': (
+                    'Inputs for the `DielectricWorkChain` that will be'
+                    'used to calculate the mixed derivatives with electric field.'
+                )
+            },
+            exclude=('scf.pw.structure', 'symmetry')
+        )
+        spec.expose_inputs(
+            IntensitiesAverageWorkChain, namespace='intensities_average',
             namespace_options={'required': False, 'populate_defaults': False,
                 'help': (
                     'Inputs for the `IntensitiesAverageWorkChain` that will'
@@ -50,70 +52,30 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             },
             exclude=('vibrational_data',)
         )
-        spec.expose_inputs(
-            PhonopyCalculation,
-            namespace='phonopy',
-            namespace_options={'required': False, 'populate_defaults': False,
-                'help': (
-                    'Inputs for the `PhonopyCalculation` that will'
-                    'be used to calculate the inter-atomic force constants.'
-                )
-            },
-            exclude=['phonopy_data', 'force_constants'],
-        )
 
         spec.outline(
-            cls.setup,
-            cls.run_base_supercell,
-            cls.inspect_base_supercell,
-            cls.set_reference_kpoints,
-            if_(cls.should_run_parallel)(
-                cls.run_parallel,
-            ).else_(
-                cls.run_forces,
-                cls.run_dielectric,
-            ),
-            cls.inspect_all_runs,
-            cls.set_phonopy_data,
-            if_(cls.should_run_phonopy)(
-              cls.run_phonopy,
-            ),
-            cls.run_raw_results,
+            cls.run_spectra,
+            cls.inspect_process,
             if_(cls.should_run_average)(
                 cls.run_intensities_averaged,
-                cls.show_results,
+                cls.inspect_averaging,
             )
         )
 
-        spec.expose_outputs(IntensitiesAverageWorkChain, namespace_options={'required': False})
+        spec.expose_outputs(HarmonicWorkChain, exclude=('output_phonopy'), namespace_options={'required': False})
+        spec.expose_outputs(IntensitiesAverageWorkChain, namespace='fake', namespace_options={'required': False})
         spec.output_namespace(
             'output_intensities_average',
             dynamic=True,
             required=False,
             help='Intensities average over space and q-points.'
         )
-        spec.output_namespace(
-            'vibrational_data',
-            valid_type=(VibrationalData, VibrationalFrozenPhononData),
-            dynamic=True,
-            help=(
-                'The phonopy data with supercells displacements, forces and (optionally)'
-                'nac parameters to use in the post-processing calculation.'
-            )
-        )
-
         spec.exit_code(
-            403, 'ERROR_PHONOPY_FAILED',
-            message='The phonopy calculation did not finish correctly.'
-        )
+            400, 'ERROR_HARMONIC_WORKCHAIN_FAILED',
+            message='The averaging procedure for intensities had an unexpected error.')
         spec.exit_code(
-            404, 'ERROR_NO_FORCE_CONSTANTS',
-            message='The phonopy calculation did not produce the force constants output.'
-        )
-        spec.exit_code(
-            405, 'ERROR_AVERAGING_FAILED',
-            message='The averaging procedure for intensities had an unexpected error.'
-        )
+            401, 'ERROR_AVERAGING_WORKCHAIN_FAILED',
+            message='The averaging procedure for intensities had an unexpected error.')
         # yapf: enable
 
     @classmethod
@@ -139,116 +101,56 @@ class IRamanSpectraWorkChain(BaseWorkChain):
         :return: a process builder instance with all inputs defined ready for launch.
         """
         inputs = cls.get_protocol_inputs(protocol, overrides)
-        intensities_average = inputs.pop('intensities_average', None)
 
         args = (code, structure, protocol)
+        phonon = PhononWorkChain.get_builder_from_protocol(
+            *args, overrides=inputs.get('phonon', None), options=options, **kwargs
+        )
+        dielectric = DielectricWorkChain.get_builder_from_protocol(
+            *args, overrides=inputs.get('dielectric', None), options=options, **kwargs
+        )
 
-        builder = super().get_builder_from_protocol(*args, overrides=inputs, options=options, **kwargs)
+        phonon['scf']['pw'].pop('structure', None)
+        phonon.pop('symmetry', None)
+        phonon.pop('supercell_matrix', None)
+        dielectric['scf']['pw'].pop('structure', None)
+        dielectric.pop('symmetry', None)
 
-        if intensities_average:
-            builder.intensities_average = intensities_average
+        builder = cls.get_builder()
+        builder.phonon = phonon
+        builder.dielectric = dielectric
+        builder.structure = structure
+        builder.clean_workdir = orm.Bool(inputs['clean_workdir'])
+        builder.symmetry['symprec'] = orm.Float(inputs['symmetry']['symprec'])
+        builder.symmetry['distinguish_kinds'] = orm.Bool(inputs['symmetry']['distinguish_kinds'])
+        builder.symmetry['is_symmetry'] = orm.Bool(inputs['symmetry']['is_symmetry'])
+        builder.settings['use_primitive_cell'] = orm.Bool(inputs['settings']['use_primitive_cell'])
+        builder.settings['run_parallel'] = inputs['settings']['run_parallel']
 
         return builder
 
-    def setup(self):
-        """Set up the workflow generating the PreProcessData."""
-        preprocess_inputs = {'structure': self.inputs.structure}
-        for pp_input in ['symprec', 'is_symmetry', 'displacement_generator', 'distinguish_kinds']:
-            if pp_input in AttributeDict(self.inputs.phonon_workchain):
-                preprocess_inputs.update({pp_input: self.inputs.phonon_workchain[pp_input]})
-        preprocess_inputs.update({'supercell_matrix': orm.List([1, 1, 1])})
-        preprocess = PreProcessData.generate_preprocess_data(**preprocess_inputs)
+    def run_spectra(self):
+        """Run an `HarmonicWorkChain` at Gamma."""
+        inputs = AttributeDict(self.exposed_inputs(HarmonicWorkChain))
+        dielectric = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric'))
+        inputs.dielectric = dielectric
+        inputs.phonon.supercell_matrix = orm.List([1, 1, 1])
 
-        self.ctx.preprocess_data = preprocess
-        self.ctx.run_parallel = self.inputs.options.run_parallel
-
-        self.set_ctx_variables()
-
-    def run_dielectric(self):
-        """Run a DielectricWorkChain."""
-        inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace='dielectric_workchain'))
-
-        if 'kpoints_parallel_distance' not in self.inputs.dielectric_workchain:
-            for name in ('kpoints_distance', 'kpoints_force_parity', 'kpoints'):
-                inputs.scf.pop(name, None)
-
-            inputs.scf.kpoints = self.ctx['dielectric_workchain_kpoints']
-
-        base_key = f'{self._RUN_PREFIX}_0'
-
-        if self.inputs.options.use_parent_folder:
-            inputs.parent_scf = self.ctx[base_key].outputs.remote_folder
-
-        inputs.scf.pw.structure = self.ctx.supercell
-        inputs.clean_workdir = self.inputs.clean_workdir
-        inputs.options = extract_symmetry_info(self.ctx.preprocess_data)
-
-        key = 'dielectric_workchain'
+        key = 'harmonic'
         inputs.metadata.call_link_label = key
-
-        future = self.submit(DielectricWorkChain, **inputs)
-        self.report(f'submitting `DielectricWorkChain` <PK={future.pk}>')
+        future = self.submit(HarmonicWorkChain, **inputs)
+        self.report(f'submitting `HarmonicWorkChain` <PK={future.pk}>')
         self.to_context(**{key: future})
 
-    def set_phonopy_data(self):
-        """Set the `PhonopyData` in context for force constants calculation."""
-        kwargs = {'forces_index': orm.Int(-1), **self.outputs['supercells_forces']}
+    def inspect_process(self):
+        """Inspect that the `HarmonicWorkChain` finished successfully."""
+        workchain = self.ctx.harmonic
 
-        self.ctx.phonopy_data = self.ctx.preprocess_data.calcfunctions.generate_phonopy_data(**kwargs)
+        if workchain.is_failed:
+            self.report(f'`HarmonicWorkChain` failed with exit status {workchain.exit_status}')
+            return self.exit_codes.ERROR_HARMONIC_WORKCHAIN_FAILED
 
-    def should_run_phonopy(self):
-        """Return whether to run a PhonopyCalculation."""
-        return 'phonopy' in self.inputs
-
-    def run_phonopy(self):
-        """Run a `PhonopyCalculation` to get the force constants."""
-        inputs = AttributeDict(self.exposed_inputs(PhonopyCalculation, namespace='phonopy'))
-        inputs['phonopy_data'] = self.ctx.phonopy_data
-
-        key = 'phonopy_calculation'
-        inputs.metadata.call_link_label = key
-
-        future = self.submit(PhonopyCalculation, **inputs)
-        self.report(f'submitting `PhonopyCalculation` <PK={future.pk}>')
-        self.to_context(**{key: future})
-
-    def inspect_phonopy(self):
-        """Inspect that the `PhonopyCalculation` finished successfully."""
-        calc = self.ctx.phonopy_calculation
-
-        if calc.is_finished_ok:
-            try:
-                self.ctx.force_constants = calc.outputs.output_force_constants
-            except AttributeError:
-                return self.exit_codes.ERROR_NO_FORCE_CONSTANTS
-        else:
-            self.report(f'PhonopyCalculation failed with exit status {calc.exit_status}')
-            return self.exit_codes.ERROR_PHONOPY_FAILED
-
-    def run_raw_results(self):
-        """Run results generating outputs for post-processing and visualization."""
-        self.ctx.vibrational_data = {}
-        workchain = self.ctx.dielectric_workchain
-        diel_out = self.exposed_outputs(workchain, DielectricWorkChain)
-        tensors_dict = diel_out['tensors']  # remember it is a dictionary with the numerical accuracies
-
-        for key, tensors in tensors_dict.items():
-
-            tensors = elaborate_tensors(self.ctx.preprocess_data, tensors)
-
-            if self.should_run_phonopy():
-                vibrational_data = generate_vibrational_data_from_force_constants(
-                    preprocess_data=self.ctx.phonopy_data, force_constants=self.ctx.force_constants, tensors=tensors
-                )
-            else:
-                vibrational_data = generate_vibrational_data_from_phonopy(
-                    phonopy_data=self.ctx.phonopy_data, tensors=tensors
-                )
-
-            self.ctx.vibrational_data[key] = vibrational_data
-
-            output_key = f'vibrational_data.{key}'
-            self.out(output_key, vibrational_data)
+        self.out_many(self.exposed_outputs(workchain, HarmonicWorkChain))
 
     def should_run_average(self):
         """Return whether to run the average spectra."""
@@ -266,17 +168,18 @@ class IRamanSpectraWorkChain(BaseWorkChain):
             self.report(f'submitting `IntensitiesAverageWorkChain` <PK={future.pk}>.')
             self.to_context(**{f'intensities_average.{key}': future})
 
-    def show_results(self):
-        """Expose the outputs."""
+    def inspect_averaging(self):
+        """Inspect and expose the outputs."""
         for key, workchain in self.ctx.intensities_average.items():
 
             if workchain.is_failed:
-                self.report('the averaging procedure failed')
-                return self.exit_codes.ERROR_AVERAGING_FAILED
+                self.report(f'`IntensitiesAverageWorkChain` failed with exit status {workchain.exit_status}')
+                return self.exit_codes.ERROR_AVERAGING_WORKCHAIN_FAILED
 
             out_key = f'output_intensities_average.{key}'
-            out_dict = {out_key: {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain, agglomerate=False)}}
-
-            print(out_dict)
+            out = AttributeDict(
+                {**self.exposed_outputs(workchain, IntensitiesAverageWorkChain, namespace='fake', agglomerate=False)}
+            )
+            out_dict = {out_key: {okey[5:]: ovalue for okey, ovalue in out.items()}}
 
             self.out_many(out_dict)

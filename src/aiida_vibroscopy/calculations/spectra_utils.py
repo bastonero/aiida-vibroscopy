@@ -2,16 +2,16 @@
 """Calcfunctions utils for spectra workflows."""
 from __future__ import annotations
 
-import math
+from copy import deepcopy
 
 from aiida import orm
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
+from aiida_phonopy.data.preprocess import PreProcessData
+from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
 import numpy as np
 
 from aiida_vibroscopy.common import UNITS_FACTORS
-
-PreProcessData = DataFactory('phonopy.preprocess')
 
 __all__ = (
     'boson_factor',
@@ -25,7 +25,7 @@ __all__ = (
 )
 
 
-def boson_factor(frequency: float | np.ndarray, temperature: float) -> float | np.ndarray:
+def boson_factor(frequency: float, temperature: float) -> float:
     """Return boson factor, i.e. (nb+1). Frequency in cm-1 and temperature in Kelvin."""
     return 1.0 / (1.0 - np.exp(-UNITS_FACTORS.cm_to_kelvin * frequency / temperature))
 
@@ -36,21 +36,21 @@ def compute_active_modes(
     nac_direction: None | list[float, float, float] = None,
     selection_rule: str | None = None,
     sr_thr: float = 1e-4,
-) -> tuple(np.ndarray, np.ndarray, np.ndarray):
+    imaginary_thr: float = -5.0,
+) -> tuple[list, list, list]:
     """Get frequencies, normalized eigenvectors and irreducible representation labels.
 
     Raman and infrared active modes can be extracted using `selection_rule`.
 
     :param nac_direction: (3,) shape list, indicating non analytical
-        direction in fractional reciprocal (primitive cell) space coordinates
-    :param selection_rule: str, can be `raman` or `ir`;
-        it uses symmetry in the selection of the modes
-        for a specific type of process.
-    :param sr_thr: float, threshold for selection
-        rule (the analytical value is 0).
+    direction in fractional reciprocal (primitive cell) space coordinates
+    :param selection_rule: str, can be `raman` or `ir`; it uses symmetry in
+    the selection of the modes for a specific type of process
+    :param sr_thr: float, threshold for selection rule (the analytical value is 0)
+    :param imaginary_thr: threshold for activating warnings on negative frequencies (in cm^-1)
 
     :return: tuple of (frequencies in cm-1, normalized eigenvectors, labels);
-        normalized eigenvectors is an array of shape (num modes, num atoms, 3).
+    normalized eigenvectors is an array of shape (num modes, num atoms, 3).
     """
     if selection_rule not in ('raman', 'ir', None):
         raise ValueError('`selection_rule` can only be `ir` or `raman`.')
@@ -91,12 +91,18 @@ def compute_active_modes(
             else:
                 condition = 10  # a number > 0
 
-            if math.fabs(condition) > sr_thr:  # selection rule (thr for inaccuracies)
+            if np.abs(condition) > sr_thr:  # selection rule (thr for inaccuracies)
 
                 for band_index in band_indices:
                     freq_active_modes.append(frequencies[band_index])
                     eigvectors_active_modes.append(eigvectors[band_index])
                     labels_active_modes.append(label)
+        else:
+            message = f'negative frequencies detected below {imaginary_thr} cm-1 in the first 3 modes'
+            for band_index in band_indices:
+                if frequencies[band_index] < imaginary_thr:
+                    import warnings
+                    warnings.warn(message)
 
         mode_index += degeneracy
 
@@ -104,7 +110,7 @@ def compute_active_modes(
 
     # Step 3 - getting normalized eigenvectors
     masses = phonopy_instance.masses
-    sqrt_masses = np.array([[math.sqrt(mass)] for mass in masses])
+    sqrt_masses = np.array([[np.sqrt(mass)] for mass in masses])
 
     eigvectors_active_modes = np.array(eigvectors_active_modes)
     shape = (len(freq_active_modes), len(masses), 3)
@@ -114,14 +120,14 @@ def compute_active_modes(
     return (freq_active_modes, norm_eigvectors_active_modes, labels_active_modes)
 
 
-def compute_raman_space_average(raman_susceptibility_tensors: np.ndarray) -> tuple(np.ndarray, np.ndarray):
+def compute_raman_space_average(raman_susceptibility_tensors: np.ndarray) -> tuple[list, list]:
     """Return the space average for the polarized (HH) and depolarized (HV) configurations.
 
     See e.g.:
-    * `Light scattering in solides II, M. Cardona`
-    * `S. A. Prosandeev et al., Phys. Rev. B, 71, 214307 (2005)
+        * `Light scattering in solides II, M. Cardona`
+        * `S. A. Prosandeev et al., Phys. Rev. B, 71, 214307 (2005)
 
-    :return: (intensities HH, intensities HV)
+    :return: tuple of numpy.ndarray (intensities HH, intensities HV)
     """
     intensities_hh = []
     intensities_hv = []
@@ -153,12 +159,12 @@ def compute_raman_space_average(raman_susceptibility_tensors: np.ndarray) -> tup
 def compute_raman_susceptibility_tensors(
     phonopy_instance,
     raman_tensors: np.ndarray,
-    nlo_susceptibility: np.ndarray | None = None,
-    nac_direction: list[float, float, float] = lambda: [0, 0, 0],
+    nlo_susceptibility: np.ndarray = None,
+    nac_direction: tuple[float, float, float] = lambda: (0, 0, 0),
     use_irreps: bool = True,
-    sum_rules: bool = False,
     degeneracy_tolerance: float = 1e-5,
-) -> tuple(np.ndarray, np.ndarray, np.ndarray):
+    sum_rules: bool = False,
+) -> tuple[list, list, list]:
     """Return the Raman susceptibility tensors, frequencies (cm-1) and labels.
 
     ..note:
@@ -169,16 +175,17 @@ def compute_raman_susceptibility_tensors(
     :param nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
     :param raman_tensors: dChi/du in Cartesian coordinates (in 1/Angstrom)
     :param nlo_susceptibility: non linear optical susceptibility
-        in Cartesian coordinates (in pm/V)
+    in Cartesian coordinates (in pm/V)
     :param use_irreps: whether to use irreducible representations
-        in the selection of modes, defaults to True
-    :type use_irreps: bool, optional
+    in the selection of modes, defaults to True
     :param degeneracy_tolerance: degeneracy tolerance for
-        irreducible representation
+    irreducible representation
+    :param sum_rules: whether to apply sum rules to the Raman tensors
 
-    :return: tuple (Raman susc. tensors, frequencies, labels)
+    :return: tuple of numpy.ndarray (Raman susc. tensors, frequencies, labels)
     """
     nac_direction = np.array(nac_direction)
+    raman_tensors = deepcopy(raman_tensors)
 
     if nac_direction.shape != (3,):
         raise ValueError('the array is not of the correct shape')
@@ -227,13 +234,36 @@ def compute_raman_susceptibility_tensors(
         #    Here we can extend to 1/2D models.
         # !!! ---------------------- !!!
         dielectric_term = np.dot(np.dot(dielectric, q_direction), q_direction)
+
+        ### DEBUG
+        # print("\n", "================================", "\n")
+        # print("DEBUG")
+        # print("q dir cart: ", q_direction)
+        # print("nac: ", nac_direction)
+        ### DEBUG
+
         # Z*.q
-        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(1, 0))  # (num atoms, 3) | (I, k)
+        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(2, 0))  # (num atoms, 3) | (I, k)
         borns_term = np.tensordot(borns_term_dph0, neigvs, axes=([0, 1], [1, 2]))  # (num modes) | (n)
+
+        ### DEBUG
+        # print("Born term: ", borns_term.round(5))
+        ### DEBUG
+
         # Chi(2).q
-        nlo_term = np.dot(nlo_susceptibility, q_direction)  # (3, 3) | (i, j)
+        nlo_term = np.tensordot(nlo_susceptibility, q_direction, axes=([0], [0]))  # (3, 3) | (i, j)
+
+        ### DEBUG
+        # print("Nlo term: ", nlo_term.round(5))
+        # print("Tensordot B N: ", np.tensordot(borns_term, nlo_term, axes=0).round(5))
+        ### DEBUG
 
         nlo_correction = -(UNITS_FACTORS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
+
+        ### DEBUG
+        # print("Correction: ", nlo_correction.round(5))
+        ### DEBUG
+
         raman_susceptibility_tensors += nlo_correction
 
     return (raman_susceptibility_tensors / sqrt_volume, freqs, labels)
@@ -246,22 +276,21 @@ def compute_polarization_vectors(
     degeneracy_tolerance: float = 1e-5,
     sum_rules: bool = False,
     **kwargs
-) -> tuple(np.ndarray, np.ndarray, np.ndarray):
+) -> tuple[list, list, list]:
     """Return the polarization vectors, frequencies (cm-1) and labels.
 
     ..note:: the unite for polarization vectors are in (debey/angstrom)/sqrt(AMU)
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
     :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
-        in reciprocal space
-    :type nac_direction: (3,) shape list or numpy.ndarray
+    in reciprocal space
     :param use_irreps: whether to use irreducible representations
-        in the selection of modes, defaults to True
-    :type use_irreps: bool, optional
+    in the selection of modes, defaults to True
     :param degeneracy_tolerance: degeneracy tolerance
-        for irreducible representation
+    for irreducible representation
+    :param sum_rules: whether to apply charge neutrality to effective charges
 
-    :return: tuple (polarization vectors, frequencies, labels)
+    :return: tuple of numpy.ndarray (polarization vectors, frequencies, labels)
     """
     selection_rule = 'ir' if use_irreps else None
 
@@ -293,8 +322,10 @@ def compute_polarization_vectors(
 
 
 @calcfunction
-def get_supercells_for_hubbard(preprocess_data: PreProcessData,
-                               ref_structure: orm.StructureData) -> dict[orm.StructureData]:
+def get_supercells_for_hubbard(
+    preprocess_data: PreProcessData,
+    ref_structure,
+) -> dict:
     """Return a dictionary of supercells with displacements.
 
     The supercells are obtained from the reference structure,
@@ -303,11 +334,15 @@ def get_supercells_for_hubbard(preprocess_data: PreProcessData,
     upon explicit positions in the cell. An atom folded would mean
     losing the interaction between first neighbours.
 
-    :return: a dict of :class:`~aiida.orm.StructureData`, labelled
-        with `supercell_{}`, where {} is a number starting from 1.
+    :return: a dict of :class:`~aiida.orm.StructureData` or
+    :class:`~aiida_quantumespresso.data.hubbard_structure.HubbardStructureData`,
+    labelled with `supercell_{}`, where {} is a number starting from 1.
     """
     displacements = preprocess_data.get_displacements()
     structures = {}
+
+    if isinstance(ref_structure, HubbardStructureData):
+        hubbard = ref_structure.hubbard
 
     for i, displacement in enumerate(displacements):
         traslation = [[0., 0., 0.] for _ in ref_structure.sites]
@@ -326,6 +361,9 @@ def get_supercells_for_hubbard(preprocess_data: PreProcessData,
         for position, symbol, name in zip(positions, symbols, kinds):
             structure.append_atom(position=position, symbols=symbol, name=name)
 
+        if isinstance(ref_structure, HubbardStructureData):
+            structure = HubbardStructureData.from_structure(structure, hubbard)
+
         structures.update({f'supercell_{i+1}': structure})
 
     return structures
@@ -334,9 +372,9 @@ def get_supercells_for_hubbard(preprocess_data: PreProcessData,
 @calcfunction
 def elaborate_susceptibility_derivatives(
     preprocess_data: PreProcessData,
-    raman_tensors: orm.ArrayData | None = None,
-    nlo_susceptibility: orm.ArrayData | None = None,
-) -> dict[orm.ArrayData]:
+    raman_tensors=None,
+    nlo_susceptibility=None,
+) -> dict:
     """Return the susceptibility derivatives in the primitive cell.
 
     It uses the unique atoms referring to the supercell matrix.
@@ -377,7 +415,7 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
     It uses the unique atoms referring to the supercell matrix.
 
     :return: :class:`~aiida.orm.ArrayData` with arraynames `born_charges`,
-        `dielectric`, `raman_tensors`, `nlo_susceptibility`.
+    `dielectric`, `raman_tensors`, `nlo_susceptibility`.
     """
     from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
@@ -432,7 +470,7 @@ def elaborate_tensors(preprocess_data: PreProcessData, tensors: orm.ArrayData) -
 
 @calcfunction
 def generate_vibrational_data_from_forces(
-    preprocess_data: PreProcessData, tensors: orm.ArrayData, forces_index: orm.Int | None = None, **forces_dict
+    preprocess_data: PreProcessData, tensors: orm.ArrayData, forces_index: orm.Int = None, **forces_dict
 ):
     """Return a `VibrationalFrozenPhononData` node.
 
@@ -440,25 +478,25 @@ def generate_vibrational_data_from_forces(
     calcfunction with a variable number of supercells forces.
 
     :param tensors: :class:`~aiida.orm.ArrayData` with arraynames `dielectric`, `born_charges`
-        and eventual `raman_tensors`, `nlo_susceptibility`
+    and eventual `raman_tensors`, `nlo_susceptibility`
     :param forces_index: :class:`~aiida.orm.Int` if a :class:`~aiida.orm.TrajectoryData`
-        is given, in order to get the correct slice of the array.
-        In aiida-quantumespresso it should be 0 or -1.
+    is given, in order to get the correct slice of the array.
+    In aiida-quantumespresso it should be 0 or -1.
     :param forces_dict: dictionary of supercells forces as :class:`~aiida.orm.ArrayData` stored
-        as `forces`, each Data labelled in the dictionary in the format
-        `forces_{suffix}`. The prefix is common and the suffix
-        corresponds to the suffix number of the supercell with
-        displacement label given from the
-        `get_supercells_with_displacements` method.
+    as `forces`, each Data labelled in the dictionary in the format
+    `forces_{suffix}`. The prefix is common and the suffix
+    corresponds to the suffix number of the supercell with
+    displacement label given from the
+    `get_supercells_with_displacements` method. For example:
+    ```
+    {'forces_1':ArrayData, 'forces_2':ArrayData}
+    <==>
+    {'supercell_1':StructureData, 'supercell_2':StructureData}
+    ```
+    and forces in each ArrayData stored as 'forces',
+    i.e. ArrayData.get_array('forces') must not raise error
 
-        For example:
-            {'forces_1':ArrayData, 'forces_2':ArrayData}
-            <==>
-            {'supercell_1':StructureData, 'supercell_2':StructureData}
-            and forces in each ArrayData stored as 'forces',
-            i.e. ArrayData.get_array('forces') must not raise error
-
-        .. note: if residual forces would be stored, label it with 0 as suffix.
+    .. note:: if residual forces would be stored, label it with 0 as suffix.
     """
     VibrationalFrozenPhononData = DataFactory('vibroscopy.fp')
     prefix = 'forces'
@@ -496,13 +534,13 @@ def generate_vibrational_data_from_forces(
 def generate_vibrational_data_from_phonopy(phonopy_data, tensors: orm.ArrayData):
     """Return a `VibrationalData` node.
 
-    ..note:: it computes the force constants naively; this will probably not work
-        if random displacements have been used. Do use :class:`~aiida_phonopy.calculations.phonopy.PhonopyCalculation`
-        to extract the force constants via e.g. HIPHIVE.
-        Then use the :func:`~aiida_vibroscopy.calculations.spectra_utils.generate_vibrational_data_from_force_constants`
+    .. note:: it computes the force constants naively; this will probably not work
+    if random displacements have been used. Do use :class:`~aiida_phonopy.calculations.phonopy.PhonopyCalculation`
+    to extract the force constants via e.g. HIPHIVE.
+    Then use the :func:`~aiida_vibroscopy.calculations.spectra_utils.generate_vibrational_data_from_force_constants`
 
     :param tensors: :class:`~aiida.orm.ArrayData` with arraynames `dielectric`, `born_charges`
-        and eventual `raman_tensors`, `nlo_susceptibility`
+    and eventual `raman_tensors`, `nlo_susceptibility`
     """
     VibrationalData = DataFactory('vibroscopy.vibrational')
 
@@ -539,7 +577,7 @@ def generate_vibrational_data_from_force_constants(preprocess_data, force_consta
 
     :param force_constants: ArrayData with arrayname `force_constants`
     :param tensors: ArrayData with arraynames `dielectric`, `born_charges`
-        and eventual `raman_tensors`, `nlo_susceptibility`
+    and eventual `raman_tensors`, `nlo_susceptibility`
     """
     VibrationalData = DataFactory('vibroscopy.vibrational')
 
@@ -565,24 +603,24 @@ def generate_vibrational_data_from_force_constants(preprocess_data, force_consta
 
 
 @calcfunction
-def subtract_residual_forces(ref_meshes: orm.List, meshes_dict: orm.Dict, **kwargs) -> dict[orm.TrajectoryData]:
+def subtract_residual_forces(ref_meshes: orm.List, meshes_dict: orm.Dict, **kwargs) -> dict:
     """Return trajectories subtracting the residual forces.
 
     The forces related to of the finite electric fields are *normalized*
     subtracting the forces from the null electric fields calculations.
 
     :param ref_meshes: list containing the meshes of the null fields calculations
-        in the order as they were called in the workflow
+    in the order as they were called in the workflow
     :param meshes_dict: dic containing the meshes of the finite fields calculations,
-        with keys as `field_index_{}`, {} an int, as in kwargs for `old_trajectories`
+    with keys as `field_index_{}`, {} an int, as in kwargs for `old_trajectories`
     :param kwargs: dict with keys `ref_trajectories` and `old_trajectories`,
-        meaning the null electric fields and finite electric fiels trajectories,
-        respectively. The structure of the two subdictionaries is:
+    meaning the null electric fields and finite electric fiels trajectories,
+    respectively. The structure of the two subdictionaries is:
         * `ref_trajectories`: {'0': TrajectoryData, ... }
         * `old_trajectories`: {'field_index_0': {'0': TrajectoryData, ...}, ...}
 
     :return: a dict with the same structure of `old_trajectories`, with *forces*
-        rinormalized in each TrajectoryData.
+    rinormalized in each TrajectoryData.
     """
     ref_meshes_ = ref_meshes.get_list()
     meshes_dict_ = meshes_dict.get_dict()

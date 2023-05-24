@@ -1,8 +1,8 @@
 clean_workdir: true
-kpoints_parallel_distance: 0.1
+kpoints_parallel_distance: 0.2
 property: raman
 scf:
-  kpoints_distance: 0.15
+  kpoints_distance: 0.4
   kpoints_force_parity: false
   pw:
     code: test.quantumespresso.pw@localhost
@@ -20,7 +20,7 @@ scf:
         tprnfor: true
         tstress: true
       ELECTRONS:
-        conv_thr: 4.0e-10
+        conv_thr: 2.0e-12
         electron_maxstep: 80
         mixing_beta: 0.4
       SYSTEM:
@@ -33,3 +33,9 @@ scf:
     pseudos:
       Si: Si<md5=57fa15d98af99972c7b7aa5c179b0bb8>
     structure: Si2
+settings:
+  sleep_submission_time: 1.0
+symmetry:
+  distinguish_kinds: false
+  is_symmetry: true
+  symprec: 1.0e-05

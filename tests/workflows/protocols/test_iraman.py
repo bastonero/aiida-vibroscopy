@@ -42,7 +42,7 @@ def test_electronic_type(fixture_code, generate_structure):
         code, structure, electronic_type=ElectronicType.INSULATOR
     )
 
-    for namespace in [builder.phonon_workchain.scf, builder.dielectric_workchain.scf]:
+    for namespace in [builder.phonon.scf]:
         parameters = namespace['pw']['parameters'].get_dict()
         assert parameters['SYSTEM']['occupations'] == 'fixed'
         assert 'degauss' not in parameters['SYSTEM']
@@ -60,7 +60,7 @@ def test_spin_type(fixture_code, generate_structure):
 
     builder = IRamanSpectraWorkChain.get_builder_from_protocol(code, structure, spin_type=SpinType.COLLINEAR)
 
-    for namespace in [builder.phonon_workchain.scf, builder.dielectric_workchain.scf]:
+    for namespace in [builder.phonon.scf]:
         parameters = namespace['pw']['parameters'].get_dict()
         assert parameters['SYSTEM']['nspin'] == 2
         assert parameters['SYSTEM']['starting_magnetization'] == {'Si': 0.1}
@@ -78,25 +78,7 @@ def test_options(fixture_code, generate_structure):
     builder = IRamanSpectraWorkChain.get_builder_from_protocol(code, structure, options=options)
 
     for subspace in (
-        builder.phonon_workchain.scf.pw.metadata,
-        builder.dielectric_workchain.scf.pw.metadata,
-    ):
-        assert subspace['options']['queue_name'] == queue_name, subspace
-
-
-def test_options(fixture_code, generate_structure):
-    """Test specifying ``options`` for the ``get_builder_from_protocol()`` method."""
-    code = fixture_code('quantumespresso.pw')
-    structure = generate_structure()
-
-    queue_name = 'super-fast'
-    withmpi = False  # The protocol default is ``True``
-
-    options = {'queue_name': queue_name, 'withmpi': withmpi}
-    builder = IRamanSpectraWorkChain.get_builder_from_protocol(code, structure, options=options)
-
-    for subspace in (
-        builder.phonon_workchain.scf.pw.metadata,
-        builder.dielectric_workchain.scf.pw.metadata,
+        builder.phonon.scf.pw.metadata,
+        builder.dielectric.scf.pw.metadata,
     ):
         assert subspace['options']['queue_name'] == queue_name, subspace

@@ -4,6 +4,7 @@ from aiida import orm
 from aiida.common import AttributeDict
 from aiida.engine import WorkChain
 from aiida_phonopy.data import PreProcessData
+import numpy as np
 
 from aiida_vibroscopy.calculations.numerical_derivatives_utils import (
     compute_nac_parameters,
@@ -23,12 +24,6 @@ def validate_data(data, _):
             control_null_namespace += 1
         elif not label[-1] in ['0', '1', '2', '3', '4', '5']:
             return f'`{label[-1]}` is an invalid label ending for field labels`'
-        # else:
-        #     if not len(trajectory) % 2 == 0:
-        #         return 'field index data must contains even number of key:TrajectoryData pairs'
-
-    # if not control_null_namespace == 1:
-    #     return f'invalid number of `null_field` namespaces: expected 1, given {control_null_namespace}'
 
 
 class NumericalDerivativesWorkChain(WorkChain):
@@ -53,17 +48,17 @@ class NumericalDerivativesWorkChain(WorkChain):
     The evaluation of the function at these points will
     have weights (or coefficients), which depend on order and accuracy.
     For example:
-
-        * :math:`\\frac{df}{dx}   = \\frac{ 0.5 \\cdot f(+1.0 \\cdot h) -0.5
-            \\cdot f(-1.0 \\cdot h) }{h} +\mathcal{O}(h^2)`
-        * :math:`\\frac{d^2 f}{dx^2} = \\frac{ 1.0 \\cdot f(+1.0 \\cdot h) -2.0
-            \\cdot f(0. \\cdot h) +1.0 \\cdot f(-1.0 \\cdot h) }{h^2} +\mathcal{O}(h^2)`
+    * :math:`\\frac{df}{dx}   = \\frac{ 0.5 \\cdot f(+1.0 \\cdot h) -0.5
+    \\cdot f(-1.0 \\cdot h) }{h} +\mathcal{O}(h^2)`
+    * :math:`\\frac{d^2 f}{dx^2} = \\frac{ 1.0 \\cdot f(+1.0 \\cdot h) -2.0
+    \\cdot f(0. \\cdot h) +1.0 \\cdot f(-1.0 \\cdot h) }{h^2} +\mathcal{O}(h^2)`
 
     Referring to the coefficients for each step as :math:`c_i`,
     where `i` is an integer, our convention is
     to put in sequence the Trajectory data with increasing
     numbers as labels, for example:
 
+    ```
     | {
     |   '0': TrajectoryData for :math:`c_1`,
     |   '1': TrajectoryData for :math:`c_{-1}`,
@@ -71,6 +66,7 @@ class NumericalDerivativesWorkChain(WorkChain):
     |   '3': TrajectoryData for :math:`c_{-2}`,
     |   ...
     | }
+    ```
 
     This way to creating an analogous of an array with
     coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \\dots]`.
@@ -81,11 +77,10 @@ class NumericalDerivativesWorkChain(WorkChain):
     which tensor component is referring to.
     In our case, we use a similar Voigt notation.
     Namely we have two cases:
-
-        * first order derivatives: keys suffices are 0,1,2; 0
-            for [i,x], 1 for [i,y], 2 for [i,z] (with i={x,y,z})
-        * second order derivatives: keys suffices are 0,...5; 0
-            for [i,x,x], ... (as in Voigt), 5 for [i,x,y] (with i={x,y,z})
+    * first order derivatives: keys suffices are 0,1,2; 0
+    for [i,x], 1 for [i,y], 2 for [i,z] (with i={x,y,z})
+    * second order derivatives: keys suffices are 0,...5; 0
+    for [i,x,x], ... (as in Voigt), 5 for [i,x,y] (with i={x,y,z})
 
     The prefix can be anything. Best practice is using ``field_``
     with and underscorre as prefix. The Trajectory data for the
@@ -101,42 +96,48 @@ class NumericalDerivativesWorkChain(WorkChain):
         super().define(spec)
 
         # yapf: disable
+        spec.input('structure', valid_type=orm.StructureData)
         spec.input_namespace(
-            'data',
-            validator=validate_data,
+            'data', validator=validate_data,
             help='Namespace for passing TrajectoryData containing forces and polarization.',
         )
         spec.input('data.null_field', valid_type=orm.TrajectoryData, required=False)
         for i in range(6):
             spec.input_namespace(f'data.field_index_{i}', valid_type=orm.TrajectoryData, required=False)
-
-        spec.input('accuracy_order', valid_type=orm.Int, validator=validate_positive)
-        spec.input(
-            'electric_field_step', valid_type=orm.Float, validator=validate_positive, help='The electric field step.'
-        )
-        spec.input('diagonal_scale', valid_type=orm.Float, required=False, validator=validate_positive)
-        spec.input('structure', valid_type=orm.StructureData)
         spec.input_namespace(
-            'options',
-            help='Symmetry analysis options.',
+            'central_difference',
+            help='The inputs for the central difference scheme.'
         )
         spec.input(
-            'options.symprec',
-            valid_type=orm.Float,
-            default=lambda: orm.Float(1e-5),
+            'central_difference.electric_field_step', valid_type=orm.Float, required=False,
+            help=(
+                'Electric field step in Ry atomic units used in the numerical differenciation. '
+                'Only positive values. If not specified, an NSCF is run to evaluate the critical '
+                'electric field; an electric field step is then extracted to secure a stable SCF.'
+            ),
+            validator=validate_positive,
+        )
+        spec.input(
+            'central_difference.diagonal_scale', valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)),
+            help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).',
+            validator=validate_positive,
+        )
+        spec.input(
+            'central_difference.accuracy', valid_type=orm.Int, required=False,
+            help=('Central difference scheme accuracy to employ (i.e. number of points for derivative evaluation). '
+                  'This must be an EVEN positive integer number. If not specified, an automatic '
+                  'choice is made upon the intensity of the critical electric field.'),
+        )
+        spec.input(
+            'symmetry.symprec', valid_type=orm.Float, default=lambda:orm.Float(1e-5),
             help='Symmetry tolerance for space group analysis on the input structure.',
         )
         spec.input(
-            'options.distinguish_kinds',
-            valid_type=orm.Bool,
-            default=lambda: orm.Bool(True),
-            help=('Whether or not to distinguish atom with '
-                  'same species but different names with symmetries.'),
+            'symmetry.distinguish_kinds', valid_type=orm.Bool, default=lambda:orm.Bool(False),
+            help='Whether or not to distinguish atom with same species but different names with symmetries.',
         )
         spec.input(
-            'options.is_symmetry',
-            valid_type=orm.Bool,
-            default=lambda: orm.Bool(True),
+            'symmetry.is_symmetry', valid_type=orm.Bool, default=lambda:orm.Bool(True),
             help='Whether using or not the space group symmetries.',
         )
 
@@ -150,7 +151,7 @@ class NumericalDerivativesWorkChain(WorkChain):
                 'charges tensors computed in Cartesian coordinates. '
                 'Depending on the inputs, it can also contain the '
                 'derivatives of the susceptibility in respect '
-                'to the atomic positions (often called `Raman tensors`) '
+                'to the atomic positions (called `Raman tensors`) '
                 'and the non linear optical susceptibility, '
                 'always expressed in Cartesian coordinates.'
             ),
@@ -164,9 +165,9 @@ class NumericalDerivativesWorkChain(WorkChain):
         """Wrap up results from previous calculations."""
         preprocess_data = PreProcessData.generate_preprocess_data(
             structure=self.inputs.structure,
-            symprec=self.inputs.options.symprec,
-            is_symmetry=self.inputs.options.is_symmetry,
-            distinguish_kinds=self.inputs.options.distinguish_kinds,
+            symprec=self.inputs.symmetry.symprec,
+            is_symmetry=self.inputs.symmetry.is_symmetry,
+            distinguish_kinds=self.inputs.symmetry.distinguish_kinds,
         )
 
         kwargs = AttributeDict(self.inputs.data)
@@ -174,8 +175,8 @@ class NumericalDerivativesWorkChain(WorkChain):
         # Non analytical constants
         out_nac_parameters = compute_nac_parameters(
             preprocess_data=preprocess_data,
-            electric_field=self.inputs.electric_field_step,
-            accuracy_order=self.inputs.accuracy_order,
+            electric_field=self.inputs.central_difference.electric_field_step,
+            accuracy_order=self.inputs.central_difference.accuracy,
             **kwargs
         )
 
@@ -186,9 +187,9 @@ class NumericalDerivativesWorkChain(WorkChain):
         if any(which_mixed):
             out_dchis = compute_susceptibility_derivatives(
                 preprocess_data=preprocess_data,
-                electric_field=self.inputs.electric_field_step,
-                diagonal_scale=self.inputs.diagonal_scale,
-                accuracy_order=self.inputs.accuracy_order,
+                electric_field=self.inputs.central_difference.electric_field_step,
+                diagonal_scale=self.inputs.central_difference.diagonal_scale,
+                accuracy_order=self.inputs.central_difference.accuracy,
                 **kwargs,
             )
 
