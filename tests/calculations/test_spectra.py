@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-DEBUG = False
+DEBUG = True
 
 
 @pytest.fixture
