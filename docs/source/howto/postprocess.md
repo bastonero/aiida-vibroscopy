@@ -10,12 +10,10 @@ Please, have a look at the [tutorials](tutorials) for an overview, and at the sp
 You can always access to the detailed description of a function/method putting a `?` question mark in front
 of the function and press enter. This will print the description of the function, with detailed information
 on inputs, outputs and purpose.
-
-::: {note}
+``` {note}
 A rendered version can also be found in the documentation referring to
 the dedicated [API section](reference).
-:::
-
+```
 :::
 
 ## How to get powder spectra
@@ -87,10 +85,10 @@ incoming = [0,0,1] # light polatization of the incident laser beam
 intensities, frequencies, labels = vibro.run_single_crystal_ir_intensities(pol_incoming=incoming)
 ```
 
-::: {hint} Cartesian coordinates
+::: {admonition} Cartesian coordinates
+:class: hint
 To get the direction in Cartesian coordinates expressed in crystal coordinates of the primitive cell, you can use the following
 snippet
-
 ```python
 import numpy as np
 

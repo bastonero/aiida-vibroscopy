@@ -61,7 +61,7 @@ intersphinx_mapping = {
     'aiida_pseudo': ('https://aiida-pseudo.readthedocs.io/en/latest/', None),
     'aiida_phonopy': ('https://aiida-phonopy.readthedocs.io/en/latest/', None),
     'phonopy': ('https://phonopy.github.io/phonopy/', None),
-    'matplotlib': ('https://matplotlib.org/stable/', None),
+    'matplotlib': ('https://matplotlib.org/stable/index.html', None),
     'aiida_quantumespresso': ('https://aiida-quantumespresso.readthedocs.io/en/latest/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master', None),
 }
@@ -82,8 +82,8 @@ myst_substitutions = {
     'phonopy_data': '{py:class}`~aiida_phonopy.data.phonopy.PhonopyData`',
     'preprocess_data': '{py:class}`~aiida_phonopy.data.preprocess.PreProcessData`',
     'vibrational_data': '{py:class}`~aiida_vibroscopy.data.vibro_lr.VibrationalData`',
-    'pwbase': '{py:class}:`aiida_quantumespresso.workflows.pw.base.PwBaseWorkChain`',
-    'dielwc': '{py:class}:`aiida_vibroscopy.workflows.dielectric.base.DielectricChain`',
+    'pwbase': '{py:class}`aiida_quantumespresso.workflows.pw.base.PwBaseWorkChain`',
+    'dielwc': '{py:class}`aiida_vibroscopy.workflows.dielectric.base.DielectricWorkChain`',
 }
 
 source_suffix = {

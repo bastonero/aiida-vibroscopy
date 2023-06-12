@@ -14,11 +14,11 @@ In this section you will find some tutorials that you will guide you through how
 
 Go to one of the tutorials!
 
-#. [Phonon band structure](../1_phonon.ipynb): get started with predicting the phonon dispersion of silicon.
-#. [Dielectric properties](../2_dielectric.ipynb): compute the dielectric and Raman tensors of silicon.
-#. [Raman spectra](../3_iraman.ipynb): learn the automated calculation of Raman spectra of silicon.
-#. [Polar materials](../4_polar.ipynb): predict the phonon and dielectric properties of AlAs with LO-TO splitting.
-#. [Spectra using different functionals](../5_iraman_functionals.ipynb): compute the vibrational spectra of LiCo{sub}`2` using DFT and __DFT+U+V__, and understand the power of Hubbard corrections comparing the results to experiments!
+1. [Phonon band structure](../1_phonon.ipynb): get started with predicting the phonon dispersion of silicon.
+2. [Dielectric properties](../2_dielectric.ipynb): compute the dielectric and Raman tensors of silicon.
+3. [Raman spectra](../3_iraman.ipynb): learn the automated calculation of Raman spectra of silicon.
+4. [Polar materials](../4_polar.ipynb): predict the phonon and dielectric properties of AlAs with LO-TO splitting.
+5. [Spectra using different functionals](../5_iraman_functionals.ipynb): compute the vibrational spectra of LiCo{sub}`2` using DFT and __DFT+U+V__, and understand the power of Hubbard corrections comparing the results to experiments!
 
 Here below the estimated time to run each tutorial (jupyter notebook):
 
