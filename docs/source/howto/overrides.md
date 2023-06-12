@@ -50,7 +50,7 @@ Out[1]:
 
 ## How to use overrides (beginner)
 
-As stated at the beginning, you might need to tweak your builder inputs before submitting. Instead of modifying the inputs via the builder, you can do it via `overrides`. The way the overrides must be secified __is WorkChain dependent`. The structure should be the same as the input specification of the specific WorkChain, so always refer to the inputs of the particular workflow, which you can find [here](topics-workflows).
+As stated at the beginning, you might need to tweak your builder inputs before submitting. Instead of modifying the inputs via the builder, you can do it via `overrides`. The way the overrides must be secified __is WorkChain dependent__. The structure should be the same as the input specification of the specific WorkChain, so always refer to the inputs of the particular workflow, which you can find [here](topics-workflows).
 
 Here an example on how to use it for the `IRamanSpectraWorkChain`.
 

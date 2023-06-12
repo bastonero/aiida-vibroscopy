@@ -29,4 +29,4 @@ parenthesis we give the corresponding attributes to access quantity via the {{ v
 Regarding the conventions to carry out the numerical differentiations:
 
 - For phonons, please refer to the [`Phonopy`](https://phonopy.github.io/phonopy/) documentation.
-- For derivatives using the electric field, please have a look at the description of {class}`~aiida_vibroscopy.workflows.dielectric.numerical_derivatives`.
+- For derivatives using the electric field, please have a look at the description of {class}`~aiida_vibroscopy.workflows.dielectric.numerical_derivatives.NumericalDerivativesWorkChain`.

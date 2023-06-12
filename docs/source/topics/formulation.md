@@ -15,7 +15,7 @@ Considered good sources are:
 - Ab-initio related articles:
 
     - Stefano Baroni _et al._, _Phonons and related crystal properties from density-functional perturbation theory_, Rev. Modern Phys., __73__, 515 (__2001__)
-    - Paolo Umari and Alfredo Pasquarello, _Infrared and Raman spectra of disordered materials from first principles_, Diamond and Rel. Mat., __14, 9 (__2005__)
+    - Paolo Umari and Alfredo Pasquarello, _Infrared and Raman spectra of disordered materials from first principles_, Diamond and Rel. Mat., __14__, 9 (__2005__)
 
 In the code, all properties are computed within the __Born-Oppenheimer__ and __harmonic__ approximation.
 The vibrational spectra are computed in the __first-order non-resonant__ regime: the infrared using the __dipole-dipole__ approximation, and the Raman using the __Placzek__ approximation.
@@ -36,16 +36,16 @@ Thus, for insulators, one needs to evaluate the following (static) tensors:
     - $\partial/\partial \tau_{K,k}$
     - $\partial/\partial \mathcal{E}_i$
     - $\partial^2/\partial \mathcal{E}_i \partial \mathcal{E}_j$
-*   - $\partial/\partial \tau{L,l}$
+*   - $\partial/\partial \tau_{L,l}$
     - $\Phi_{KL,kl}$
     - $Z^*_{K,ki}$
-    - $\partial \chi_{ij}/\partial \tau{K,k}$
+    - $\partial \chi_{ij}/\partial \tau_{K,k}$
 *   - $\partial/\partial \mathcal{E}_i$
     - $Z^*_{K,ik}$
     - $\epsilon^{\infty}_{ij}$
     - $\chi^{(2)}_{ijk}$
 *   - $\partial^2/\partial \mathcal{E}_i \partial \mathcal{E}_j$
-    - $\partial \chi_{ij}/\partial \tau{K,k}$
+    - $\partial \chi_{ij}/\partial \tau_{K,k}$
     - $\chi^{(2)}_{ijk}$
-    - '-'
+    - "-"
 :::

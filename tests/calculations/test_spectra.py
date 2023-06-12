@@ -96,6 +96,12 @@ def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generat
         nac_direction=(0, 0, 0),
     )
 
+    if DEBUG:
+        print('\n', '================================', '\n')
+        print('\t', 'DEBUG')
+        print(prefactor * alpha[1, 1, 2], vol * raman[1, 0, 1, 2])
+        print('\n', '================================', '\n')
+
     assert np.abs(prefactor * alpha[1, 1, 2] + vol * raman[1, 0, 1, 2]) < 0.01
 
     alpha, _, _ = compute_raman_susceptibility_tensors(
@@ -111,11 +117,11 @@ def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generat
 
     if DEBUG:
         print('\n', '================================', '\n')
-        print('DEBUG')
+        print('\t', 'DEBUG')
         print('NLO corr. expected: ', -DEFAULT.nlo_conversion * borns[1, 0, 0] * chi2[0, 1, 2] / diel[0, 0])
         print('Born corr. expected: ', -borns[1, 0, 0] / np.sqrt(reduced_mass))
         print('Conversion factor nlo: ', DEFAULT.nlo_conversion)
-        print(prefactor * alpha)
+        # print(prefactor * alpha)
         print(dchivol, prefactor * np.abs(alpha).max())
         print('\n', '================================', '\n')
 
