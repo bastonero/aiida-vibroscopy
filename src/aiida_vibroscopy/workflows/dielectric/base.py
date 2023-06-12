@@ -15,7 +15,7 @@ from aiida_quantumespresso.workflows.protocols.utils import ProtocolMixin
 import numpy as np
 
 from aiida_vibroscopy.calculations.symmetry import get_irreducible_numbers_and_signs
-from aiida_vibroscopy.common import UNITS_FACTORS
+from aiida_vibroscopy.common import UNITS
 from aiida_vibroscopy.utils.elfield_cards_functions import get_vector_from_number
 from aiida_vibroscopy.utils.validation import validate_positive, validate_tot_magnetization
 
@@ -37,7 +37,7 @@ def compute_critical_electric_field(
     kmesh = np.array(parameters.base.attributes.get('monkhorst_pack_grid'))
     cell = np.array(structure.cell)
 
-    denominator = np.fabs(np.dot(cell.T, kmesh)).max() * UNITS_FACTORS.efield_au_to_si
+    denominator = np.fabs(np.dot(cell.T, kmesh)).max() * UNITS.efield_au_to_si
 
     return orm.Float(band_gap / denominator)
 
