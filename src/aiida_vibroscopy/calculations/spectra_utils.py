@@ -11,7 +11,7 @@ from aiida_phonopy.data.preprocess import PreProcessData
 from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
 import numpy as np
 
-from aiida_vibroscopy.common import UNITS_FACTORS
+from aiida_vibroscopy.common import UNITS
 
 __all__ = (
     'boson_factor',
@@ -27,7 +27,7 @@ __all__ = (
 
 def boson_factor(frequency: float, temperature: float) -> float:
     """Return boson factor, i.e. (nb+1). Frequency in cm-1 and temperature in Kelvin."""
-    return 1.0 / (1.0 - np.exp(-UNITS_FACTORS.cm_to_kelvin * frequency / temperature))
+    return 1.0 / (1.0 - np.exp(-UNITS.cm_to_kelvin * frequency / temperature))
 
 
 def compute_active_modes(
@@ -60,7 +60,7 @@ def compute_active_modes(
     irreps = phonopy_instance.irreps
 
     phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=nac_direction, with_eigenvectors=True)
-    frequencies = phonopy_instance.qpoints.frequencies[0] * UNITS_FACTORS.thz_to_cm
+    frequencies = phonopy_instance.qpoints.frequencies[0] * UNITS.thz_to_cm
     eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
 
     # Step 2 - getting the active modes with eigenvectors
@@ -258,7 +258,7 @@ def compute_raman_susceptibility_tensors(
         # print("Tensordot B N: ", np.tensordot(borns_term, nlo_term, axes=0).round(5))
         ### DEBUG
 
-        nlo_correction = -(UNITS_FACTORS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
+        nlo_correction = -(UNITS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
 
         ### DEBUG
         # print("Correction: ", nlo_correction.round(5))
@@ -316,7 +316,7 @@ def compute_polarization_vectors(
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
     # borns  shape|indices = (num atoms, 3, 3) | (I, i, k)
     # The contraction is performed over I and k, resulting in (n, i) polarization vectors.
-    pol_vectors = UNITS_FACTORS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/sqrt(AMU)
+    pol_vectors = UNITS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/sqrt(AMU)
 
     return (pol_vectors, freqs, labels)
 

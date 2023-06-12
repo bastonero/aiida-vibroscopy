@@ -15,12 +15,12 @@ from aiida_vibroscopy.calculations.symmetry import (
     get_trajectories_from_symmetries,
     symmetrize_susceptibility_derivatives,
 )
-from aiida_vibroscopy.common import UNITS_FACTORS
+from aiida_vibroscopy.common import UNITS
 
 # Local constants
-eVinv_to_ang = UNITS_FACTORS.eVinv_to_ang
-efield_au_to_si = UNITS_FACTORS.efield_au_to_si
-forces_si_to_au = UNITS_FACTORS.forces_si_to_au
+eVinv_to_ang = UNITS.eVinv_to_ang
+efield_au_to_si = UNITS.efield_au_to_si
+evang_to_rybohr = UNITS.evang_to_rybohr
 
 __all__ = (
     'get_central_derivatives_coefficients', 'central_derivatives_calculator', 'compute_susceptibility_derivatives',
@@ -206,8 +206,8 @@ def compute_susceptibility_derivatives(
         )
 
     # Conversion factors
-    # dchi_factor = forces_si_to_au * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
-    dchi_factor = (forces_si_to_au * CONSTANTS.bohr_to_ang**2) / volume  # --> angstrom^-1
+    # dchi_factor = evang_to_rybohr * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
+    dchi_factor = (evang_to_rybohr * CONSTANTS.bohr_to_ang**2) / volume  # --> angstrom^-1
     chi2_factor = 0.5 * (4 * np.pi) * 100 / (volume_au_units * efield_au_to_si)  # --> pm/Volt
 
     # Variables
@@ -398,7 +398,7 @@ def compute_nac_parameters(
         )
 
     # Conversion factors
-    bec_factor = forces_si_to_au / np.sqrt(2)
+    bec_factor = evang_to_rybohr / np.sqrt(2)
     chi_factor = 4 * np.pi / volume_au_units
 
     # Variables
