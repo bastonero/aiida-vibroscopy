@@ -61,7 +61,7 @@ jobs:
             matrix:
                 include:
                 -   python-version: '3.8'
-                    phonopy-version: '2.16.0'
+                    phonopy-version: '2.16.1'
                 -   python-version: '3.9'
                     phonopy-version: '2.17.0'
                 -   python-version: '3.10'
@@ -95,7 +95,7 @@ jobs:
                 conda-channels: conda-forge
 
         -   name: Set up Phonopy ${{ matrix.phonopy-version }}
-            run: conda install -y phonopy==${{ matrix.phonopy-version }}
+            run: pip install phonopy==${{ matrix.phonopy-version }}
 
         -   name: Install Python dependencies
             run: pip install -e .[tests]
@@ -120,12 +120,6 @@ jobs:
 
         -   name: Install flit
             run: pip install flit~=3.4
-
-        # -   name: Build and publish to TestPyPI
-        #     run: flit publish --repository https://test.pypi.org/legacy/
-        #     env:
-        #         FLIT_USERNAME: __token__
-        #         FLIT_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
         -   name: Build and publish
             run: flit publish
