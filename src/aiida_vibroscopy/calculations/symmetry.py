@@ -60,7 +60,7 @@ def take_average_of_dph0(
     cell: np.ndarray,
     symprec: float,
 ) -> np.ndarray:
-    r"""Symmetrize :math:`\\frac{d \\Chi}{dr}` tensors.
+    r"""Symmetrize :math:`\frac{d \chi}{dr}` tensors.
 
     Symmetrize in respect to space group symmetries and applies sum rules.
     See e.g. *M. Veiten et al., PRB, 71, 125107, (2005)*.
@@ -68,7 +68,7 @@ def take_average_of_dph0(
     :param dchi_ph0: the (nat, 3,3,3) tensor, second index referring to atomic displacements
     :param rotations: list of symmetry rotations in crystal coordinates
     :param translations: list of symmetry translations in crystal coordinates,
-    associated with the rotations (that form the space group symmetries)
+        associated with the rotations (that form the space group symmetries)
     :param cell: reference cell in Cartesian coordinates and in Angstrom
     :param symprec: symmetry precision tolerance
 
@@ -105,31 +105,31 @@ def symmetrize_susceptibility_derivatives(
     symprec: float = 1e-5,
     is_symmetry: bool = True,
 ) -> tuple(np.ndarray, np.ndarray):
-    r"""Symmetrize susceptibility derivatives tensors (dChi/dr and Chi^(2)).
+    r"""Symmetrize susceptibility derivatives tensors (:math:`d\chi /dr` and :math:`\chi^{(2)}`).
 
-    :param raman_tensors: array_like dChi/dr tensors, shape=(unitcell_atoms, 3, 3, 3).
-    Convention is to have the symmetric elements over the 2 and 3 indices,
-    i.e. [I,k,i,j] = [I,k,j,i] <==> k is the index of the displacement.
-    :param nlo_susceptibility: array_like Chi^2 tensors, shape=(3, 3, 3)
+    :param raman_tensors: array_like :math:`d\chi /dr` tensors, shape=(unitcell_atoms, 3, 3, 3).
+        Convention is to have the symmetric elements over the 2 and 3 indices,
+        i.e. :math:`[I,k,i,j] = [I,k,j,i] \iff k` is the index of the displacement.
+    :param nlo_susceptibility: array_like :math:`\chi^{(2)}` tensors, shape=(3, 3, 3)
     :param ucell: PhonopyAtoms unit cell
-    :param primitive_matrix: primitive matrix. This is used to select dChi/dr tensors in
-    primitive cell. If None (default), dChi/dr tensors in unit cell
-    are returned. shape=(3, 3)
+    :param primitive_matrix: primitive matrix. This is used to select :math:`d\chi /dr` tensors in
+        primitive cell. If None (default), :math:`d\chi /dr` tensors in unit cell
+        are returned. shape=(3, 3)
     :param primitive: a `PhonopyAtoms` instance; this is an alternative
-    of giving primitive_matrix (Mp). Mp is given as
-    :math:`M_p = (a_u, b_u, c_u)^{-1} \\cdot (a_p, b_p, c_p)`.
-    In addition, the order of atoms is alined to those of atoms in this
-    primitive cell for Born effective charges. No rigid rotation of
-    crystal structure is assumed.
+        of giving primitive_matrix (Mp). Mp is given as
+        :math:`M_p = (a_u, b_u, c_u)^{-1} \cdot (a_p, b_p, c_p)`.
+        In addition, the order of atoms is alined to those of atoms in this
+        primitive cell for Born effective charges. No rigid rotation of
+        crystal structure is assumed.
     :param supercell_matrix: supercell matrix. This is used to select Born effective charges in
-    **primitive cell**. Supercell matrix is needed because primitive
-    cell is created first creating supercell from unit cell, then
-    the primitive cell is created from the supercell. If None (defautl),
-    1x1x1 supercell is created. shape=(3, 3)
+        **primitive cell**. Supercell matrix is needed because primitive
+        cell is created first creating supercell from unit cell, then
+        the primitive cell is created from the supercell. If None (defautl),
+        1x1x1 supercell is created. shape=(3, 3)
     :param symprec: symmetry tolerance. Default is 1e-5
     :param is_symmetry: by setting False, symmetrization can be switched off. Default is True.
 
-    :return: symmetrized tensors (dph0, nlo)
+    :return: symmetrized tensors (:math:`d\chi /dr`, :math:`\chi^{(2)}`)
     """
     from phonopy.structure.symmetry import Symmetry, _get_mapping_between_cells, _get_supercell_and_primitive
 
@@ -289,6 +289,7 @@ def get_trajectories_from_symmetries(
     Only `forces` and `electronic_dipole_cartesian_axes` are transformed.
 
     :return: dict following the standard conventions:
+
         * main fields are named `field_index_{index}`
         * secondary fields have `{number}`, where number refer to the coeffient for the numerical derivation
 
@@ -350,10 +351,13 @@ def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData,
     :param number_id: 3 or 6 for second or third order derivatives, respectively.
 
     :return: tuple with elements:
-        1. List of independent numbers. 2 and 3 are favourite in respect to the
-        other directions, as they have a better implementation in Quantum ESPRESSO
-        2. A second list of lists, each containing two bools, one per sign,
-        respectively -1 and +1.
+
+        1. List of independent numbers.
+            `2` and `3` are favourite in respect to the
+            other directions, as they have a better implementation in Quantum ESPRESSO
+        2. A second list of lists
+            each containing two bools, one per sign,
+            respectively -1 and +1.
 
     """
     phonopy_instance = preprocess_data.get_phonopy_instance()

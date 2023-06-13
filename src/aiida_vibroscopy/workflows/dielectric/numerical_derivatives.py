@@ -42,34 +42,30 @@ class NumericalDerivativesWorkChain(WorkChain):
 
     To understand, let's review the approach.In central differencs approach
     we need the evaluation of the function at the value we want
-    the derivative (in our case at :math:`\\mathcal{E}=0`,
+    the derivative (in our case at :math:`\mathcal{E}=0`,
     E is the electric field), and at
     displaced positions from this value.
     The evaluation of the function at these points will
     have weights (or coefficients), which depend on order and accuracy.
     For example:
-    * :math:`\\frac{df}{dx}   = \\frac{ 0.5 \\cdot f(+1.0 \\cdot h) -0.5
-    \\cdot f(-1.0 \\cdot h) }{h} +\mathcal{O}(h^2)`
-    * :math:`\\frac{d^2 f}{dx^2} = \\frac{ 1.0 \\cdot f(+1.0 \\cdot h) -2.0
-    \\cdot f(0. \\cdot h) +1.0 \\cdot f(-1.0 \\cdot h) }{h^2} +\mathcal{O}(h^2)`
+
+    - :math:`\frac{df}{dx} = \frac{ 0.5 \cdot f(+1.0 \cdot h) -0.5 \cdot f(-1.0 \cdot h) }{h} +\mathcal{O}(h^2)`
+    - :math:`\frac{d^2 f}{dx^2} = \frac{ 1.0 \cdot f(+1.0 \cdot h) -2.0 \cdot f(0. \cdot h) +1.0 \cdot f(-1.0 \cdot h) }{h^2} +\mathcal{O}(h^2)`
 
     Referring to the coefficients for each step as :math:`c_i`,
     where `i` is an integer, our convention is
     to put in sequence the Trajectory data with increasing
     numbers as labels, for example:
 
-    ```
-    | {
-    |   '0': TrajectoryData for :math:`c_1`,
-    |   '1': TrajectoryData for :math:`c_{-1}`,
-    |   '2': TrajectoryData for :math:`c_2`,
-    |   '3': TrajectoryData for :math:`c_{-2}`,
-    |   ...
-    | }
-    ```
+    | '0': TrajectoryData for :math:`c_1`,
+    | '1': TrajectoryData for :math:`c_{-1}`,
+    | '2': TrajectoryData for :math:`c_2`,
+    | '3': TrajectoryData for :math:`c_{-2}`,
+    | ...
+
 
     This way to creating an analogous of an array with
-    coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \\dots]`.
+    coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \dots]`.
 
     These dictionaries are going to be put as sub-dictionary
     in a general `data` dictionary. Each sub-dict
@@ -77,18 +73,21 @@ class NumericalDerivativesWorkChain(WorkChain):
     which tensor component is referring to.
     In our case, we use a similar Voigt notation.
     Namely we have two cases:
-    * first order derivatives: keys suffices are 0,1,2; 0
-    for [i,x], 1 for [i,y], 2 for [i,z] (with i={x,y,z})
-    * second order derivatives: keys suffices are 0,...5; 0
-    for [i,x,x], ... (as in Voigt), 5 for [i,x,y] (with i={x,y,z})
+
+    * first order derivatives: keys suffices are 0,1,2;
+        0 for :math:`[i,x]`, 1 for :math:`[i,y]`, 2 for
+        :math:`[i,z]` (with :math:`i={x,y,z}`)
+    * second order derivatives: keys suffices are 0,...5;
+        0 for :math:`[i,x,x]`, :math:`\dots` (as in Voigt),
+        5 for :math:`[i,x,y]` (with :math:`i={x,y,z}`)
 
     The prefix can be anything. Best practice is using ``field_``
     with and underscorre as prefix. The Trajectory data for the
-    c0 coefficient (i.e. the one with :math:`\\mathcal{E}=0`)
+    :math:`c_0` coefficient (i.e. the one with :math:`\mathcal{E}=0`)
     must be passed with a different key, namely ``null_field``.
     This is to avoid errors and due to the fact that is common
     to the all derivatives.
-    """
+    """  # pylint: disable=line-too-long
 
     @classmethod
     def define(cls, spec):
