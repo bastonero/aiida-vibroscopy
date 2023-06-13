@@ -49,22 +49,19 @@ class NumericalDerivativesWorkChain(WorkChain):
     have weights (or coefficients), which depend on order and accuracy.
     For example:
 
-    - :math:`\frac{df}{dx} = \frac{ 0.5 \cdot f(+1.0 \cdot h) -0.5`
-        :math:`\cdot f(-1.0 \cdot h) }{h} +\mathcal{O}(h^2)`
-    - `:math:`\frac{d^2 f}{dx^2} = \frac{ 1.0 \cdot f(+1.0 \cdot h) -2.0 \cdot f(0. \cdot h)`
-        :math:`+1.0 \cdot f(-1.0 \cdot h) }{h^2} +\mathcal{O}(h^2)`
+    - :math:`\frac{df}{dx} = \frac{ 0.5 \cdot f(+1.0 \cdot h) -0.5 \cdot f(-1.0 \cdot h) }{h} +\mathcal{O}(h^2)`
+    - :math:`\frac{d^2 f}{dx^2} = \frac{ 1.0 \cdot f(+1.0 \cdot h) -2.0 \cdot f(0. \cdot h) +1.0 \cdot f(-1.0 \cdot h) }{h^2} +\mathcal{O}(h^2)`
 
     Referring to the coefficients for each step as :math:`c_i`,
     where `i` is an integer, our convention is
     to put in sequence the Trajectory data with increasing
     numbers as labels, for example:
-    ```
-    '0': TrajectoryData for :math:`c_1`,
-    '1': TrajectoryData for :math:`c_{-1}`,
-    '2': TrajectoryData for :math:`c_2`,
-    '3': TrajectoryData for :math:`c_{-2}`,
-    ...
-    ```
+
+    | '0': TrajectoryData for :math:`c_1`,
+    | '1': TrajectoryData for :math:`c_{-1}`,
+    | '2': TrajectoryData for :math:`c_2`,
+    | '3': TrajectoryData for :math:`c_{-2}`,
+    | ...
 
     This way to creating an analogous of an array with
     coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \dots]`.
@@ -89,7 +86,7 @@ class NumericalDerivativesWorkChain(WorkChain):
     must be passed with a different key, namely ``null_field``.
     This is to avoid errors and due to the fact that is common
     to the all derivatives.
-    """
+    """  # pylint: disable=line-too-long
 
     @classmethod
     def define(cls, spec):

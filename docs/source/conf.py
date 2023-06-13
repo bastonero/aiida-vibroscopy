@@ -82,8 +82,8 @@ myst_substitutions = {
     'phonopy_data': '{py:class}`~aiida_phonopy.data.phonopy.PhonopyData`',
     'preprocess_data': '{py:class}`~aiida_phonopy.data.preprocess.PreProcessData`',
     'vibrational_data': '{py:class}`~aiida_vibroscopy.data.vibro_lr.VibrationalData`',
-    'pwbase': '{py:class}`aiida_quantumespresso.workflows.pw.base.PwBaseWorkChain`',
-    'dielwc': '{py:class}`aiida_vibroscopy.workflows.dielectric.base.DielectricWorkChain`',
+    'pwbase': '{py:class}`~aiida_quantumespresso.workflows.pw.base.PwBaseWorkChain`',
+    'dielwc': '{py:class}`~aiida_vibroscopy.workflows.dielectric.base.DielectricWorkChain`',
 }
 
 source_suffix = {

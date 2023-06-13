@@ -121,7 +121,7 @@ Here we will setup it up supposing that is installed on the computer where AiiDA
 To setup a particular Quantum ESPRESSO code, use the ``verdi`` CLI of ``aiida-core``.
 
 ```console
-$ verdi code create core.code.installed -n --computer localhost --label hp --default-calc-job-plugin quantumespresso.pw --filepath-executable /path/to/pw.x
+$ verdi code create core.code.installed -n --computer localhost --label pw --default-calc-job-plugin quantumespresso.pw --filepath-executable /path/to/pw.x
 ```
 :::
 
