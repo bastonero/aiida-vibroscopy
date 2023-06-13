@@ -63,7 +63,6 @@ class NumericalDerivativesWorkChain(WorkChain):
     | '3': TrajectoryData for :math:`c_{-2}`,
     | ...
 
-
     This way to creating an analogous of an array with
     coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \dots]`.
 
