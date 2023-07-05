@@ -336,8 +336,10 @@ class VibrationalMixin:
         :param temperature: temperature in Kelvin
         :param absolute: whether to use the prefactor for absolute theoretical cross-section units
         :param kwargs: keys of
-            :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_raman_susceptibility_tensors` method
+            :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.run_raman_susceptibility_tensors` method
 
+            * with_nlo: whether to use or not non-linear optical susceptibility
+                correction (Froehlich term), defaults to True
             * nac_direction:
                 non-analytical direction in reciprocal space coordinates (primitive cell)
             * use_irreps:
@@ -366,12 +368,12 @@ class VibrationalMixin:
         pol_incoming_crystal = np.array(pol_incoming)
         pol_outgoing_crystal = np.array(pol_outgoing)
 
-        cell = self.get_phonopy_instance().primitive.cell
-        pol_incoming_cart = np.dot(cell, pol_incoming_crystal)  # in Cartesian coordinates
-        pol_outgoing_cart = np.dot(cell, pol_outgoing_crystal)  # in Cartesian coordinates
-
         if pol_incoming_crystal.shape != (3,) or pol_outgoing_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
+
+        cell = self.get_phonopy_instance().primitive.cell
+        pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
+        pol_outgoing_cart = np.dot(cell.T, pol_outgoing_crystal)  # in Cartesian coordinates
 
         raman_susceptibility_tensors, freqs, labels = self.run_raman_susceptibility_tensors(**kwargs)
 
@@ -406,8 +408,10 @@ class VibrationalMixin:
         :param temperature: temperature in Kelvin
         :param absolute: whether to use the prefactor for absolute theoretical cross-section units
         :param kwargs: keys of
-            :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_raman_susceptibility_tensors` method
+            :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.run_raman_susceptibility_tensors` method
 
+            * with_nlo: whether to use or not non-linear optical susceptibility
+                correction (Froehlich term), defaults to True
             * nac_direction:
                 non-analytical direction in reciprocal space coordinates (primitive cell)
             * use_irreps:
@@ -517,7 +521,7 @@ class VibrationalMixin:
             raise ValueError('the array is not of the correct shape')
 
         cell = self.get_phonopy_instance().primitive.cell
-        pol_incoming_cart = np.dot(cell, pol_incoming_crystal)  # in Cartesian coordinates
+        pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
 
         pol_vectors, freqs, labels = self.run_polarization_vectors(**kwargs)
 
@@ -581,7 +585,7 @@ class VibrationalMixin:
 
             for q, ws in zip(points, weights):
                 cell = self.get_phonopy_instance().primitive.cell
-                q_crystal = np.dot(cell, q)  # in reciprocal fractional/Crystal coordinates
+                q_crystal = np.dot(cell.T, q)  # in reciprocal fractional/Crystal coordinates
                 q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction': q_crystal})
 
                 for pol, f, l in zip(q_pol, q_freqs, q_labels):
