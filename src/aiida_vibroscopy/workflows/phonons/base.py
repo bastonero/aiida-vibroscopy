@@ -283,6 +283,7 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
         parameters = self.inputs.scf.pw.parameters.get_dict()
         nspin = parameters.get('SYSTEM', {}).get('nspin', 1)
         self.ctx.is_magnetic = (nspin != 1)
+        self.ctx.is_insulator = True
         self.ctx.plus_hubbard = False
         self.ctx.old_plus_hubbard = False
 
@@ -365,6 +366,12 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
             self.report(f'base supercell scf failed with exit status {workchain.exit_status}')
             return self.exit_codes.ERROR_FAILED_BASE_SCF
 
+        parameters = workchain.outputs.output_parameters.dict
+        if parameters.occupations == 'smearing':
+            bands = workchain.outputs.output_band
+            fermi_energy = parameters.fermi_energy
+            self.ctx.is_insulator, _ = orm.find_bandgap(bands, fermi_energy=fermi_energy)
+
     def run_forces(self):
         """Run an scf for each supercell with displacements."""
         if self.ctx.plus_hubbard or self.ctx.old_plus_hubbard:
@@ -398,7 +405,7 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
             parameters.setdefault('SYSTEM', {})
             parameters.setdefault('ELECTRONS', {})
 
-            if self.ctx.is_magnetic:
+            if self.ctx.is_magnetic and self.ctx.is_insulator:
                 parameters['SYSTEM']['occupations'] = 'fixed'
 
                 for name in ('smearing', 'degauss', 'starting_magnetization'):

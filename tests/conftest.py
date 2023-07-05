@@ -454,6 +454,7 @@ def generate_base_scf_workchain_node(fixture_localhost, generate_trajectory):
 
         # Add output Dict
         parameters = orm.Dict({
+            'occupations': 'fixed',
             'number_of_bands': 5,
             'total_magnetization': 1,
             'volume': 10,

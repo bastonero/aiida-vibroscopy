@@ -88,6 +88,7 @@ def test_setup(generate_workchain_phonon):
     process.setup()
 
     assert process.ctx.is_magnetic == False
+    assert process.ctx.is_insulator == True
     assert process.ctx.plus_hubbard == False
     assert process.ctx.old_plus_hubbard == False
     assert 'preprocess_data' in process.ctx
@@ -212,6 +213,7 @@ def test_inspect_base_supercell(
     process.ctx.scf_supercell_0 = generate_base_scf_workchain_node(exit_status=exit_status)
     result = process.inspect_base_supercell()
     assert result == expected_result
+    assert process.ctx.is_insulator
 
 
 @pytest.mark.usefixtures('aiida_profile')
