@@ -195,8 +195,8 @@ def compute_raman_susceptibility_tensors(
     sqrt_volume = np.sqrt(volume)
     raman_tensors *= volume
 
-    rcell = np.linalg.inv(phonopy_instance.primitive.cell)
-    q_direction = np.dot(rcell, nac_direction)  # in Cartesian coordinates
+    rcell = np.linalg.inv(phonopy_instance.primitive.cell).T  # as rows
+    q_direction = np.dot(rcell.T, nac_direction)  # in Cartesian coordinates
 
     selection_rule = 'raman' if use_irreps else None
 
@@ -280,7 +280,7 @@ def compute_polarization_vectors(
 ) -> tuple[list, list, list]:
     """Return the polarization vectors, frequencies (cm-1) and labels.
 
-    ..note:: the unite for polarization vectors are in (debey/angstrom)/sqrt(AMU)
+    .. note:: the unite for polarization vectors are in (debey/angstrom)/sqrt(AMU)
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
     :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
