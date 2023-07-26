@@ -4,6 +4,8 @@ build:
   os: ubuntu-22.04
   apt_packages:
       - quantum-espresso
+  tools:
+    python: "3.11"
 
 python:
     install:
