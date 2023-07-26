@@ -11,43 +11,44 @@ myst:
 
 ```{toctree}
 :hidden: true
-:maxdepth: 2
 
 installation/index
 tutorials/index
+```
+
+```{toctree}
+:hidden: true
+:caption: How-to guides
+
 howto/index
-topics/index
+citeus
+```
+
+```{toctree}
+:hidden: true
+:caption: Topic guides
+
+topics/workflows/index
+topics/formulation
+topics/overrides
+topics/conventions
+```
+
+```{toctree}
+:hidden: true
+:caption: Reference
+
 reference/index
 ```
-
-::::{grid}
-:reverse:
-:gutter: 2 3 3 3
-:margin: 1 2 1 2
-
-:::{grid-item}
-:columns: 12 4 4 4
-
-```{image} images/logo_aiida_quantumespresso.png
-:width: 200px
-:class: sd-m-auto
-```
-:::
-
-:::{grid-item}
-:columns: 12 8 8 8
-:child-align: justify
-:class: sd-fs-5
 
 # AiiDA Vibroscopy
 
 An AiiDA plugin package for the calculation of __infrared__ and __Raman__ spectra and __harmonic phonons__ using [Quantum ESPRESSO](http://www.quantumespresso.org) and [Phonopy](https://phonopy.github.io/phonopy/). Compute ab-initio vibrational properties in automated fashion and with the use of any functional (and pseudo-potential formalism as well!), such as traditional LDA and GGAs, extended Hubbard functionals, hybrids and more!
 
-**aiida-vibroscopy version:** {{ release }}
-
-:::
-
-::::
+[![PyPI version](https://badge.fury.io/py/aiida-vibroscopy.svg)](https://badge.fury.io/py/aiida-vibroscopy)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy)
+[![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
+[![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
 
 ______________________________________________________________________
 
@@ -93,62 +94,6 @@ To the tutorials
 ```
 :::
 
-:::{grid-item-card} {fa}`question-circle;mr-1` How-to guides
-:text-align: center
-:shadow: md
-
-Hands-on guides to achieve specific goals.
-
-+++
-
-```{button-ref} howto/index
-:ref-type: doc
-:click-parent:
-:expand:
-:color: primary
-:outline:
-
-To the how-to guides
-```
-:::
-
-:::{grid-item-card} {fa}`bookmark;mr-1` Topic guides
-:text-align: center
-:shadow: md
-
-Detailed background information on various concepts.
-
-+++
-
-```{button-ref} topics/index
-:ref-type: doc
-:click-parent:
-:expand:
-:color: primary
-:outline:
-
-To the topic guides
-```
-:::
-
-:::{grid-item-card} {fa}`cogs;mr-1` Reference guides
-:text-align: center
-:shadow: md
-
-Detailed reference guides on the application programming and command line interfaces.
-
-+++
-
-```{button-ref} reference/api/aiida_vibroscopy/index
-:ref-type: doc
-:click-parent:
-:expand:
-:color: primary
-:outline:
-
-To the reference guides
-```
-:::
 ::::
 
 (cite)=
@@ -157,7 +102,7 @@ To the reference guides
 
 If you use this plugin for your research, please cite the following work:
 
-> Lorenzo Bastonero and Nicola Marzari, [*Automated all-functionals infrared and Raman spectra*](), npj Comp. Mat., **?**, ? (2023)
+> Lorenzo Bastonero and Nicola Marzari, [*Automated all-functionals infrared and Raman spectra*](), **XXX**., **YYY**, **ZZZ** (2023)
 
 > Sebastiaan. P. Huber, Spyros Zoupanos, Martin Uhrin, Leopold Talirz, Leonid Kahle, Rico Häuselmann, Dominik Gresch, Tiziano Müller, Aliaksandr V. Yakutovich, Casper W. Andersen, Francisco F. Ramirez, Carl S. Adorf, Fernando Gargiulo, Snehal Kumbhar, Elsa Passaro, Conrad Johnston, Andrius Merkys, Andrea Cepellotti, Nicolas Mounet, Nicola Marzari, Boris Kozinsky, and Giovanni Pizzi, [*AiiDA 1.0, a scalable computational infrastructure for automated reproducible workflows and data provenance*](https://doi.org/10.1038/s41597-020-00638-4), Scientific Data **7**, 300 (2020)
 

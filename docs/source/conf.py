@@ -25,7 +25,7 @@ load_documentation_profile()
 
 project = 'aiida-vibroscopy'
 copyright = ( # pylint: disable=redefined-builtin, line-too-long
-    f"""2022-{time.localtime().tm_year}, UNIVERSITY OF BREMEN, Germany. All rights reserved"""
+    f"""2023-{time.localtime().tm_year}, UNIVERSITY OF BREMEN, Germany. All rights reserved"""
 ) # pylint: disable=redefined-builtin, line-too-long
 
 # The full version, including alpha/beta/rc tags.
@@ -61,18 +61,18 @@ intersphinx_mapping = {
     'aiida_pseudo': ('https://aiida-pseudo.readthedocs.io/en/latest/', None),
     'aiida_phonopy': ('https://aiida-phonopy.readthedocs.io/en/latest/', None),
     'phonopy': ('https://phonopy.github.io/phonopy/', None),
-    'matplotlib': ('https://matplotlib.org/stable/index.html', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
     'aiida_quantumespresso': ('https://aiida-quantumespresso.readthedocs.io/en/latest/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master', None),
 }
 
 myst_enable_extensions = [
     'amsmath',
-    'colon_fence',
     'deflist',
+    'colon_fence',
+    'substitution',
     'dollarmath',
     'html_image',
-    'substitution',
 ]
 
 myst_substitutions = {
@@ -133,8 +133,9 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = 'sphinx_book_theme'
 html_theme_options = {
+    'repository_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'github_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'use_edit_page_button': True,
 }
@@ -146,10 +147,13 @@ html_context = {
     'doc_path': 'docs/source',
     'default_mode': 'light',
 }
+html_sidebars = {
+    '**': ['navbar-logo.html', 'navbar-icon-links.html', 'search-field.html', 'sbt-sidebar-nav.html']
+}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'images/logo_docs.png'
+html_logo = 'images/logo_aiida.svg'
 html_static_path = ['_static']
 html_css_files = ['aiida-custom.css', 'aiida-qe-custom.css']
 
@@ -312,5 +316,6 @@ nitpick_ignore_regex = [
         r'phonopy.*',
         r'numpy.*',
         r'np.*',
+        r'pydantic.*',
     ]
 ]

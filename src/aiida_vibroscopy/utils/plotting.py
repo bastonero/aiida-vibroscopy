@@ -31,7 +31,7 @@ def get_spectra_plot(
     :param broadening_function: multi broadening function
     :param normalize: whether normalize the spectra to have maximum peak to 1
 
-    :return: :class:`matplotlib.pyplot`
+    :return: :mod:`matplotlib.pyplot`
     """
     import matplotlib.pyplot as plt
     from matplotlib.ticker import AutoMinorLocator

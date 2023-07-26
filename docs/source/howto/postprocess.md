@@ -4,7 +4,7 @@
 
 Here you will find some _how-tos_ on how to post-process the `VibrationalData` and `PhonopyData`.
 These can be generated via the `HarmonicWorkChain`, the `IRamanSpectraWorkChain` or the `PhononWorkChain`.
-Please, have a look at the [tutorials](tutorials) for an overview, and at the specific [topics](topics) sections.
+Please, have a look at the [tutorials](tutorials) for an overview, and at the specific topics section.
 
 ::: {hint}
 You can always access to the detailed description of a function/method putting a `?` question mark in front
