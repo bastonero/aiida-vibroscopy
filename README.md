@@ -1,5 +1,8 @@
 # aiida-vibroscopy
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![PyPI version](https://badge.fury.io/py/aiida-vibroscopy.svg)](https://badge.fury.io/py/aiida-vibroscopy)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy)
+[![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
+[![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
 
 AiiDA plugin that uses finite displacements and fields
 to compute phonon properties, dielectric and
