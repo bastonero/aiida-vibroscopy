@@ -15,9 +15,7 @@ __all__ = (
 
 from aiida import orm
 from aiida.engine import calcfunction
-from aiida.plugins import DataFactory
-
-PreProcessData = DataFactory('phonopy.preprocess')
+from aiida_phonopy.data.preprocess import PreProcessData
 
 
 @calcfunction

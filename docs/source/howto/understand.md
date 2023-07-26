@@ -4,7 +4,7 @@
 
 In AiiDA the CalcJobs and WorkChains have usually nested inputs and different options on how to run the calculation
 and/or workflows. To understand the nested input structure of CalcJobs/Workflows, we made them available in a clickable
-fashion in the [topics section](topics).
+fashion in the topics section.
 
 Moreover, it could be useful to understand the
 [_expose inputs/outputs_](https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/workflows/usage.html#modular-workflow-design)
