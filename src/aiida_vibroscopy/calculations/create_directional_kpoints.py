@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+#################################################################################
+# Copyright (c), All rights reserved.                                           #
+# This file is part of the AiiDA-Vibroscopy code.                               #
+#                                                                               #
+# The code is hosted on GitHub at https://github.com/bastonero/aiida-vibroscopy #
+# For further information on the license, see the LICENSE.txt file              #
+#################################################################################
 """Calculation function to compute a k-point mesh for a structure with a directional k-point distance."""
 from aiida.engine import calcfunction
 

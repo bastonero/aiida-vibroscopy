@@ -16,7 +16,7 @@ or when installing from source:
     pip install .
 
 ## License
-The `aiida-vibroscopy` plugin package is released under the MIT license.
+The `aiida-vibroscopy` plugin package is released under a special academic license.
 See the `LICENSE.txt` file for more details.
 
 
