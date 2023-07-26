@@ -61,7 +61,7 @@ jobs:
             matrix:
                 include:
                 -   python-version: '3.9'
-                    phonopy-version: '2.16.1'
+                    phonopy-version: '2.19.0'
                 -   python-version: '3.11'
                     phonopy-version: '2.19.0'
 
