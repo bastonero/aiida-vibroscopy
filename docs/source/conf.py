@@ -153,7 +153,7 @@ html_sidebars = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'images/logo_aiida.svg'
+html_logo = 'images/vibroscopy_logo.png'
 html_static_path = ['_static']
 html_css_files = ['aiida-custom.css', 'aiida-qe-custom.css']
 
