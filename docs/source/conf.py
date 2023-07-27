@@ -138,6 +138,11 @@ html_theme_options = {
     'repository_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'github_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'use_edit_page_button': True,
+    'logo': {
+        'text': 'AiiDA Quantum ESPRESSO',
+        'image_light': '_static/vibroscopy_logo.png',
+        'image_dark': '_static/vibroscopy_logo.png',
+    }
 }
 html_static_path = ['_static']
 html_context = {
@@ -153,7 +158,7 @@ html_sidebars = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'images/vibroscopy_logo.png'
+# html_logo = 'images/vibroscopy_logo.png'
 html_static_path = ['_static']
 html_css_files = ['aiida-custom.css', 'aiida-qe-custom.css']
 
