@@ -49,7 +49,7 @@ def multilorentz(x_range: np.ndarray, peaks: list[float], intensities: list[floa
             raise ValueError("length of `gammas` and `peaks` doesn't match")
         sigmas = deepcopy(gammas)
     else:
-        sigmas = float(gammas)
+        sigmas = [float(gammas) for _ in peaks]
 
     if len(intensities) != len(peaks):
         raise ValueError("length of `intensities` and `peaks` doesn't match")
@@ -164,7 +164,7 @@ def multilvoigt(
             raise ValueError("length of `gammas_lorentz` and `peaks` doesn't match")
         sigmas = deepcopy(gammas_lorentz)
     else:
-        sigmas = float(gammas_lorentz)
+        sigmas = [float(gammas_lorentz) for _ in peaks]
 
     if len(intensities) != len(peaks):
         raise ValueError("length of `intensities` and `peaks` doesn't match")
