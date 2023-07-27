@@ -20,7 +20,7 @@ def generate_lorentz_inputs():
         x_range = np.arange(0, 100, 0.1)
         peak = 50.0
         intensity = 1.0
-        sigma = 10.0
+        sigma = 10
 
         if multi:
             peak = [20.0, 30.0, 40.0]
