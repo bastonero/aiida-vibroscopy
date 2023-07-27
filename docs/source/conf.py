@@ -25,7 +25,10 @@ load_documentation_profile()
 
 project = 'aiida-vibroscopy'
 copyright = ( # pylint: disable=redefined-builtin, line-too-long
-    f"""2023-{time.localtime().tm_year}, UNIVERSITY OF BREMEN, Germany. All rights reserved"""
+    f"""2023-{time.localtime().tm_year}, University of Bremen, Germany, U Bremen Excellence Chair;
+    Authors: Lorenzo Bastonero. Paul Scherrer Institut, Switzerland, Laboratory of Materials Simulations;
+    Authors: Giovanni Pizzi. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, Laboratory of Theory
+    and Simulation of Materials (THEOS); Authors: Nicola Marzari."""
 ) # pylint: disable=redefined-builtin, line-too-long
 
 # The full version, including alpha/beta/rc tags.
@@ -139,7 +142,7 @@ html_theme_options = {
     'github_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'use_edit_page_button': True,
     'logo': {
-        'text': 'AiiDA Quantum ESPRESSO',
+        'text': 'AiiDA Vibroscopy',
         'image_light': '_static/vibroscopy_logo.png',
         'image_dark': '_static/vibroscopy_logo.png',
     }
