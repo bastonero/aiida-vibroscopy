@@ -25,7 +25,10 @@ load_documentation_profile()
 
 project = 'aiida-vibroscopy'
 copyright = ( # pylint: disable=redefined-builtin, line-too-long
-    f"""2023-{time.localtime().tm_year}, UNIVERSITY OF BREMEN, Germany. All rights reserved"""
+    f"""2023-{time.localtime().tm_year}, University of Bremen, Germany, U Bremen Excellence Chair;
+    Authors: Lorenzo Bastonero. Paul Scherrer Institut, Switzerland, Laboratory of Materials Simulations;
+    Authors: Giovanni Pizzi. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, Laboratory of Theory
+    and Simulation of Materials (THEOS); Authors: Nicola Marzari."""
 ) # pylint: disable=redefined-builtin, line-too-long
 
 # The full version, including alpha/beta/rc tags.
@@ -138,6 +141,11 @@ html_theme_options = {
     'repository_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'github_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'use_edit_page_button': True,
+    'logo': {
+        'text': 'AiiDA Vibroscopy',
+        'image_light': '_static/vibroscopy_logo.png',
+        'image_dark': '_static/vibroscopy_logo.png',
+    }
 }
 html_static_path = ['_static']
 html_context = {
@@ -153,7 +161,7 @@ html_sidebars = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'images/logo_aiida.svg'
+# html_logo = 'images/vibroscopy_logo.png'
 html_static_path = ['_static']
 html_css_files = ['aiida-custom.css', 'aiida-qe-custom.css']
 
