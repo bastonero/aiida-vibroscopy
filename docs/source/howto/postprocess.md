@@ -25,16 +25,17 @@ from aiida.orm import load_code
 
 vibro = load_node(IDENTIFIER) # a VibrationalData node
 
-polarized_intensities, unpolarized_intensities, frequencies, labels = vibro.run_powder_raman_intensities(frequency_laser=532, temperature=300)
+polarized_intensities, depolarized_intensities, frequencies, labels = vibro.run_powder_raman_intensities(frequency_laser=532, temperature=300)
 ```
 
-The total powder intensity will be the some of the polarized and unpolarized intensities:
+The total powder intensity will be the some of the polarized (backscattering geometry)
+and depolarized (90º geometry) intensities:
 
 ```python
-total = polarized_intensities + unpolarized_intensities
+total = polarized_intensities + depolarized_intensities
 ```
 
-The infrared in a similar way, but no distinction between polarized and unpolarized, and no laser frequency and temperature inputs:
+The infrared in a similar way, but no distinction between polarized and depolarized, and no laser frequency and temperature inputs:
 
 ```python
 intensities, frequencies, labels = vibro.run_powder_ir_intensities()
