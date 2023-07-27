@@ -401,7 +401,7 @@ class VibrationalMixin:
     ) -> tuple:
         """Return powder Raman intensities.
 
-        ..important: it computes the common setups of polarized (HH) and unpolarized (HV)
+        ..important: it computes the common setups of polarized (HH) and depolarized (HV)
             scattering. To obtain the total powder intensities, sum the two returned arrays of the intensities.
 
         .. note:: Units are:
