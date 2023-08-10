@@ -13,7 +13,7 @@ license = {file = 'LICENSE.txt'}
 classifiers = [
     'Development Status :: 4 - Beta',
     'Framework :: AiiDA',
-    'License :: Academic License',
+    'License :: Other/Proprietary License',
     'Operating System :: POSIX :: Linux',
     'Operating System :: MacOS :: MacOS X',
     'Programming Language :: Python',
