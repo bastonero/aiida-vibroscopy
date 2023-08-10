@@ -383,7 +383,8 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
         """Run an scf for each supercell with displacements."""
         if self.ctx.plus_hubbard or self.ctx.old_plus_hubbard:
             supercells = get_supercells_for_hubbard(
-                preprocess_data=self.ctx.preprocess_data, ref_structure=self.inputs.scf.pw.structure
+                preprocess_data=self.ctx.preprocess_data,
+                ref_structure=self.ctx.supercell,
             )
         else:
             supercells = self.ctx.preprocess_data.calcfunctions.get_supercells_with_displacements()

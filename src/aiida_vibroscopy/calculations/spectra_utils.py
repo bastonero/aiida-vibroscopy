@@ -51,7 +51,7 @@ def compute_active_modes(
     Raman and infrared active modes can be extracted using `selection_rule`.
 
     :param nac_direction: (3,) shape list, indicating non analytical
-        direction in fractional reciprocal (primitive cell) space coordinates
+        direction in fractional reciprocal (unitcell cell) space coordinates
     :param selection_rule: str, can be `raman` or `ir`, it uses symmetry in
         the selection of the modes for a specific type of process
     :param sr_thr: float, threshold for selection rule (the analytical value is 0)
@@ -180,7 +180,7 @@ def compute_raman_susceptibility_tensors(
         * Unitcell volume for Raman tensor as normalization (in case non-primitive cell was used).
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in reciprocal space coordinates (primitive cell)
+    :param nac_direction: non-analytical direction in reciprocal space coordinates (unitcell cell)
     :param raman_tensors: dChi/du in Cartesian coordinates (in 1/Angstrom)
     :param nlo_susceptibility: non linear optical susceptibility
         in Cartesian coordinates (in pm/V)
@@ -202,7 +202,7 @@ def compute_raman_susceptibility_tensors(
     sqrt_volume = np.sqrt(volume)
     raman_tensors *= volume
 
-    rcell = np.linalg.inv(phonopy_instance.primitive.cell).T  # as rows
+    rcell = np.linalg.inv(phonopy_instance.unitcell.cell).T  # as rows
     q_direction = np.dot(rcell.T, nac_direction)  # in Cartesian coordinates
 
     selection_rule = 'raman' if use_irreps else None
@@ -223,19 +223,19 @@ def compute_raman_susceptibility_tensors(
     if not neigvs.tolist():
         return (np.array([]) for _ in range(3))
 
-    # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
-    # dph0   shape|indices = (num atoms, 3, 3, 3) | (I, k, i, j)
-    # The contraction is performed over I and k, resulting in (n, i, j) Raman tensors.
+    # neigvs  shape|indices = (num modes, num atoms, 3) | (n, I, k)
+    # dChi/du shape|indices = (num atoms, 3, 3, 3) | (I, k, a, b)
+    # The contraction is performed over I and k, resulting in (n, a, b) Raman tensors.
     raman_susceptibility_tensors = np.tensordot(neigvs, raman_tensors, axes=([1, 2], [0, 1]))
 
     if nlo_susceptibility is not None and q_direction.nonzero()[0].tolist():
         borns = phonopy_instance.nac_params['born']
         dielectric = phonopy_instance.nac_params['dielectric']
-        # -8 pi (Z.q/q.epsilon.q)[I,k] Chi(2).q [i,j] is the correction to dph0.
+        # -8 pi (Z.q/q.epsilon.q)[I,k] Chi(2).q [a,b] is the correction to dph0.
         # The indices I, k to do the scalar product with the eigenvectors run over the Borns term.
-        # nac_direction shape|indices = (3) | (i)
-        # borns  shape|indices = (num atoms, 3, 3) | (I, i, k)
-        # nlo    shape|indices = (3, 3, 3) | (i, j, k)
+        # nac_direction shape|indices = (3) | (a)
+        # borns  shape|indices = (num atoms, 3, 3) | (I, a, k)
+        # nlo    shape|indices = (3, 3, 3) | (a, b, k)
 
         # q.epsilon.q
         # !!! ---------------------- !!!
@@ -251,7 +251,7 @@ def compute_raman_susceptibility_tensors(
         ### DEBUG
 
         # Z*.q
-        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(2, 0))  # (num atoms, 3) | (I, k)
+        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(1, 0))  # (num atoms, 3) | (I, k)
         borns_term = np.tensordot(borns_term_dph0, neigvs, axes=([0, 1], [1, 2]))  # (num modes) | (n)
 
         ### DEBUG
@@ -259,14 +259,16 @@ def compute_raman_susceptibility_tensors(
         ### DEBUG
 
         # Chi(2).q
-        nlo_term = np.tensordot(nlo_susceptibility, q_direction, axes=([0], [0]))  # (3, 3) | (i, j)
+        nlo_term = np.tensordot(nlo_susceptibility, q_direction, axes=(2, 0))  # (3, 3) | (a, b)
 
         ### DEBUG
         # print("Nlo term: ", nlo_term.round(5))
         # print("Tensordot B N: ", np.tensordot(borns_term, nlo_term, axes=0).round(5))
         ### DEBUG
 
-        nlo_correction = -(UNITS.nlo_conversion / dielectric_term) * np.tensordot(borns_term, nlo_term, axes=0)
+        nlo_correction = -(UNITS.nlo_conversion / dielectric_term) * np.tensordot(
+            borns_term, nlo_term, axes=0
+        )  # (3,3,3) | (k,a,b)
 
         ### DEBUG
         # print("Correction: ", nlo_correction.round(5))
@@ -290,7 +292,7 @@ def compute_polarization_vectors(
     .. note:: the unite for polarization vectors are in (debey/angstrom)/sqrt(AMU)
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+    :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
         in reciprocal space
     :param use_irreps: whether to use irreducible representations
         in the selection of modes, defaults to True
@@ -322,8 +324,8 @@ def compute_polarization_vectors(
         return (np.array([]) for _ in range(3))
 
     # neigvs shape|indices = (num modes, num atoms, 3) | (n, I, k)
-    # borns  shape|indices = (num atoms, 3, 3) | (I, i, k)
-    # The contraction is performed over I and k, resulting in (n, i) polarization vectors.
+    # borns  shape|indices = (num atoms, 3, 3) | (I, a, k)
+    # The contraction is performed over I and k, resulting in (n, a) polarization vectors.
     pol_vectors = UNITS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/sqrt(AMU)
 
     return (pol_vectors, freqs, labels)
@@ -353,11 +355,11 @@ def get_supercells_for_hubbard(
         hubbard = ref_structure.hubbard
 
     for i, displacement in enumerate(displacements):
-        traslation = [[0., 0., 0.] for _ in ref_structure.sites]
+        translation = [[0., 0., 0.] for _ in ref_structure.sites]
 
-        traslation[displacement[0]] = displacement[1:4]
+        translation[displacement[0]] = displacement[1:4]
         ase = ref_structure.get_ase().copy()
-        ase.translate(traslation)
+        ase.translate(translation)
         ase_dict = ase.todict()
         cell = ase_dict['cell']
         positions = ase_dict['positions']
