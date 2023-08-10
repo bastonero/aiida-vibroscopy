@@ -201,7 +201,7 @@ class VibrationalMixin:
             * Raman susceptibility tensors: Anstrom/AMU
             * Frequencies: cm-1
 
-        :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+        :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
             in reciprocal space; (3,) shape list or numpy.ndarray
         :param with_nlo: whether to use or not non-linear optical susceptibility
             correction (Froehlich term), defaults to True
@@ -272,7 +272,7 @@ class VibrationalMixin:
             * Frequencies:
                 cm-1
 
-        :param nac_direction: non-analytical direction in fractional coordinates (primitive cell)
+        :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
             in reciprocal space; space(3,) shape :class:`list` or :class:`numpy.ndarray`
         :param use_irreps: whether to use irreducible representations in the
             selection of modes, defaults to True
@@ -334,10 +334,10 @@ class VibrationalMixin:
             * Frequencies: cm-1
 
         :param pol_incoming: light polarization vector of the incoming light
-            (laser) in crystal/fractional coordinates of the primitive cell;
+            (laser) in crystal/fractional coordinates of the unitcell cell;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param pol_outgoing: light polarization vector of the outgoing light
-            (scattered) in crystal/fractional coordinates of the primitive cell;
+            (scattered) in crystal/fractional coordinates of the unitcell cell;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param frequency_laser: laser frequency in nanometers
         :param temperature: temperature in Kelvin
@@ -348,7 +348,7 @@ class VibrationalMixin:
             * with_nlo: whether to use or not non-linear optical susceptibility
                 correction (Froehlich term), defaults to True
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (primitive cell)
+                non-analytical direction in reciprocal space coordinates (unitcell cell)
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -378,7 +378,7 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,) or pol_outgoing_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        cell = self.get_phonopy_instance().primitive.cell
+        cell = self.get_phonopy_instance().unitcell.cell
         pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
         pol_outgoing_cart = np.dot(cell.T, pol_outgoing_crystal)  # in Cartesian coordinates
 
@@ -420,7 +420,7 @@ class VibrationalMixin:
             * with_nlo: whether to use or not non-linear optical susceptibility
                 correction (Froehlich term), defaults to True
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (primitive cell)
+                non-analytical direction in reciprocal space coordinates (unitcell cell)
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -448,7 +448,7 @@ class VibrationalMixin:
             raman_hh, raman_hv = compute_raman_space_average(raman_susceptibility_tensors=raman_susceptibility_tensors)
 
         else:
-            cell = self.get_phonopy_instance().primitive.cell
+            cell = self.get_phonopy_instance().unitcell.cell
 
             scheme = LebedevScheme.from_order(quadrature_order)
             points = scheme.points.T
@@ -486,13 +486,13 @@ class VibrationalMixin:
             * Frequencies: cm^-1
 
         :param pol_incoming: light polarization vector of the
-            incident beam light in crystal coordinates of the primitive cell;
+            incident beam light in crystal coordinates of the unitcell cell;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param kwargs: keys of
             :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
 
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (primitive cell)
+                non-analytical direction in reciprocal space coordinates (unitcell cell)
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True
@@ -527,7 +527,7 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        cell = self.get_phonopy_instance().primitive.cell
+        cell = self.get_phonopy_instance().unitcell.cell
         pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
 
         pol_vectors, freqs, labels = self.run_polarization_vectors(**kwargs)
@@ -551,7 +551,7 @@ class VibrationalMixin:
             :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
 
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (primitive cell)
+                non-analytical direction in reciprocal space coordinates (unitcell cell)
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -591,7 +591,7 @@ class VibrationalMixin:
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip(points, weights):
-                cell = self.get_phonopy_instance().primitive.cell
+                cell = self.get_phonopy_instance().unitcell.cell
                 q_crystal = np.dot(cell.T, q)  # in reciprocal fractional/Crystal coordinates
                 q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction': q_crystal})
 

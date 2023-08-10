@@ -114,13 +114,13 @@ def central_derivatives_calculator(
 def build_tensor_from_voigt(voigt, order: int, index: int | None = None) -> np.ndarray:
     """Auxiliary function for reconstructing tensors from voigt notation.
 
-    The Voigt notation is as follows:
-        * XX -> 0
-        * YY -> 1
-        * ZZ -> 2
-        * YZ -> 3
-        * XZ -> 4
-        * XY -> 5
+    The Voigt notation is as follows (in parenthesis in case of 2nd order derivatives):
+        * X(X) -> 0
+        * Y(Y) -> 1
+        * Z(Z) -> 2
+        * YZ   -> 3
+        * XZ   -> 4
+        * XY   -> 5
 
     :param voigt: tensors in contracted Voigt form
     :param order: tensor rank; if 2, it uses the Taylor expansion as in
@@ -128,15 +128,15 @@ def build_tensor_from_voigt(voigt, order: int, index: int | None = None) -> np.n
         the offdiagonal tensors
     :param index: atomic index; used for Born effective charges and Raman tensors
 
-    :return: tensors in expanded form
+    :return: tensors in Cartesian coordinates (no contractions)
     """
     if order == 1:  # effective charges, dielectric tensors
         tensor = np.zeros((3, 3))
-        for j in range(3):
+        for l in range(3):  # l is the `polarization` index
             if index is not None:
-                tensor[j] = voigt[j][index]
+                tensor[l] = voigt[l][index]
             else:
-                tensor[j] = voigt[j]
+                tensor[l] = voigt[l]
         return tensor
 
     if order == 2:  # chi(2), raman tensors
@@ -454,9 +454,8 @@ def compute_nac_parameters(
         eps_tensor = chi_factor * chi_tensor + np.eye(3)  # eps = 4.pi.X +1
         # Effective Born charges
         for index in range(num_atoms):
-            # ATTENTION: here we need to remember to take the transpose of each single tensor from finite differences.
             bec_ = build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
-            bec_tensor.append(bec_.T)
+            bec_tensor.append(bec_)
         bec_tensor = np.array(bec_tensor)
 
         # Doing the symmetrization in case
@@ -511,8 +510,7 @@ def compute_nac_parameters(
         eps_tensor = chi_factor * chi_tensor + np.eye(3)  # eps = 4.pi.X +1
         # Effective Born charges
         for index in range(num_atoms):
-            bec_ = build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index)
-            bec_tensor.append(bec_.T)
+            bec_tensor.append(build_tensor_from_voigt(voigt=bec_voigt, order=1, index=index))
         bec_tensor = np.array(bec_tensor)
 
         # Doing the symmetrization in case
