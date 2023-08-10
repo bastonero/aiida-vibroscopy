@@ -1,12 +1,11 @@
 (reference)=
 
-# Reference
+# Python API
 
 If you only want to get to know the input nested structure of the workflows, please visit [the workflow topic section](topics-workflows).
 
 ```{toctree}
-:hidden: true
-:maxdepth: 2
+:maxdepth: 4
 
 api/aiida_vibroscopy/index
 ```

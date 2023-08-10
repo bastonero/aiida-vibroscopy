@@ -3,7 +3,7 @@
 # Formulation
 
 In this section we briefly explore the underlying theory and formulation made used in the workflows.
-For a more in depth explanation, please refer to the [main paper of the package]().
+For a more in depth explanation, please refer to the [main paper of the package](https://arxiv.org/abs/2308.04308).
 
 Considered good sources are:
 
