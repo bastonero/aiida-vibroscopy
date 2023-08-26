@@ -93,11 +93,16 @@ snippet
 ```python
 import numpy as np
 
-cell = vibro.get_primitive_cell().cell
+cell = vibro.get_unitcell().cell
 
 incoming_cartesian = [0,0,1]
 inv_cell = np.linalg.inv(cell)
-incoming = np.dot(invcell, incoming_cartesian)
+incoming = np.dot(invcell.T, incoming_cartesian)
+```
+For the q-direction instead you need to transform them into reciprocal space crystal coordinates, as follows
+```python
+q_nac_cartesian = [0,0,1]
+q_nac_crystal = np.dot(cell, q_nac_cartesian)
 ```
 :::
 
