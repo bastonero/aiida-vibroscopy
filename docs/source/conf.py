@@ -141,6 +141,8 @@ html_theme_options = {
     'repository_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'github_url': 'https://github.com/bastonero/aiida-vibroscopy',
     'use_edit_page_button': True,
+    'use_download_button': True,
+    'use_sidenotes': True,
     'logo': {
         'text': 'AiiDA Vibroscopy',
         'image_light': '_static/vibroscopy_logo.png',
