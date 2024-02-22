@@ -68,7 +68,7 @@ jobs:
         -   name: Run pytest
             env:
                 AIIDA_WARN_v3: 1
-            run: pytest -sv tests --cov aiida-vibroscopy
+            run: pytest -sv --cov aiida_vibroscopy tests
 
         -   name: Upload to Codecov
             if: matrix.python-version == 3.10
