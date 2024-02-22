@@ -7,6 +7,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for :mod:`calculations.spectra_utils`."""
+# yapf:disable
 import numpy as np
 import pytest
 
@@ -72,46 +73,14 @@ def generate_trajectory():
         times = stepids * 0.0
         cells = np.array([5.62475444 * np.eye(3)])
         positions = np.array([[
-            [
-                0.,
-                0.,
-                0.,
-            ],
-            [
-                0.,
-                2.81237722,
-                2.81237722,
-            ],
-            [
-                2.81237722,
-                0.,
-                2.81237722,
-            ],
-            [
-                2.81237722,
-                2.81237722,
-                0.,
-            ],
-            [
-                1.40621634,
-                1.40621634,
-                1.40621634,
-            ],
-            [
-                1.40621634,
-                4.21853809,
-                4.21853809,
-            ],
-            [
-                4.21853809,
-                4.21853809,
-                1.40621634,
-            ],
-            [
-                4.21853809,
-                1.40621634,
-                4.21853809,
-            ],
+            [0.,0.,0.],
+            [0.,2.81237722,2.81237722],
+            [2.81237722,0.,2.81237722],
+            [2.81237722,2.81237722,0.],
+            [1.40621634,1.40621634,1.40621634],
+            [1.40621634,4.21853809,4.21853809],
+            [4.21853809,4.21853809,1.40621634],
+            [4.21853809,1.40621634,4.21853809],
         ]])
         symbols = ['Al', 'Al', 'Al', 'Al', 'As', 'As', 'As', 'As']
         node.set_trajectory(stepids=stepids, cells=cells, symbols=symbols, positions=positions, times=times)
@@ -134,7 +103,6 @@ def test_compute_tensors(generate_phonopy_instance, generate_trajectory):
 
     ph = generate_phonopy_instance()
     diagonal_scale = 1 / np.sqrt(2)
-    volume = ph.unitcell.volume
     volume_au = ph.unitcell.volume / C.bohr_to_ang**3
     preprocess_data = PreProcessData(phonopy_atoms=ph.unitcell)
 

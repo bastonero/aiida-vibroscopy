@@ -181,7 +181,7 @@ def compute_raman_susceptibility_tensors(
     phonopy_instance: Phonopy,
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray = None,
-    nac_direction: tuple[float, float, float] = lambda: (0, 0, 0),
+    nac_direction: list[float, float, float] | None = None,
     use_irreps: bool = True,
     degeneracy_tolerance: float = 1e-5,
     sum_rules: bool = False,
@@ -205,11 +205,7 @@ def compute_raman_susceptibility_tensors(
 
     :return: tuple of numpy.ndarray (Raman susc. tensors, frequencies, labels)
     """
-    nac_direction = np.array(nac_direction)
     raman_tensors = deepcopy(raman_tensors)
-
-    if nac_direction.shape != (3,):
-        raise ValueError('the array is not of the correct shape')
 
     volume = phonopy_instance.unitcell.volume
     sqrt_volume = np.sqrt(volume)
@@ -217,7 +213,7 @@ def compute_raman_susceptibility_tensors(
 
     # rcell = np.linalg.inv(phonopy_instance.unitcell.cell) # as columns
     # q_cartesian = np.dot(rcell, nac_direction)  # in Cartesian coordinates
-    q_cartesian = nac_direction
+    q_cartesian = np.zeros((3)) if nac_direction is None else np.array(nac_direction)
 
     selection_rule = 'raman' if use_irreps else None
 
@@ -227,7 +223,7 @@ def compute_raman_susceptibility_tensors(
 
     freqs, neigvs, labels = compute_active_modes(
         phonopy_instance=phonopy_instance,
-        nac_direction=nac_direction,
+        nac_direction=q_cartesian,
         degeneracy_tolerance=degeneracy_tolerance,
         selection_rule=selection_rule
     )

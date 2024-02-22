@@ -7,6 +7,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for :mod:`calculations.spectra_utils`."""
+# yapf:disable
 import numpy as np
 import pytest
 
@@ -50,17 +51,36 @@ def generate_third_rank_tensors():
     def _generate_third_rank_tensors():
         """Return AlAs Phonopy instance."""
         c = 42.4621905  # pm/V
-        chi2 = np.array([[[0, 0, 0], [0, 0, c], [0, 0, 0]], [[0, 0, c], [0, 0, 0], [0, 0, 0]],
-                         [[0, c, 0], [c, 0, 0], [0, 0, 0]]])
+        chi2 = np.array([[
+                [0, 0, 0],
+                [0, 0, c],
+                [0, 0, 0]],
+            [
+                [0, 0, c],
+                [0, 0, 0],
+                [0, 0, 0]
+            ],
+            [
+                [0, c, 0],
+                [c, 0, 0],
+                [0, 0, 0]
+            ]
+        ])
 
         a = 3.52026291e-02  # 1/Ang
-        raman = np.array([[[[0, 0, 0], [0, 0, -a], [0, -a, 0]], [[0, 0, -a], [0, 0, 0], [-a, 0, 0]],
-                           [[0, -a, 0], [-a, 0, 0], [0, 0, 0]]],
-                          [
-                              [[0, 0, 0], [0, 0, a], [0, a, 0]],
-                              [[0, 0, a], [0, 0, 0], [a, 0, 0]],
-                              [[0, a, 0], [a, 0, 0], [0, 0, 0]],
-                          ]])
+        raman = np.array([
+            [
+                [[0, 0, 0], [0, 0, -a], [0, -a, 0]],
+                [[0, 0, -a],[0, 0, 0],[-a, 0, 0]],
+                [[0, -a, 0], [-a, 0, 0],[0, 0, 0]],
+            ],
+            [
+                [[0, 0, 0], [0, 0, a], [0, a, 0]],
+                [[0, 0, a], [0, 0, 0], [a, 0, 0]],
+                [[0, a, 0], [a, 0, 0], [0, 0, 0]],
+            ]
+        ])
+
         return raman, chi2
 
     return _generate_third_rank_tensors
@@ -129,3 +149,64 @@ def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generat
         print('\n', '================================', '\n')
 
     assert np.abs(abs(alpha_comp) - abs(alpha_theo)) < 1e-3
+
+
+def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors, ndarrays_regression):
+    """Test the post-processing methods with data regression techniques."""
+    from aiida_vibroscopy.calculations.spectra_utils import (
+        compute_active_modes,
+        compute_complex_dielectric,
+        compute_polarization_vectors,
+        compute_raman_space_average,
+        compute_raman_susceptibility_tensors,
+    )
+
+    results = {}
+    ph = generate_phonopy_instance()
+    ph.symmetrize_force_constants()
+    raman, chi2 = generate_third_rank_tensors()
+
+    freqs, eigenvectors, _ = compute_active_modes(phonopy_instance=ph)
+    results['active_modes_freqs'] = freqs
+    results['active_modes_eigvecs'] = eigenvectors
+
+    freqs, eigenvectors , _ = compute_active_modes(phonopy_instance=ph, nac_direction=[0,0,1])
+    results['active_modes_nac_freqs'] = freqs
+    results['active_modes_nac_eigvecs'] = eigenvectors
+
+    alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2)
+    ints_hh, ints_hv = compute_raman_space_average(alpha)
+    results['raman_susceptibility_tensors'] = alpha
+    results['intensities_hh'] = ints_hh
+    results['intensities_hv'] = ints_hv
+
+    alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2, nac_direction=[0,0,1])
+    results['raman_susceptibility_tensors_nac'] = alpha
+
+    pols, _, _ = compute_polarization_vectors(ph)
+    results['polarization_vectors'] = pols
+
+    pols, _, _ = compute_polarization_vectors(ph, nac_direction=[0,0,1])
+    results['polarization_vectors_nac'] = pols
+
+    eps = compute_complex_dielectric(ph)
+    results['complex_dielectric'] = eps
+
+    eps = compute_complex_dielectric(ph, nac_direction=[0,0,1])
+    results['complex_dielectric_nac'] = eps
+
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))
+
+
+def test_generate_vibrational_data_from_forces(generate_vibrational_data_from_forces, ndarrays_regression):
+    """Test `generate_vibrational_data_from_phonopy`."""
+    vibro = generate_vibrational_data_from_forces()
+
+    results = {
+        'dielectric': vibro.dielectric,
+        'raman': vibro.raman_tensors,
+        'nlo': vibro.nlo_susceptibility,
+        'becs': vibro.born_charges,
+        'forces': vibro.forces,
+    }
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-8, rtol=1e-8))

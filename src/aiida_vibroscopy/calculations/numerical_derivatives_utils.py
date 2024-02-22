@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Literal
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -35,32 +34,31 @@ __all__ = (
     'compute_nac_parameters'
 )
 
+# def map_polarization(polarization: np.ndarray, cell: np.ndarray, sign: Literal[-1, 1]) -> np.ndarray:
+#     """Map the polarization within a quantum of polarization.
 
-def map_polarization(polarization: np.ndarray, cell: np.ndarray, sign: Literal[-1, 1]) -> np.ndarray:
-    """Map the polarization within a quantum of polarization.
+#     It maps P(dE) in [0, Pq] and P(-dE) in [-Pq, 0].
 
-    It maps P(dE) in [0, Pq] and P(-dE) in [-Pq, 0].
+#     :param polarization: (3,) vector in Cartesian coordinates, Ry atomic units
+#     :param cell: (3, 3) matrix cell in Cartesian coordinates
+#         (rows are lattice vectors, i.e. cell[0] = v1, ...)
+#     :param sign: sign (1 or -1) to select the side of the branch
+#     :return: (3,) vector in Cartesian coordinates, Ry atomic units
+#     """
+#     inv_cell = np.linalg.inv(cell)
+#     lengths = np.sqrt(np.sum(cell**2, axis=1)) / CONSTANTS.bohr_to_ang  # in Bohr
+#     volume = float(abs(np.dot(np.cross(cell[0], cell[1]), cell[2]))) / CONSTANTS.bohr_to_ang**3  # in Bohr^3
 
-    :param polarization: (3,) vector in Cartesian coordinates, Ry atomic units
-    :param cell: (3, 3) matrix cell in Cartesian coordinates
-        (rows are lattice vectors, i.e. cell[0] = v1, ...)
-    :param sign: sign (1 or -1) to select the side of the branch
-    :return: (3,) vector in Cartesian coordinates, Ry atomic units
-    """
-    inv_cell = np.linalg.inv(cell)
-    lengths = np.sqrt(np.sum(cell**2, axis=1)) / CONSTANTS.bohr_to_ang  # in Bohr
-    volume = float(abs(np.dot(np.cross(cell[0], cell[1]), cell[2]))) / CONSTANTS.bohr_to_ang**3  # in Bohr^3
+#     pol_quantum = np.sqrt(2) * lengths / volume
+#     pol_crys = lengths * np.dot(polarization, inv_cell)  # in Bohr
 
-    pol_quantum = np.sqrt(2) * lengths / volume
-    pol_crys = lengths * np.dot(polarization, inv_cell)  # in Bohr
+#     pol_branch = pol_quantum * (pol_crys // pol_quantum)
+#     pol_crys -= pol_branch
 
-    pol_branch = pol_quantum * (pol_crys // pol_quantum)
-    pol_crys -= pol_branch
+#     if sign < 0:
+#         pol_crys -= pol_quantum
 
-    if sign < 0:
-        pol_crys -= pol_quantum
-
-    return np.dot(pol_crys / lengths, cell)
+#     return np.dot(pol_crys / lengths, cell)
 
 
 def get_central_derivatives_coefficients(accuracy: int, order: int) -> list[int]:

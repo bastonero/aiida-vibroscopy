@@ -654,17 +654,17 @@ class VibrationalMixin:
             sum_rules=sum_rules,
         )
 
-    def run_normal_reflectivity_spectrum(self, axis: int, **kwargs) -> np.ndarray:
+    def run_normal_reflectivity_spectrum(self, q_direction: int, **kwargs) -> np.ndarray:
         """Return the normal reflectivity spectrum in the infrared regime.
 
-        :param axis: orthogonal axis index of the complex dielectric function tensor probed
+        :param q_direction: orthogonal direction index of the complex dielectric function tensor probed
         :param kwargs: see the arguments of
             :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.run_complex_dielectric_function`
         :return: (frequency points, reflectance value) shape :class:`numpy.ndarray`
         """
         complex_diel = self.run_complex_dielectric_function(**kwargs)
-
-        return np.abs((np.sqrt(complex_diel[axis, axis]) - 1) / (np.sqrt(complex_diel[axis, axis]) + 1))**2
+        q_eps_q = np.tensordot(q_direction, np.tensordot(complex_diel, q_direction, (1, 0)), (0, 0))
+        return np.abs((np.sqrt(q_eps_q) - 1) / (np.sqrt(q_eps_q) + 1))**2
 
     @staticmethod
     def get_available_quadrature_order_schemes():
