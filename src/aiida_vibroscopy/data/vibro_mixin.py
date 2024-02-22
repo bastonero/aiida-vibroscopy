@@ -184,7 +184,7 @@ class VibrationalMixin:
 
     def run_raman_susceptibility_tensors(
         self,
-        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        nac_direction: tuple[float, float, float] | None = None,
         with_nlo: bool = True,
         use_irreps: bool = True,
         degeneracy_tolerance: float = 1e-5,
@@ -220,11 +220,6 @@ class VibrationalMixin:
 
         :return: tuple of numpy.ndarray (Raman susc. tensors, frequencies, irreps labels)
         """
-        try:
-            nac_direction = nac_direction()
-        except TypeError:
-            pass
-
         if not isinstance(with_nlo, bool) or not isinstance(use_irreps, bool) or not isinstance(sum_rules, bool):
             raise TypeError('the input is not of the correct type')
 
@@ -254,7 +249,7 @@ class VibrationalMixin:
 
     def run_polarization_vectors(
         self,
-        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        nac_direction: tuple[float, float, float] | None = None,
         use_irreps: bool = True,
         degeneracy_tolerance: float = 1e-5,
         asr_sum_rules: bool = False,
@@ -289,10 +284,6 @@ class VibrationalMixin:
 
         :return: tuple of :class:`numpy.ndarray` (polarization vectors, frequencies, irreps labels)
         """
-        try:
-            nac_direction = nac_direction()
-        except TypeError:
-            pass
         if not isinstance(use_irreps, bool) or not isinstance(asr_sum_rules, bool):
             raise TypeError('the input is not of the correct type')
 
