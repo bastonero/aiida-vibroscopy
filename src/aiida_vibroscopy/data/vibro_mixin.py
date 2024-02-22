@@ -9,6 +9,8 @@
 """Mixin for aiida-vibroscopy DataTypes."""
 from __future__ import annotations
 
+from typing import Union
+
 import numpy as np
 
 from aiida_vibroscopy.calculations.spectra_utils import (
@@ -63,9 +65,7 @@ class VibrationalMixin:
             with Raman tensors we mean
             :math:`\frac{1}{\Omega}\frac{\partial \chi}{\partial u}`
 
-
         .. note::
-
             * Units in 1/Angstrom, normalized using the UNIT cell volume.
             * The shape should match the primitive cell.
             * Indices are as follows:
@@ -73,7 +73,6 @@ class VibrationalMixin:
                 2. Atomic displacement index.
                 3. Polarization index (i.e. referring to electric field derivative).
                 4. Same as 3.
-
 
         :param raman_tensors: (number of atoms in the primitive cell, 3, 3, 3) shape array
         :raises:
@@ -152,7 +151,7 @@ class VibrationalMixin:
         Inputs as in :func:`~aiida_vibroscopy.calculations.spectra_utils.compute_active_modes`
 
         :param nac_direction: (3,) shape list, indicating non analytical
-            direction in fractional reciprocal (primitive cell) space coordinates
+            direction in Cartesian coordinates
         :param selection_rule: str, can be `raman` or `ir`;
             it uses symmetry in the selection of the modes
             for a specific type of process.
@@ -201,8 +200,8 @@ class VibrationalMixin:
             * Raman susceptibility tensors: Anstrom/AMU
             * Frequencies: cm-1
 
-        :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
-            in reciprocal space; (3,) shape list or numpy.ndarray
+        :param nac_direction: non-analytical direction in Cartesian coordinates;
+            (3,) shape list or numpy.ndarray
         :param with_nlo: whether to use or not non-linear optical susceptibility
             correction (Froehlich term), defaults to True
         :param use_irreps: whether to use irreducible representations
@@ -272,8 +271,8 @@ class VibrationalMixin:
             * Frequencies:
                 cm-1
 
-        :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
-            in reciprocal space; space(3,) shape :class:`list` or :class:`numpy.ndarray`
+        :param nac_direction: non-analytical direction in Cartesian coordinates;
+            (3,) shape :class:`list` or :class:`numpy.ndarray`
         :param use_irreps: whether to use irreducible representations in the
             selection of modes, defaults to True
         :param asr_sum_rules: whether to apply acoustic sum rules to the force constants
@@ -334,10 +333,10 @@ class VibrationalMixin:
             * Frequencies: cm-1
 
         :param pol_incoming: light polarization vector of the incoming light
-            (laser) in crystal/fractional coordinates of the unitcell cell;
+            (laser) in Cartesian coordinates;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param pol_outgoing: light polarization vector of the outgoing light
-            (scattered) in crystal/fractional coordinates of the unitcell cell;
+            (scattered) in Cartesian coordinates;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param frequency_laser: laser frequency in nanometers
         :param temperature: temperature in Kelvin
@@ -348,7 +347,7 @@ class VibrationalMixin:
             * with_nlo: whether to use or not non-linear optical susceptibility
                 correction (Froehlich term), defaults to True
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (unitcell cell)
+                non-analytical direction in Cartesian coordinates
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -378,9 +377,11 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,) or pol_outgoing_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        cell = self.get_phonopy_instance().unitcell.cell
-        pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
-        pol_outgoing_cart = np.dot(cell.T, pol_outgoing_crystal)  # in Cartesian coordinates
+        # cell = self.get_phonopy_instance().unitcell.cell
+        # pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
+        # pol_outgoing_cart = np.dot(cell.T, pol_outgoing_crystal)  # in Cartesian coordinates
+        pol_incoming_cart = pol_incoming_crystal  # in Cartesian coordinates
+        pol_outgoing_cart = pol_outgoing_crystal  # in Cartesian coordinates
 
         raman_susceptibility_tensors, freqs, labels = self.run_raman_susceptibility_tensors(**kwargs)
 
@@ -420,7 +421,7 @@ class VibrationalMixin:
             * with_nlo: whether to use or not non-linear optical susceptibility
                 correction (Froehlich term), defaults to True
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (unitcell cell)
+                non-analytical direction in Cartesian coordinates
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -448,7 +449,7 @@ class VibrationalMixin:
             raman_hh, raman_hv = compute_raman_space_average(raman_susceptibility_tensors=raman_susceptibility_tensors)
 
         else:
-            cell = self.get_phonopy_instance().unitcell.cell
+            # cell = self.get_phonopy_instance().unitcell.cell
 
             scheme = LebedevScheme.from_order(quadrature_order)
             points = scheme.points.T
@@ -460,9 +461,9 @@ class VibrationalMixin:
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip(points, weights):
-                q_crystal = np.dot(cell, q)  # in reciprocal fractional/crystal coordinates
+                # q_crystal = np.dot(cell, q)  # in reciprocal fractional/crystal coordinates
                 q_tensors, q_freqs, q_labels = self.run_raman_susceptibility_tensors(
-                    nac_direction=q_crystal,
+                    nac_direction=q,
                     **kwargs,
                 )
 
@@ -486,13 +487,13 @@ class VibrationalMixin:
             * Frequencies: cm^-1
 
         :param pol_incoming: light polarization vector of the
-            incident beam light in crystal coordinates of the unitcell cell;
+            incident beam light in Cartesian coordinates;
             :class:`list` or :class:`numpy.ndarray` of shape (3,)
         :param kwargs: keys of
             :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
 
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (unitcell cell)
+                non-analytical direction in Cartesian coordinates
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True
@@ -527,8 +528,9 @@ class VibrationalMixin:
         if pol_incoming_crystal.shape != (3,):
             raise ValueError('the array is not of the correct shape')
 
-        cell = self.get_phonopy_instance().unitcell.cell
-        pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
+        # cell = self.get_phonopy_instance().unitcell.cell
+        # pol_incoming_cart = np.dot(cell.T, pol_incoming_crystal)  # in Cartesian coordinates
+        pol_incoming_cart = pol_incoming_crystal  # in Cartesian coordinates
 
         pol_vectors, freqs, labels = self.run_polarization_vectors(**kwargs)
 
@@ -551,7 +553,7 @@ class VibrationalMixin:
             :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.compute_polarization_vectors` method
 
             * nac_direction:
-                non-analytical direction in reciprocal space coordinates (unitcell cell)
+                non-analytical direction in Cartesian coordinates
             * use_irreps:
                 whether to use irreducible representations
                 in the selection of modes, defaults to True; bool, optional
@@ -591,9 +593,9 @@ class VibrationalMixin:
             kwargs.pop('nac_direction', None)
 
             for q, ws in zip(points, weights):
-                cell = self.get_phonopy_instance().unitcell.cell
-                q_crystal = np.dot(cell.T, q)  # in reciprocal fractional/Crystal coordinates
-                q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction': q_crystal})
+                # cell = self.get_phonopy_instance().unitcell.cell
+                # q_crystal = np.dot(cell, q)  # in reciprocal fractional/Crystal coordinates
+                q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction': q})
 
                 for pol, f, l in zip(q_pol, q_freqs, q_labels):
                     ir_intensities.append(ws * np.dot(pol, pol))
@@ -601,6 +603,68 @@ class VibrationalMixin:
                     labels.append(l)
 
         return (np.array(ir_intensities) / np.array(freqs), np.array(freqs), labels)
+
+    def run_complex_dielectric_function(
+        self,
+        freq_range: Union[str, np.ndarray] = 'auto',
+        gammas: float | list[float] = 12.0,
+        nac_direction: None | list[float, float, float] = None,
+        use_irreps: bool = True,
+        degeneracy_tolerance: float = 1e-5,
+        sum_rules: bool = False,
+        **kwargs,
+    ) -> np.ndarray:
+        """Return the frequency dependent complex dielectric function (tensor).
+
+        :param freq_range: frequency range in cm^-1; set to `auto` for automatic choice
+        :param gammas: list or single value of broadenings, i.e. full width at half maximum (FWHM)
+        :param nac_direction: (3,) shape list, indicating non analytical
+            direction in Cartesian coordinates
+        :param use_irreps: whether to use irreducible representations
+            in the selection of modes, defaults to True
+        :param degeneracy_tolerance: degeneracy tolerance
+            for irreducible representation
+        :param sum_rules: whether to apply charge neutrality to effective charges
+        :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+
+            * subtract_residual_forces:
+                whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac:
+                whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+
+        :return: (3, 3, num steps) shape :class:`numpy.ndarray`, `num steps` refers to the
+            number of frequency steps where the complex dielectric function is evaluated
+        """
+        from aiida_vibroscopy.calculations.spectra_utils import compute_complex_dielectric
+
+        phonopy_instance = self.get_phonopy_instance(**kwargs)
+
+        if phonopy_instance.force_constants is None:
+            phonopy_instance.produce_force_constants()
+
+        return compute_complex_dielectric(
+            phonopy_instance=phonopy_instance,
+            freq_range=freq_range,
+            gammas=gammas,
+            nac_direction=nac_direction,
+            use_irreps=use_irreps,
+            degeneracy_tolerance=degeneracy_tolerance,
+            sum_rules=sum_rules,
+        )
+
+    def run_normal_reflectivity_spectrum(self, axis: int, **kwargs) -> np.ndarray:
+        """Return the normal reflectivity spectrum in the infrared regime.
+
+        :param axis: orthogonal axis index of the complex dielectric function tensor probed
+        :param kwargs: see the arguments of
+            :func:`~aiida_vibroscopy.data.vibro_mixing.VibrationalMixin.run_complex_dielectric_function`
+        :return: (frequency points, reflectance value) shape :class:`numpy.ndarray`
+        """
+        complex_diel = self.run_complex_dielectric_function(**kwargs)
+
+        return np.abs((np.sqrt(complex_diel[axis, axis]) - 1) / (np.sqrt(complex_diel[axis, axis]) + 1))**2
 
     @staticmethod
     def get_available_quadrature_order_schemes():

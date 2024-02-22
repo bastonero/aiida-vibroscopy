@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Literal
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -33,6 +34,33 @@ __all__ = (
     'get_central_derivatives_coefficients', 'central_derivatives_calculator', 'compute_susceptibility_derivatives',
     'compute_nac_parameters'
 )
+
+
+def map_polarization(polarization: np.ndarray, cell: np.ndarray, sign: Literal[-1, 1]) -> np.ndarray:
+    """Map the polarization within a quantum of polarization.
+
+    It maps P(dE) in [0, Pq] and P(-dE) in [-Pq, 0].
+
+    :param polarization: (3,) vector in Cartesian coordinates, Ry atomic units
+    :param cell: (3, 3) matrix cell in Cartesian coordinates
+        (rows are lattice vectors, i.e. cell[0] = v1, ...)
+    :param sign: sign (1 or -1) to select the side of the branch
+    :return: (3,) vector in Cartesian coordinates, Ry atomic units
+    """
+    inv_cell = np.linalg.inv(cell)
+    lengths = np.sqrt(np.sum(cell**2, axis=1)) / CONSTANTS.bohr_to_ang  # in Bohr
+    volume = float(abs(np.dot(np.cross(cell[0], cell[1]), cell[2]))) / CONSTANTS.bohr_to_ang**3  # in Bohr^3
+
+    pol_quantum = np.sqrt(2) * lengths / volume
+    pol_crys = lengths * np.dot(polarization, inv_cell)  # in Bohr
+
+    pol_branch = pol_quantum * (pol_crys // pol_quantum)
+    pol_crys -= pol_branch
+
+    if sign < 0:
+        pol_crys -= pol_quantum
+
+    return np.dot(pol_crys / lengths, cell)
 
 
 def get_central_derivatives_coefficients(accuracy: int, order: int) -> list[int]:
@@ -174,7 +202,7 @@ def compute_susceptibility_derivatives(
         * Units are pm/V for non-linear optical susceptibility
         * Raman tensors indecis: (atomic,  atomic displacement, electric field, electric field)
 
-    :return: dictionary with :class:`~aiida.orm.ArrayData` having keys:
+    :return: dictionaries of numerical accuracies with :class:`~aiida.orm.ArrayData` having keys:
         * `raman_tensors` containing (num_atoms, 3, 3, 3) arrays;
         * `nlo_susceptibility` containing (3, 3, 3) arrays;
         * `units` as :class:`~aiida.orm.Dict` containing the units of the tensors.
@@ -211,10 +239,11 @@ def compute_susceptibility_derivatives(
         data = get_trajectories_from_symmetries(
             preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
         )
+    else:
+        data = raw_data
 
     # Conversion factors
-    # dchi_factor = evang_to_rybohr * CONSTANTS.bohr_to_ang**2  # --> angstrom^2
-    dchi_factor = (evang_to_rybohr * CONSTANTS.bohr_to_ang**2) / volume  # --> angstrom^-1
+    dchi_factor = (evang_to_rybohr * CONSTANTS.bohr_to_ang**2) / volume  # --> 4*pi / angstrom
     chi2_factor = 0.5 * (4 * np.pi) * 100 / (volume_au_units * efield_au_to_si)  # --> pm/Volt
 
     # Variables
@@ -403,6 +432,8 @@ def compute_nac_parameters(
         data = get_trajectories_from_symmetries(
             preprocess_data=preprocess_data, data=raw_data, data_0=data_0, accuracy_order=accuracy_order.value
         )
+    else:
+        data = raw_data
 
     # Conversion factors
     bec_factor = evang_to_rybohr / np.sqrt(2)

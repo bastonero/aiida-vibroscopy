@@ -21,6 +21,8 @@ def test_methods(generate_vibrational_data_from_forces):
     vibrational_data.run_powder_raman_intensities()
     vibrational_data.run_single_crystal_ir_intensities([1, 0, 0])
     vibrational_data.run_powder_ir_intensities()
+    vibrational_data.run_complex_dielectric_function()
+    vibrational_data.run_normal_reflectivity_spectrum(0)
 
 
 @pytest.mark.usefixtures('aiida_profile')

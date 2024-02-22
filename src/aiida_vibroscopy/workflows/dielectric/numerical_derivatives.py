@@ -123,7 +123,7 @@ class NumericalDerivativesWorkChain(WorkChain):
             validator=validate_positive,
         )
         spec.input(
-            'central_difference.diagonal_scale', valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)),
+            'central_difference.diagonal_scale', valid_type=orm.Float, default=lambda: orm.Float(1./np.sqrt(2)),
             help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).',
             validator=validate_positive,
         )

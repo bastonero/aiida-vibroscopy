@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import List, Tuple, Union
 
 from aiida.orm import TrajectoryData
 from aiida_phonopy.data import PreProcessData
@@ -28,8 +29,8 @@ __all__ = (
 
 
 def tensor_3rd_rank_transformation(
-    rot: list[tuple[float, float, float]] | np.ndarray,
-    mat: list[list[tuple[float, float, float]]] | np.ndarray,
+    rot: Union[list[tuple[float, float, float]], np.ndarray],
+    mat: Union[list[list[tuple[float, float, float]]], np.ndarray],
 ) -> np.ndarray:
     """Tensor transformation.
 
@@ -41,9 +42,9 @@ def tensor_3rd_rank_transformation(
 
 
 def symmetrize_3nd_rank_tensor(
-    tensor: list[list[tuple[float, float, float]]] | np.ndarray,
-    symmetry_operations: tuple[list[list[float, float, float]]] | np.ndarray,
-    lattice: list[tuple[float, float, float]] | np.ndarray,
+    tensor: Union[list[list[tuple[float, float, float]]], np.ndarray],
+    symmetry_operations: Union[tuple[list[list[float, float, float]]], np.ndarray],
+    lattice: Union[list[tuple[float, float, float]], np.ndarray],
 ) -> np.ndarray:
     """Symmetrize a 3rd rank tensor using symmetry operations in the lattice.
 
@@ -62,8 +63,8 @@ def symmetrize_3nd_rank_tensor(
 
 def take_average_of_dph0(
     dchi_ph0: np.ndarray,
-    rotations: list[np.ndarray],
-    translations: list[np.ndarray],
+    rotations: List[np.ndarray],
+    translations: List[np.ndarray],
     cell: np.ndarray,
     symprec: float,
 ) -> np.ndarray:
@@ -106,9 +107,9 @@ def symmetrize_susceptibility_derivatives(
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray,
     ucell: np.ndarray,
-    primitive_matrix: np.ndarray | None = None,
-    primitive: np.ndarray | None = None,
-    supercell_matrix: np.ndarray | None = None,
+    primitive_matrix: Union[np.ndarray, None] = None,
+    primitive: Union[np.ndarray, None] = None,
+    supercell_matrix: Union[np.ndarray, None] = None,
     symprec: float = 1e-5,
     is_symmetry: bool = True,
 ) -> tuple(np.ndarray, np.ndarray):
@@ -187,7 +188,7 @@ def symmetrize_susceptibility_derivatives(
 def get_connected_fields_with_operations(
     phonopy_instance: Phonopy,
     field_direction: tuple[int, int, int],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return symmetry equivalent electric field direction (always with zeros ones).
 
     :param field_direction: (3,) shape list
