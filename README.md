@@ -1,12 +1,18 @@
 # aiida-vibroscopy
-[![PyPI version](https://badge.fury.io/py/aiida-vibroscopy.svg)](https://badge.fury.io/py/aiida-vibroscopy)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy)
-[![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
-[![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
 
 AiiDA plugin that uses finite displacements and fields
-to compute phonon properties, dielectric and
-Born effective charges tensors, Infrared and Raman spectra.
+to compute phonon properties, dielectric, Born effective charges,
+ Raman and non-linear optical susceptibility tensors,
+coming with lots of post-processing tools to compute infrared and
+Raman spectra in different settings.
+
+|    | |
+|-----|----------------------------------------------------------------------------|
+|Latest release| [![PyPI version](https://badge.fury.io/py/aiida-vibroscopy.svg)](https://badge.fury.io/py/aiida-vibroscopy)[![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy) |
+|Getting help| [![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/) [![Discourse status](https://img.shields.io/discourse/status?server=https%3A%2F%2Faiida.discourse.group%2F)](https://aiida.discourse.group/)
+|Build status| [![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions) [![Coverage Status](https://codecov.io/gh/bastonero/aiida-vibroscopy/branch/main/graph/badge.svg)](https://codecov.io/gh/bastonero/aiida-vibroscopy) |
+|Activity| [![PyPI-downloads](https://img.shields.io/pypi/dm/aiida-vibroscopy.svg?style=flat)](https://pypistats.org/packages/aiida-vibroscopy) [![Commit Activity](https://img.shields.io/github/commit-activity/m/bastonero/aiida-vibroscopy.svg)](https://github.com/bastonero/aiida-vibroscopy/pulse)
+|Community|  [![Discourse](https://img.shields.io/discourse/topics?server=https%3A%2F%2Faiida.discourse.group%2F&logo=discourse)](https://aiida.discourse.group/)
 
 ## Installation
 To install from PyPI, simply execute:
