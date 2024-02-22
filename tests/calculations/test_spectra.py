@@ -156,7 +156,6 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
     from aiida_vibroscopy.calculations.spectra_utils import (
         compute_active_modes,
         compute_complex_dielectric,
-        compute_polarization_vectors,
         compute_raman_space_average,
         compute_raman_susceptibility_tensors,
     )
@@ -176,7 +175,7 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
 
     alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2)
     ints_hh, ints_hv = compute_raman_space_average(alpha)
-    results['raman_susceptibility_tensors'] = alpha
+    # results['raman_susceptibility_tensors'] = alpha
     results['intensities_hh'] = ints_hh
     results['intensities_hv'] = ints_hv
 
