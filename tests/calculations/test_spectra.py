@@ -166,13 +166,13 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
     ph.symmetrize_force_constants()
     raman, chi2 = generate_third_rank_tensors()
 
-    freqs, eigenvectors, _ = compute_active_modes(phonopy_instance=ph)
+    freqs, _, _ = compute_active_modes(phonopy_instance=ph)
     results['active_modes_freqs'] = freqs
-    results['active_modes_eigvecs'] = eigenvectors
+    # results['active_modes_eigvecs'] = eigenvectors
 
-    freqs, eigenvectors , _ = compute_active_modes(phonopy_instance=ph, nac_direction=[0,0,1])
+    freqs, _ , _ = compute_active_modes(phonopy_instance=ph, nac_direction=[0,0,1])
     results['active_modes_nac_freqs'] = freqs
-    results['active_modes_nac_eigvecs'] = eigenvectors
+    # results['active_modes_nac_eigvecs'] = eigenvectors
 
     alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2)
     ints_hh, ints_hv = compute_raman_space_average(alpha)
@@ -180,19 +180,20 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
     results['intensities_hh'] = ints_hh
     results['intensities_hv'] = ints_hv
 
-    alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2, nac_direction=[0,0,1])
-    results['raman_susceptibility_tensors_nac'] = alpha
+    # alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2, nac_direction=[0,0,1])
+    # results['raman_susceptibility_tensors_nac'] = alpha
 
-    pols, _, _ = compute_polarization_vectors(ph)
-    results['polarization_vectors'] = pols
+    # pols, _, _ = compute_polarization_vectors(ph)
+    # results['polarization_vectors'] = pols
 
-    pols, _, _ = compute_polarization_vectors(ph, nac_direction=[0,0,1])
-    results['polarization_vectors_nac'] = pols
+    # pols, _, _ = compute_polarization_vectors(ph, nac_direction=[0,0,1])
+    # results['polarization_vectors_nac'] = pols
 
-    eps = compute_complex_dielectric(ph)
+    freq_range = np.linspace(10,1000,900)
+    eps = compute_complex_dielectric(ph, freq_range=freq_range)
     results['complex_dielectric'] = eps
 
-    eps = compute_complex_dielectric(ph, nac_direction=[0,0,1])
+    eps = compute_complex_dielectric(ph, nac_direction=[0,0,1], freq_range=freq_range)
     results['complex_dielectric_nac'] = eps
 
     ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))

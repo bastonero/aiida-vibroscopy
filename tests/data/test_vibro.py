@@ -13,6 +13,8 @@ import pytest
 @pytest.mark.usefixtures('aiida_profile')
 def test_methods(generate_vibrational_data_from_forces, ndarrays_regression):
     """Test `VibrationalMixin` methods."""
+    import numpy as np
+
     vibrational_data = generate_vibrational_data_from_forces()
 
     results = {}
@@ -23,8 +25,11 @@ def test_methods(generate_vibrational_data_from_forces, ndarrays_regression):
     results['powder_raman_intensities'] = vibrational_data.run_powder_raman_intensities()[0]
     results['single_crystal_ir_intensities'] = vibrational_data.run_single_crystal_ir_intensities([1, 0, 0])[0]
     results['powder_ir_intensities'] = vibrational_data.run_powder_ir_intensities()[0]
-    results['complex_dielectric_function'] = vibrational_data.run_complex_dielectric_function()
-    results['normal_reflectivity_spectrum'] = vibrational_data.run_normal_reflectivity_spectrum([0, 0, 1])
+    freq_range = np.arange(10, 1000, 10)
+    results['complex_dielectric_function'] = vibrational_data.run_complex_dielectric_function(freq_range=freq_range)
+    results['normal_reflectivity_spectrum'] = vibrational_data.run_normal_reflectivity_spectrum([
+        0, 0, 1
+    ], **dict(freq_range=freq_range))
 
     ndarrays_regression.check(results)
 
