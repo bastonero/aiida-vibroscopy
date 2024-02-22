@@ -68,4 +68,13 @@ jobs:
         -   name: Run pytest
             env:
                 AIIDA_WARN_v3: 1
-            run: pytest -sv tests
+            run: pytest -sv --cov aiida_vibroscopy tests
+
+        -   name: Upload to Codecov
+            if: matrix.python-version == 3.10
+            uses: codecov/codecov-action@v3
+            with:
+                token: ${{ secrets.CODECOV_TOKEN }}
+                name: pytests-lammps
+                flags: pytests
+                fail_ci_if_error: true
