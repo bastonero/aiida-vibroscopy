@@ -7,4 +7,4 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """AiiDA plugin for vibrational spectoscopy using Quantum ESPRESSO."""
-__version__ = '1.0.2'
+__version__ = '1.1.0'
