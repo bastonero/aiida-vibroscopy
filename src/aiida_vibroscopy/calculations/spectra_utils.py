@@ -66,14 +66,15 @@ def compute_active_modes(
     if selection_rule not in ('raman', 'ir', None):
         raise ValueError('`selection_rule` can only be `ir` or `raman`.')
 
-    nac_dir = [0, 0, 0] if nac_direction is None else np.array(nac_direction)
+    q_reduced = None
 
     # Notation: columns convention; k = reciprocal; x = direct space; (p) = primitive; (u) = unitcell
     # C(p) = C(u) * M  ==> M = C(u)^-1 * C(p)
     # x(p) = M^-1 x(u) ==> k(p) = M^T k(u);
     # q_reduced = np.dot(phonopy_instance.primitive_matrix.T, nac_dir)  # in reduced/crystal (PRIMITIVE) coordinates
-    q_reduced = np.dot(phonopy_instance.primitive.cell,
-                       nac_dir) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
+    if nac_direction is not None:
+        q_reduced = np.dot(phonopy_instance.primitive.cell,
+                           nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
 
     # Step 1 - set the irreducible representations and the phonons
     phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=q_reduced, degeneracy_tolerance=degeneracy_tolerance)
