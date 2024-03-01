@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Union
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -17,6 +18,7 @@ from aiida.plugins import DataFactory
 from aiida_phonopy.data.preprocess import PreProcessData
 from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
 import numpy as np
+from phonopy import Phonopy
 
 from aiida_vibroscopy.common import UNITS
 
@@ -26,6 +28,7 @@ __all__ = (
     'compute_raman_space_average',
     'compute_raman_susceptibility_tensors',
     'compute_polarization_vectors',
+    'compute_complex_dielectric',
     'get_supercells_for_hubbard',
     'elaborate_susceptibility_derivatives',
     'generate_vibrational_data_from_forces',
@@ -39,9 +42,9 @@ def boson_factor(frequency: float, temperature: float) -> float:
 
 
 def compute_active_modes(
-    phonopy_instance,
+    phonopy_instance: Phonopy,
     degeneracy_tolerance: float = 1.e-5,
-    nac_direction: None | list[float, float, float] = None,
+    nac_direction: list[float, float, float] | None = None,
     selection_rule: str | None = None,
     sr_thr: float = 1e-4,
     imaginary_thr: float = -5.0,
@@ -51,7 +54,7 @@ def compute_active_modes(
     Raman and infrared active modes can be extracted using `selection_rule`.
 
     :param nac_direction: (3,) shape list, indicating non analytical
-        direction in fractional reciprocal (unitcell cell) space coordinates
+        direction in Cartesian coordinates
     :param selection_rule: str, can be `raman` or `ir`, it uses symmetry in
         the selection of the modes for a specific type of process
     :param sr_thr: float, threshold for selection rule (the analytical value is 0)
@@ -63,11 +66,21 @@ def compute_active_modes(
     if selection_rule not in ('raman', 'ir', None):
         raise ValueError('`selection_rule` can only be `ir` or `raman`.')
 
+    q_reduced = None
+
+    # Notation: columns convention; k = reciprocal; x = direct space; (p) = primitive; (u) = unitcell
+    # C(p) = C(u) * M  ==> M = C(u)^-1 * C(p)
+    # x(p) = M^-1 x(u) ==> k(p) = M^T k(u);
+    # q_reduced = np.dot(phonopy_instance.primitive_matrix.T, nac_dir)  # in reduced/crystal (PRIMITIVE) coordinates
+    if nac_direction is not None:
+        q_reduced = np.dot(phonopy_instance.primitive.cell,
+                           nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
+
     # Step 1 - set the irreducible representations and the phonons
-    phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=nac_direction, degeneracy_tolerance=degeneracy_tolerance)
+    phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=q_reduced, degeneracy_tolerance=degeneracy_tolerance)
     irreps = phonopy_instance.irreps
 
-    phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=nac_direction, with_eigenvectors=True)
+    phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
     frequencies = phonopy_instance.qpoints.frequencies[0] * UNITS.thz_to_cm
     eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
 
@@ -161,14 +174,15 @@ def compute_raman_space_average(raman_susceptibility_tensors: np.ndarray) -> tup
 
         intensities_hh.append((10 * G0 + 4 * G2) / 30)
         intensities_hv.append((5 * G1 + 3 * G2) / 30)
+
     return (np.array(intensities_hh), np.array(intensities_hv))
 
 
 def compute_raman_susceptibility_tensors(
-    phonopy_instance,
+    phonopy_instance: Phonopy,
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray = None,
-    nac_direction: tuple[float, float, float] = lambda: (0, 0, 0),
+    nac_direction: list[float, float, float] | None = None,
     use_irreps: bool = True,
     degeneracy_tolerance: float = 1e-5,
     sum_rules: bool = False,
@@ -176,11 +190,11 @@ def compute_raman_susceptibility_tensors(
     """Return the Raman susceptibility tensors, frequencies (cm-1) and labels.
 
     .. note::
-        * Units of Raman susceptibility tensor are (Angstrom/AMU)^(1/2)
+        * Units of Raman susceptibility tensor are (Angstrom/4pi/AMU)^(1/2)
         * Unitcell volume for Raman tensor as normalization (in case non-primitive cell was used).
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in reciprocal space coordinates (unitcell cell)
+    :param nac_direction: non-analytical direction in Cartesian coordinates
     :param raman_tensors: dChi/du in Cartesian coordinates (in 1/Angstrom)
     :param nlo_susceptibility: non linear optical susceptibility
         in Cartesian coordinates (in pm/V)
@@ -192,18 +206,15 @@ def compute_raman_susceptibility_tensors(
 
     :return: tuple of numpy.ndarray (Raman susc. tensors, frequencies, labels)
     """
-    nac_direction = np.array(nac_direction)
     raman_tensors = deepcopy(raman_tensors)
-
-    if nac_direction.shape != (3,):
-        raise ValueError('the array is not of the correct shape')
 
     volume = phonopy_instance.unitcell.volume
     sqrt_volume = np.sqrt(volume)
     raman_tensors *= volume
 
-    rcell = np.linalg.inv(phonopy_instance.unitcell.cell).T  # as rows
-    q_direction = np.dot(rcell.T, nac_direction)  # in Cartesian coordinates
+    # rcell = np.linalg.inv(phonopy_instance.unitcell.cell) # as columns
+    # q_cartesian = np.dot(rcell, nac_direction)  # in Cartesian coordinates
+    q_cartesian = np.zeros((3)) if nac_direction is None else np.array(nac_direction)
 
     selection_rule = 'raman' if use_irreps else None
 
@@ -213,7 +224,7 @@ def compute_raman_susceptibility_tensors(
 
     freqs, neigvs, labels = compute_active_modes(
         phonopy_instance=phonopy_instance,
-        nac_direction=nac_direction,
+        nac_direction=q_cartesian,
         degeneracy_tolerance=degeneracy_tolerance,
         selection_rule=selection_rule
     )
@@ -228,7 +239,7 @@ def compute_raman_susceptibility_tensors(
     # The contraction is performed over I and k, resulting in (n, a, b) Raman tensors.
     raman_susceptibility_tensors = np.tensordot(neigvs, raman_tensors, axes=([1, 2], [0, 1]))
 
-    if nlo_susceptibility is not None and q_direction.nonzero()[0].tolist():
+    if nlo_susceptibility is not None and q_cartesian.nonzero()[0].tolist():
         borns = phonopy_instance.nac_params['born']
         dielectric = phonopy_instance.nac_params['dielectric']
         # -8 pi (Z.q/q.epsilon.q)[I,k] Chi(2).q [a,b] is the correction to dph0.
@@ -241,17 +252,17 @@ def compute_raman_susceptibility_tensors(
         # !!! ---------------------- !!!
         #    Here we can extend to 1/2D models.
         # !!! ---------------------- !!!
-        dielectric_term = np.dot(np.dot(dielectric, q_direction), q_direction)
+        dielectric_term = np.dot(np.dot(dielectric, q_cartesian), q_cartesian)
 
         ### DEBUG
         # print("\n", "================================", "\n")
         # print("DEBUG")
-        # print("q dir cart: ", q_direction)
+        # print("q dir cart: ", q_cartesian)
         # print("nac: ", nac_direction)
         ### DEBUG
 
         # Z*.q
-        borns_term_dph0 = np.tensordot(borns, q_direction, axes=(1, 0))  # (num atoms, 3) | (I, k)
+        borns_term_dph0 = np.tensordot(borns, q_cartesian, axes=(1, 0))  # (num atoms, 3) | (I, k)
         borns_term = np.tensordot(borns_term_dph0, neigvs, axes=([0, 1], [1, 2]))  # (num modes) | (n)
 
         ### DEBUG
@@ -259,7 +270,7 @@ def compute_raman_susceptibility_tensors(
         ### DEBUG
 
         # Chi(2).q
-        nlo_term = np.tensordot(nlo_susceptibility, q_direction, axes=(2, 0))  # (3, 3) | (a, b)
+        nlo_term = np.tensordot(nlo_susceptibility, q_cartesian, axes=(2, 0))  # (3, 3) | (a, b)
 
         ### DEBUG
         # print("Nlo term: ", nlo_term.round(5))
@@ -280,8 +291,8 @@ def compute_raman_susceptibility_tensors(
 
 
 def compute_polarization_vectors(
-    phonopy_instance,
-    nac_direction: list[float, float, float] = lambda: [0, 0, 0],
+    phonopy_instance: Phonopy,
+    nac_direction: list[float, float, float] | None = None,
     use_irreps: bool = True,
     degeneracy_tolerance: float = 1e-5,
     sum_rules: bool = False,
@@ -292,8 +303,7 @@ def compute_polarization_vectors(
     .. note:: the unite for polarization vectors are in (debey/angstrom)/sqrt(AMU)
 
     :param phonopy_instance: Phonopy instance with non-analytical constants included
-    :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
-        in reciprocal space
+    :param nac_direction: non-analytical direction in Cartesian coordinates
     :param use_irreps: whether to use irreducible representations
         in the selection of modes, defaults to True
     :param degeneracy_tolerance: degeneracy tolerance
@@ -329,6 +339,85 @@ def compute_polarization_vectors(
     pol_vectors = UNITS.debey_ang * np.tensordot(neigvs, borns, axes=([1, 2], [0, 2]))  # in (D/ang)/sqrt(AMU)
 
     return (pol_vectors, freqs, labels)
+
+
+def compute_complex_dielectric(
+    phonopy_instance: Phonopy,
+    freq_range: Union[str, np.ndarray] = 'auto',
+    gammas: float | list[float] = 12.0,
+    nac_direction: None | list[float, float, float] = None,
+    use_irreps: bool = True,
+    degeneracy_tolerance: float = 1e-5,
+    sum_rules: bool = False,
+) -> np.ndarray:
+    """Return the frequency dependent complex dielectric function (tensor).
+
+    :param freq_range: frequency range in cm^-1; set to `auto` for automatic choice
+    :param gammas: list or single value of broadenings, i.e. full width at half maximum (FWHM)
+    :param nac_direction: (3,) shape list, indicating non analytical
+        direction in Cartesian coordinates
+    :param use_irreps: whether to use irreducible representations
+        in the selection of modes, defaults to True
+    :param degeneracy_tolerance: degeneracy tolerance
+        for irreducible representation
+    :param sum_rules: whether to apply charge neutrality to effective charges
+
+    :return: (3, 3, num steps) shape :class:`numpy.ndarray`, `num steps` refers to the
+        number of frequency steps where the complex dielectric function is evaluated
+    """
+    from phonopy import units
+    from qe_tools import CONSTANTS
+
+    prefactor = 4 * np.pi * units.VaspToCm**2 * 2. * CONSTANTS.ry_to_ev * CONSTANTS.bohr_to_ang
+
+    polarizations, frequencies, _ = compute_polarization_vectors(
+        phonopy_instance=phonopy_instance,
+        nac_direction=nac_direction,
+        use_irreps=use_irreps,
+        degeneracy_tolerance=degeneracy_tolerance,
+        sum_rules=sum_rules
+    )
+
+    if isinstance(gammas, float):
+        sigmas = [gammas for _ in frequencies]
+    elif isinstance(gammas, (list, np.ndarray)):
+        if len(gammas) != len(frequencies):
+            raise ValueError("length of `gammas` and number of frequencies don't match")
+        sigmas = deepcopy(gammas)
+    else:
+        sigmas = [float(gammas) for _ in frequencies]
+
+    if isinstance(freq_range, str):
+        xi = max(0, frequencies.min() - 200)
+        xf = frequencies.max() + 200
+        freq_range = np.arange(xi, xf, 1.)
+
+    polarizations /= UNITS.debey_ang
+    oscillator = np.zeros((3, 3))
+
+    oscillators = []
+    for pol, freq in zip(polarizations, frequencies):
+        oscillators.append(np.outer(pol, pol))
+        oscillator += np.outer(pol, pol) / (freq * freq)
+
+    oscillators = np.array(oscillators)
+
+    complex_diel = np.zeros((3, 3, freq_range.shape[0]), dtype=np.complex128)
+    for n, osc in enumerate(oscillators):
+        for i1 in range(3):
+            for i2 in range(3):
+                complex_diel[i1, i2] += (
+                    np.array(osc[i1, i2]) / (
+                        +np.array(frequencies[n])**2  # omega_n^2
+                        - np.array(freq_range)**2  # - omega^2
+                        - np.array(freq_range) * sigmas[n] * complex(1j)  # -i eta_n omega
+                    )
+                )
+
+    diel = phonopy_instance.nac_params['dielectric']
+    diel_infinity = np.tensordot(diel, np.ones(freq_range.shape[0]), axes=0)
+
+    return diel_infinity + prefactor * (complex_diel) / phonopy_instance.unitcell.volume
 
 
 @calcfunction
