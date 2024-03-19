@@ -53,8 +53,9 @@ by a person or an entity engaged in the commercial use, application or
 exploitation of works similar to the PROGRAM.
 
 5. LICENSEE agrees that he/she shall make the following acknowledgement in
-publications resulting from the use of the PROGRAM: "Lorenzo Bastonero and Nicola
-Marzari, Automated all-functionals infrared and Raman spectra, arXiv:2308.04308";
+publications resulting from the use of the PROGRAM: "Lorenzo Bastonero and
+Nicola Marzari, Automated all-functionals infrared and Raman spectra,
+npj Computational Materials 10, 55 (2024), DOI: 10.1038/s41524-024-01236-3";
 "Sebastiaan. P. Huber, Spyros Zoupanos, Martin Uhrin, Leopold Talirz, Leonid
 Kahle, Rico Häuselmann, Dominik Gresch, Tiziano Müller, Aliaksandr V.
 Yakutovich, Casper W. Andersen, Francisco F. Ramirez, Carl S. Adorf, Fernando
