@@ -144,7 +144,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             non_db=True,
             validator=cls._validate_properties,
             help=(
-                'Valid inputs are: \n \n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
+                'Valid inputs are:'+'\n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
             )
         )
         spec.input(

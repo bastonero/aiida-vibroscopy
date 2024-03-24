@@ -49,15 +49,15 @@ class NumericalDerivativesWorkChain(WorkChain):
 
     To understand, let's review the approach.In central differencs approach
     we need the evaluation of the function at the value we want
-    the derivative (in our case at :math:`\mathcal{E}=0`,
+    the derivative (in our case at :math:`\\mathcal{E}=0`,
     E is the electric field), and at
     displaced positions from this value.
     The evaluation of the function at these points will
     have weights (or coefficients), which depend on order and accuracy.
     For example:
 
-    - :math:`\frac{df}{dx} = \frac{ 0.5 \cdot f(+1.0 \cdot h) -0.5 \cdot f(-1.0 \cdot h) }{h} +\mathcal{O}(h^2)`
-    - :math:`\frac{d^2 f}{dx^2} = \frac{ 1.0 \cdot f(+1.0 \cdot h) -2.0 \cdot f(0. \cdot h) +1.0 \cdot f(-1.0 \cdot h) }{h^2} +\mathcal{O}(h^2)`
+    - :math:`\\frac{df}{dx} = \\frac{ 0.5 \\cdot f(+1.0 \\cdot h) -0.5 \\cdot f(-1.0 \\cdot h) }{h} +\\mathcal{O}(h^2)`
+    - :math:`\\frac{d^2 f}{dx^2} = \\frac{ 1.0 \\cdot f(+1.0 \\cdot h) -2.0 \\cdot f(0. \\cdot h) +1.0 \\cdot f(-1.0 \\cdot h) }{h^2} +\\mathcal{O}(h^2)`
 
     Referring to the coefficients for each step as :math:`c_i`,
     where `i` is an integer, our convention is
@@ -71,7 +71,7 @@ class NumericalDerivativesWorkChain(WorkChain):
     | ...
 
     This way to creating an analogous of an array with
-    coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \dots]`.
+    coefficients :math:`[c_1,c_{-1},c_2,c_{-2}, \\dots]`.
 
     These dictionaries are going to be put as sub-dictionary
     in a general `data` dictionary. Each sub-dict
