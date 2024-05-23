@@ -19,6 +19,8 @@ from aiida_vibroscopy.calculations.spectra_utils import (
 )
 from aiida_vibroscopy.utils.integration.lebedev import LebedevScheme
 from aiida_vibroscopy.utils.spectra import raman_prefactor
+from sklearn.feature_selection import chi2
+from aiida_vibroscopy.common import UNITS
 
 __all__ = ('VibrationalMixin',)
 
@@ -607,3 +609,95 @@ class VibrationalMixin:
         """Return the available orders for quadrature integration on the nac direction unitary sphere."""
         from aiida_vibroscopy.utils.integration.lebedev import get_available_quadrature_order_schemes
         get_available_quadrature_order_schemes()
+
+    @property
+    def clamped_Pockels_tensor(
+        self,
+        phonopy_instance,
+        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        degeneracy_tolerance: float = 1e-5,
+        imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
+        ) -> np.ndarray:
+        """Get the clamped Pockels tensor in Cartesian coordinates.
+
+        .. note:: Units are in pm/V
+
+        :param nac_direction: non-analytical direction in fractional coordinates (unitcell cell)
+            in reciprocal space; space(3,) shape :class:`list` or :class:`numpy.ndarray`
+        :param degeneracy_tolerance: degeneracy tolerance for irreducible representation
+        :param imaginary_thr: threshold for activating warnings on negative frequencies (in Hz)
+
+        :return: (3, 3, 3) shape array
+        """
+        # load the high-freq dielectric tensor in Cartesian coordinates and units [-]
+        eps = self.base.attributes.get('dielectric')
+        eps_inv = np.linalg.inv(eps)
+
+        # load the chi2 tensor in Cartesian coordinates and [pm/V]
+        # shape: (i,j, E-field_pol)
+        chi2 = self.set_nlo_susceptibility(self, self.nlo_susceptibility)
+
+        # load the raman tensors in Cartesian coordinates. Convert to [1/m]
+        # shape: (atoms, pol, i,j)
+        raman = self.set_raman_tensors(self, self.raman_tensors)*1e10
+
+        # load the Born effective charges. Convert from a.u. to SI -> [C]
+        born = self.base.attributes.get('born-charges')*1.602176634e-19
+        # TBD: change 1.602176634e-19 to e from the units/constants def
+
+        # calculate phonon frequencies and eigenvectors
+        try:
+            nac_direction = nac_direction()
+        except TypeError:
+            pass
+
+        # set the irreducible representations and the phonons. Is this necessary?
+        phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=nac_direction, degeneracy_tolerance=degeneracy_tolerance)
+        #irreps = phonopy_instance.irreps
+
+        phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=nac_direction, with_eigenvectors=True)
+        frequencies = phonopy_instance.qpoints.frequencies[0] * 1e+12 # convert to Hz
+        eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
+        if frequencies.min() < imaginary_thr:
+            raise ValueError('Negative frequencies detected.')
+
+        # getting normalized eigenvectors
+        amu_to_au = 1822.8884862
+        elec_mass = 9.10938356e-31 # kg
+        masses = phonopy_instance.masses*amu_to_au*elec_mass 
+        # Q? Is it computationally more effective to multiply the masses by elec_mass after the divion on line 669?
+        sqrt_masses = np.array([[np.sqrt(mass)] for mass in masses])
+        #QE/vib eigenvectors normalized as in Abinit (/sqrt(mass)) in kg (SI units)
+
+        eigvectors = np.array(eigvectors)
+        shape = (len(frequencies), len(masses), 3) # (modes, atoms, 3)
+        eigvectors = eigvectors.reshape(shape)
+        norm_eigvectors = np.array([eigv / sqrt_masses for eigv in eigvectors]) #in SI units
+
+        # norm_eigvectors shape|indices = (modes, atoms, 3) | (m, a, p)
+        # raman  shape|indices = (atoms, 3, 3, 3) | (a, p, i, j)
+        # The contraction is performed over a and k, resulting in (m, i, j) raman susceptibility tensors.
+        alpha = np.tensordot(norm_eigvectors, raman, axes=([1,2], [0,1]))
+        # Born charges shape|indices = (atoms, 3, 3) | (a, p, k)
+        # polarization vectors shape | indices = (3, modes) | (k,m)
+        polvec = np.tensordot(born, norm_eigvectors, axes=([0,1], [1,2])) #(k,m)
+
+        IR_contribution = polvec / frequencies**2 #(k,m)
+        #for i in range(3): IR_contribution[i] = 0 #sets the first 3 contributions to zero (acoustic)
+        r_ion_INNER_PROD = np.tensordot(alpha, IR_contribution, axes=([0],[1])) #(i,j,k)
+
+        # If a is an N-D array and b is an M-D array (where M>=2), 
+        # it is a sum product over the last axis of a and the second-to-last axis of b:
+        # > dot(a, b)[i,j,k,m] = sum(a[i,j,:] * b[k,:,m])
+
+        r_ion_LEFT = np.dot(eps_inv, np.transpose(r_ion_INNER_PROD, axes=[1,0,2]))
+        r_ion_transposed = np.dot(np.transpose(r_ion_LEFT, axes=[0,2,1]), eps_inv)
+        r_ion = -np.transpose(r_ion_transposed, axes=[0,2,1])*1e+12 #to have pm/V)
+
+        r_el_LEFT = np.dot(eps_inv, np.transpose(chi2, axes=[1,0,2]))
+        r_el_transposed = -2*np.dot(np.transpose(r_el_LEFT, axes=[0,2,1]), eps_inv)
+        r_el = np.transpose(r_el_transposed, axes=[0,2,1])
+
+        r = r_el + r_ion
+
+        return r
