@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Union
+from typing import Union, Tuple
 
 from aiida import orm
 from aiida.engine import calcfunction
@@ -29,6 +29,7 @@ __all__ = (
     'compute_raman_susceptibility_tensors',
     'compute_polarization_vectors',
     'compute_complex_dielectric',
+    'compute_clamped_pockels_tensor',
     'get_supercells_for_hubbard',
     'elaborate_susceptibility_derivatives',
     'generate_vibrational_data_from_forces',
@@ -131,7 +132,7 @@ def compute_active_modes(
 
     # Step 3 - getting normalized eigenvectors
     masses = phonopy_instance.masses
-    sqrt_masses = np.array([[np.sqrt(mass)] for mass in masses])
+    sqrt_masses = np.sqrt(masses)
 
     eigvectors_active_modes = np.array(eigvectors_active_modes)
     shape = (len(freq_active_modes), len(masses), 3)
@@ -418,6 +419,83 @@ def compute_complex_dielectric(
     diel_infinity = np.tensordot(diel, np.ones(freq_range.shape[0]), axes=0)
 
     return diel_infinity + prefactor * (complex_diel) / phonopy_instance.unitcell.volume
+
+def compute_clamped_pockels_tensor(
+    phonopy_instance: Phonopy,
+    raman_tensors: np.ndarray,
+    nlo_susceptibility: np.ndarray,
+    nac_direction:  None | list[float, float, float] = None,
+    degeneracy_tolerance: float = 1e-5,
+    imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
+    skip_frequencies: int = 3,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute the clamped Pockels tensor in Cartesian coordinates.
+
+    .. note:: Units are in pm/V
+
+    :param nac_direction: non-analytical direction in Cartesian coordinates;
+        (3,) shape :class:`list` or :class:`numpy.ndarray`
+    :param degeneracy_tolerance: degeneracy tolerance for irreducible representation
+    :param imaginary_thr: threshold for activating warnings on negative frequencies (in Hz)
+    :param skip_frequencies: number of frequencies to not include (i.e. the acoustic modes)
+
+    :return: tuple of (r_ion + r_el, r_ion, r_el), each having (3, 3, 3) shape array
+    """
+    from phonopy import units
+
+    borns = phonopy_instance.nac_params['born'] * UNITS.elementary_charge_si # convert to Coulomb
+    dielectric = phonopy_instance.nac_params['dielectric']
+
+    dielectric_inv = np.linalg.inv(dielectric)
+    raman = raman_tensors * 1.0e10 # convert to 1/m
+
+    q_reduced = None
+    # Have a look in compute_active_modes for the notation
+    if nac_direction is not None:
+        q_reduced = np.dot(phonopy_instance.primitive.cell,
+                           nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
+
+    phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
+    frequencies = phonopy_instance.qpoints.frequencies[0] * 1.0e+12 # THz -> Hz
+    eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
+
+    if frequencies.min() < imaginary_thr:
+        raise ValueError('Negative frequencies detected.')
+
+    masses = phonopy_instance.masses * UNITS.atomic_mass_si
+    sqrt_masses = np.sqrt(masses)
+
+    shape = (len(frequencies), len(masses), 3) # (modes, atoms, 3)
+    eigvectors = eigvectors.reshape(shape)
+    norm_eigvectors = np.array([eigv / sqrt_masses for eigv in eigvectors])
+
+    # norm_eigvectors shape|indices = (modes, atoms, 3) | (m, a, p)
+    # raman  shape|indices = (atoms, 3, 3, 3) | (a, p, i, j)
+    # The contraction is performed over a and k, resulting in (m, i, j) raman susceptibility tensors.
+    alpha = np.tensordot(norm_eigvectors, raman, axes=([1,2], [0,1]))
+
+    # borns charges shape|indices = (atoms, 3, 3) | (a, k, p)
+    # norm_eigvectors shape|indices = (modes, atoms, 3) | (m, a, p)
+    # polarization vectors shape | indices = (3, modes) | (k, m)
+    polvec = np.tensordot(borns, norm_eigvectors, axes=([0,2], [1,2])) # (k, m)
+
+    ir_contribution = polvec / frequencies**2 # (k, m)
+
+    # sets the first `skip_frequencies` IR contributions to zero (i.e. the acoustic modes)
+    for i in range(skip_frequencies): ir_contribution[i] = 0 
+    r_ion_inner = np.tensordot(alpha, ir_contribution, axes=([0],[1])) # (i, j, k)
+
+    r_ion_left = np.dot(dielectric_inv, np.transpose(r_ion_inner, axes=[1,0,2]))
+    r_ion_transposed = np.dot(np.transpose(r_ion_left, axes=[0,2,1]), dielectric_inv)
+    r_ion = -np.transpose(r_ion_transposed, axes=[0,2,1]) * 1.0e+12 # pm/V
+
+    r_el_left = np.dot(dielectric_inv, np.transpose(nlo_susceptibility, axes=[1,0,2]))
+    r_el_transposed = -2*np.dot(np.transpose(r_el_left, axes=[0,2,1]), dielectric_inv)
+    r_el = np.transpose(r_el_transposed, axes=[0,2,1])
+
+    r = r_el + r_ion
+
+    return r, r_el, r_ion
 
 
 @calcfunction

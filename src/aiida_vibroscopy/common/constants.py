@@ -45,6 +45,9 @@ DEFAULT = SimpleNamespace(
     # IMPORTANT: still misss the units from the Dirac delta
     raman_xsection=1.0e24 * 1.054571817e-34 / (2.0 * units.SpeedOfLight**4 * units.AMU * units.THzToCm**3
                                                )  # removed 1/4pi due to convention on Chi2 for the correction
+    elementary_charge_si=1.602176634e-19, # elementary charge in Coulomb
+    electron_mass_si=units.Me, # electron mass in kg
+    atomic_mass_si=units.AMU, # atomic mass unit in kg
     # to be defined:
     # * kelvin to eV
     # * nm to eV
