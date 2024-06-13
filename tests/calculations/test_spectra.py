@@ -24,13 +24,13 @@ def generate_phonopy_instance():
     - symmetry info
     """
 
-    def _generate_phonopy_instance():
+    def _generate_phonopy_instance(name='AlAs'):
         """Return AlAs Phonopy instance."""
         import os
 
         import phonopy
 
-        filename = 'phonopy_AlAs.yaml'
+        filename = f'phonopy_{name}.yaml'
         basepath = os.path.dirname(os.path.abspath(__file__))
         phyaml = os.path.join(basepath, filename)
 
@@ -149,6 +149,30 @@ def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generat
         print('\n', '================================', '\n')
 
     assert np.abs(abs(alpha_comp) - abs(alpha_theo)) < 1e-3
+
+
+def test_compute_clamped_pockels_tensor(generate_phonopy_instance, generate_third_rank_tensors):
+    """Test the `compute_clamped_pockels_tensor` function."""
+    from aiida_vibroscopy.calculations.spectra_utils import compute_clamped_pockels_tensor
+
+    ph = generate_phonopy_instance()
+    raman, chi2 = generate_third_rank_tensors()
+
+    pockels, pockels_el, pockels_ion = compute_clamped_pockels_tensor(
+        phonopy_instance=ph,
+        raman_tensors=raman,
+        nlo_susceptibility=chi2,
+    )
+
+    if DEBUG:
+        print('\n', '================================', '\n')
+        print('\t', 'DEBUG')
+        print(pockels)
+        print('\t', 'DEBUG EL')
+        print(pockels_el)
+        print('\t', 'DEBUG ION')
+        print(pockels_ion)
+        print('\n', '================================', '\n')
 
 
 def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors, ndarrays_regression):

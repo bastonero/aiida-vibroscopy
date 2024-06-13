@@ -19,10 +19,9 @@ from aiida_vibroscopy.calculations.spectra_utils import (
     compute_raman_space_average,
     compute_raman_susceptibility_tensors,
 )
+from aiida_vibroscopy.common import UNITS
 from aiida_vibroscopy.utils.integration.lebedev import LebedevScheme
 from aiida_vibroscopy.utils.spectra import raman_prefactor
-from sklearn.feature_selection import chi2
-from aiida_vibroscopy.common import UNITS
 
 __all__ = ('VibrationalMixin',)
 
@@ -668,7 +667,6 @@ class VibrationalMixin:
     def run_clamped_pockels_tensor(
         self,
         nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
-        degeneracy_tolerance: float = 1e-5,
         imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
         skip_frequencies: int = 3,
         asr_sum_rules: bool = False,
@@ -679,7 +677,7 @@ class VibrationalMixin:
 
         .. note:: Units are in pm/V
 
-        :param nac_direction: non-analytical direction in Cartesian coordinates; 
+        :param nac_direction: non-analytical direction in Cartesian coordinates;
             (3,) shape :class:`list` or :class:`numpy.ndarray`
         :param degeneracy_tolerance: degeneracy tolerance for irreducible representation
         :param imaginary_thr: threshold for activating warnings on negative frequencies (in Hz)
@@ -695,7 +693,7 @@ class VibrationalMixin:
                 whether or not to symmetrize the nac parameters
                 using point group symmetry; bool, defaults to self.is_symmetry
 
-        :return: tuple of (r_ion + r_el, r_ion, r_el), each having (3, 3, 3) shape array
+        :return: tuple of (r_ion + r_el, r_el, r_ion), each having (3, 3, 3) shape array
         """
         from aiida_vibroscopy.calculations.spectra_utils import compute_clamped_pockels_tensor
 
@@ -711,15 +709,14 @@ class VibrationalMixin:
             phonopy_instance.symmetrize_force_constants()
         if symmetrize_fc:
             phonopy_instance.symmetrize_force_constants_by_space_group()
-    
+
         results = compute_clamped_pockels_tensor(
             phonopy_instance=phonopy_instance,
             raman_tensors=self.raman_tensors,
             nlo_susceptibility=self.nlo_susceptibility,
             nac_direction=nac_direction,
-            degeneracy_tolerance=degeneracy_tolerance,
             imaginary_thr=imaginary_thr,
             skip_frequencies=skip_frequencies,
         )
-        
+
         return results
