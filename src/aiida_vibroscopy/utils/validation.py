@@ -9,11 +9,11 @@
 """Validation function utilities."""
 from __future__ import annotations
 
-__all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive', 'validate_nac')
+__all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive')
 
 
 def validate_tot_magnetization(tot_magnetization: float, thr: float = 0.2) -> bool:
-    """Round the total magnetization input and return true if within threshold.
+    """Round the total magnetization input and return true if outside the threshold.
 
     This is needed because 'tot_magnetization' must be an integer in the aiida-quantumespresso input parameters.
     """
@@ -53,10 +53,10 @@ def validate_positive(value, _):
         return 'specified value is negative.'
 
 
-def validate_nac(value, _):
-    """Validate that `value` is a valid non-analytical ArrayData input."""
-    try:
-        value.get_array('dielectric')
-        value.get_array('born_charges')
-    except KeyError:
-        return 'data does not contain `dieletric` and/or `born_charges` arraynames.'
+# def validate_nac(value, _):
+#     """Validate that `value` is a valid non-analytical ArrayData input."""
+#     try:
+#         value.get_array('dielectric')
+#         value.get_array('born_charges')
+#     except KeyError:
+#         return 'data does not contain `dieletric` and/or `born_charges` arraynames.'

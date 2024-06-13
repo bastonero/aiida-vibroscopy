@@ -451,7 +451,7 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
                 else:
                     self.report(
                         f'PwBaseWorkChain with <PK={workchain.pk}> failed'
-                        'with exit status {workchain.exit_status}'
+                        f'with exit status {workchain.exit_status}'
                     )
                     failed_runs.append(workchain.pk)
 
