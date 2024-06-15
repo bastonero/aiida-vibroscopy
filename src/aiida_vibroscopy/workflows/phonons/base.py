@@ -289,7 +289,7 @@ class PhononWorkChain(WorkChain, ProtocolMixin):
         """Set `is_magnetic` and hubbard-related context variables."""
         parameters = self.inputs.scf.pw.parameters.get_dict()
         nspin = parameters.get('SYSTEM', {}).get('nspin', 1)
-        self.ctx.is_magnetic = (nspin != 1)
+        self.ctx.is_magnetic = nspin != 1
         self.ctx.is_insulator = True
         self.ctx.plus_hubbard = False
         self.ctx.old_plus_hubbard = False

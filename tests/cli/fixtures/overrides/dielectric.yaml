@@ -1,0 +1,4 @@
+scf:
+  parameters:
+    SYSTEM:
+      ecutwfc: 10
