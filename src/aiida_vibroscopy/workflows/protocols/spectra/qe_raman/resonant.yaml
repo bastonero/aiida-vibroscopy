@@ -1,0 +1,42 @@
+default_inputs:
+    clean_workdir: true
+    dielectric:
+        property: "raman"
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-12
+    phonon:
+        scf:
+            meta_parameters:
+                conv_thr_per_atom: 1.0e-12
+    settings:
+        run_parallel: true
+        use_primitive_cell: false
+    symmetry:
+        symprec: 1.e-5
+        distinguish_kinds: false
+        is_symmetry: true
+default_protocol: moderate
+protocols:
+    moderate:
+        description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'
+    precise:
+        description: 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'
+        dielectric:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-14
+        phonon:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-14
+    fast:
+        description: 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'
+        dielectric:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-10
+        phonon:
+            scf:
+                meta_parameters:
+                    conv_thr_per_atom: 1.0e-10

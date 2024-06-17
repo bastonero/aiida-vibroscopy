@@ -69,6 +69,8 @@ docs = [
 "vibroscopy.phonons.phonon" = "aiida_vibroscopy.workflows.phonons.base:PhononWorkChain"
 "vibroscopy.spectra.iraman" = "aiida_vibroscopy.workflows.spectra.iraman:IRamanSpectraWorkChain"
 "vibroscopy.spectra.intensities_average" = "aiida_vibroscopy.workflows.spectra.intensities_average:IntensitiesAverageWorkChain"
+"vibroscopy.spectra.qe_raman.resonant" = "aiida_vibroscopy.workflows.spectra.qe_raman:ResonantQERamanWorkChain"
+"vibroscopy.spectra.qe_raman.base" = "aiida_vibroscopy.workflows.spectra.qe_raman:QERamanBaseWorkChain"
 
 [tool.flit.module]
 name = 'aiida_vibroscopy'
