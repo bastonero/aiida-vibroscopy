@@ -33,8 +33,7 @@ repos:
         exclude: &exclude_files >
             (?x)^(
                 docs/.*|
-                tests/.*(?<!\.py)$|
-                .cla/.*
+                tests/.*(?<!\.py)$
             )$
         additional_dependencies: ['toml']
 
