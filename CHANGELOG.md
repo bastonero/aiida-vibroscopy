@@ -1,3 +1,32 @@
+## v1.1.1
+
+This minor release adds the new AiiDA contributor license agreement (CLA), and its GitHub bot,
+along with some dependency contraints for phonopy. The latest versions of phonopy (>v2.26)
+break the tests. While figuring out why, we patch this until a solution is found.
+
+### 🐛 Bug fixes
+
+* Deps: constrain phonopy and spglib versions [[3a3e3d1](https://github.com/aiidateam/aiida-quantumespresso/commit/3a3e3d117e34c6a66fcdc74e1e21c6263c203565)]
+
+### 📚 Documentation
+
+* Fix some docstrings and reports [[3ee9e7c](https://github.com/aiidateam/aiida-quantumespresso/commit/3ee9e7cbd2f5e6b8f15229dafbed58ae7ef4fa0d)]
+* Update main paper reference[[504c1b7](https://github.com/aiidateam/aiida-quantumespresso/commit/504c1b7b65a8852395d0ff3ec7271cb8c05c6931)]
+
+### 🔧 Maintenance
+
+* CLA: update and remove old cla-bot [[32bd829](https://github.com/aiidateam/aiida-quantumespresso/commit/32bd829987751deba056b7bfa739f6c82cf89d3e)]
+* @bastonero has signed the CLA in bastonero/aiida-vibroscopy#78[[e83739f](https://github.com/aiidateam/aiida-quantumespresso/commit/e83739f6aaecfcb304f8cac3da6d54b93f0fafb7)]
+* Add the AiiDA CLA [[df2cade](https://github.com/aiidateam/aiida-quantumespresso/commit/df2cade1bf200b8a2dd7004a48e40b118257f134)]
+* Add CLA bot [[3ba3e9e](https://github.com/aiidateam/aiida-quantumespresso/commit/3ba3e9e9f094106254b1a8ee4c97b85e66b41f85)]
+
+### ⬆️ Update dependencies
+
+* Deps: constrain phonopy and spglib versions [[3a3e3d1](https://github.com/aiidateam/aiida-quantumespresso/commit/3a3e3d117e34c6a66fcdc74e1e21c6263c203565)]
+
+
+
+
 ## v1.1.0
 
 This minor release includes new post-processing utilities, a small breaking change in [[42503f3]](https://github.com/bastonero/aiida-vibroscopy/commit/42503f312d9a812cfc46d4c4a03a78641201e1d3) with regards to reference system for non-analytical and polarization directions. Some examples providing
