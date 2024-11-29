@@ -426,7 +426,7 @@ def compute_clamped_pockels_tensor(
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray,
     nac_direction: None | list[float, float, float] = None,
-    imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
+    imaginary_thr: float = -5.0 * 1.0e+12, # in Hz
     skip_frequencies: int = 3,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute the clamped Pockels tensor in Cartesian coordinates.
@@ -481,7 +481,7 @@ def compute_clamped_pockels_tensor(
 
     # sets the first `skip_frequencies` IR contributions to zero (i.e. the acoustic modes)
     for i in range(skip_frequencies):
-        ir_contribution[i] = 0
+        ir_contribution[:, i] = 0
     r_ion_inner = np.tensordot(alpha, ir_contribution, axes=([0], [1]))  # (i, j, k)
 
     r_ion_left = np.dot(dielectric_inv, np.transpose(r_ion_inner, axes=[1, 0, 2]))
