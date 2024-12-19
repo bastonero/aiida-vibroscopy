@@ -24,6 +24,28 @@ or when installing from source:
     git clone https://github.com/bastonero/aiida-vibrosopy
     pip install .
 
+## Command line interface tool
+The plugin comes with a builtin CLI tool: `aiida-vibroscopy`.
+For example, the following command should print:
+
+```console
+> aiida-vibroscopy launch --help
+Usage: aiida-vibroscopy launch [OPTIONS] COMMAND [ARGS]...
+
+  Launch workflows.
+
+Options:
+  -v, --verbosity [notset|debug|info|report|warning|error|critical]
+                                  Set the verbosity of the output.
+  -h, --help                      Show this message and exit.
+
+Commands:
+  dielectric      Run an `DielectricWorkChain`.
+  harmonic        Run a `HarmonicWorkChain`.
+  iraman-spectra  Run an `IRamanSpectraWorkChain`.
+  phonon          Run an `PhononWorkChain`.
+```
+
 ## How to cite
 
 If you use this plugin for your research, please cite the following works:

@@ -14,6 +14,7 @@ myst:
 
 installation/index
 tutorials/index
+commands
 ```
 
 ```{toctree}
@@ -38,7 +39,7 @@ topics/conventions
 :hidden: true
 :caption: Reference
 
-reference/index
+reference/api/index
 ```
 
 # AiiDA Vibroscopy
