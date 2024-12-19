@@ -40,7 +40,7 @@ def update_changelog():
     print('🔍 Checking the current version number')
     current_changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
 
-    from aiida_quantumespresso import __version__
+    from aiida_vibroscopy import __version__
 
     if str(__version__) in current_changelog:
         print('🛑 Current version already in `CHANGELOG.md`. Skipping...')
