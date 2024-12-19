@@ -98,7 +98,7 @@ def voigt_profile(x_range: np.ndarray, peak: float, intensity: float, gamma_lore
     eta_I = 0.
     eta_P = 0.
     #
-    for index, i in enumerate(list_a):  # pylint: disable=unnecessary-list-index-lookup
+    for index, i in enumerate(list_a):
         i = index  #fortran convention
         w_G = w_G - rho * list_a[index] * (rho**i)
         w_L = w_L - (1. - rho) * list_b[index] * (rho**i)
