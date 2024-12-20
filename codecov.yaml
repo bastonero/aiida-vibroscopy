@@ -8,3 +8,5 @@ coverage:
       default:
         target: 70%
         threshold: 0.2%
+  ignore:
+    - "src/aiida_vibroscopy/cli/*"
