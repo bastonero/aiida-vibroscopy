@@ -1,0 +1,32 @@
+clean_workdir: false
+kpoints_parallel_distance: 0.2 # kpoints distance in Angstrom^-1 to sample the BZ parallel to the electric field. If used, it should help in converging faster the final results
+property: raman
+# central_difference: # if you know what you are doing, custom numerical derivatives with respect to electric field
+#   accuracy: 2
+#   electric_field_step: 0.0005
+scf:
+  kpoints_distance: 0.4 # kpoints distance in Angstrom^-1 to sample the BZ
+  kpoints_force_parity: false
+  max_iterations: 5
+  pw:
+    settings:
+      cmdline: ['-nd','1']
+    metadata:
+      options:
+        max_wallclock_seconds: 43200
+        resources:
+          num_machines: 1
+          num_mpiprocs_per_machine: 1
+        # queue_name: partition_name # for SLURM
+        # account: account_name # for SLURM, also for project etc
+        withmpi: true
+    parameters:
+      ELECTRONS:
+        conv_thr: 2.0e-12
+        electron_maxstep: 80
+        mixing_beta: 0.4
+      SYSTEM:
+        ecutrho: 240.0
+        ecutwfc: 30.0
+settings:
+  sleep_submission_time: 1.0
