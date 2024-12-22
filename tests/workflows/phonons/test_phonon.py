@@ -19,7 +19,7 @@ from aiida_vibroscopy.workflows.phonons.base import PhononWorkChain
 def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
     """Generate an instance of a `PhononWorkChain`."""
 
-    def _generate_workchain_phonon(structure=None, append_inputs=None, return_inputs=False):
+    def _generate_workchain_phonon(structure=None, append_inputs=None, return_inputs=False, the_inputs=None):
         entry_point = 'vibroscopy.phonons.phonon'
         scf_inputs = generate_inputs_pw_base()
 
@@ -31,6 +31,7 @@ def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
             'scf': scf_inputs,
             'settings': {
                 'sleep_submission_time': 0.,
+                'max_concurrent_base_workchains': -1,
             },
             'symmetry': {},
         }
@@ -40,6 +41,9 @@ def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
 
         if append_inputs is not None:
             inputs.update(append_inputs)
+
+        if the_inputs is not None:
+            inputs = the_inputs
 
         process = generate_workchain(entry_point, inputs)
 
@@ -188,6 +192,15 @@ def test_hubbard_setup(generate_workchain_phonon, generate_structure):
 def test_set_reference_kpoints(generate_workchain_phonon):
     """Test `PhononWorkChain.set_reference_kpoints` method."""
     process = generate_workchain_phonon()
+    process.setup()
+    process.set_reference_kpoints()
+
+    assert 'kpoints' in process.ctx
+
+    inputs = generate_workchain_phonon(return_inputs=True)
+    inputs['scf'].pop('kpoints')
+    inputs['scf']['kpoints_distance'] = 0.1
+    process = generate_workchain_phonon(the_inputs=inputs)
     process.setup()
     process.set_reference_kpoints()
 
