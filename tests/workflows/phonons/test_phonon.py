@@ -8,6 +8,7 @@
 #################################################################################
 """Tests for the :mod:`workflows.phonons.phonon` module."""
 from aiida import orm
+from aiida.common import AttributeDict
 from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
 import pytest
 
@@ -18,7 +19,7 @@ from aiida_vibroscopy.workflows.phonons.base import PhononWorkChain
 def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
     """Generate an instance of a `PhononWorkChain`."""
 
-    def _generate_workchain_phonon(structure=None, append_inputs=None, return_inputs=False):
+    def _generate_workchain_phonon(structure=None, append_inputs=None, return_inputs=False, the_inputs=None):
         entry_point = 'vibroscopy.phonons.phonon'
         scf_inputs = generate_inputs_pw_base()
 
@@ -29,16 +30,20 @@ def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
         inputs = {
             'scf': scf_inputs,
             'settings': {
-                'sleep_submission_time': 0.
+                'sleep_submission_time': 0.,
+                'max_concurrent_base_workchains': -1,
             },
             'symmetry': {},
         }
 
         if return_inputs:
-            return inputs
+            return AttributeDict(inputs)
 
         if append_inputs is not None:
             inputs.update(append_inputs)
+
+        if the_inputs is not None:
+            inputs = the_inputs
 
         process = generate_workchain(entry_point, inputs)
 
@@ -192,6 +197,15 @@ def test_set_reference_kpoints(generate_workchain_phonon):
 
     assert 'kpoints' in process.ctx
 
+    inputs = generate_workchain_phonon(return_inputs=True)
+    inputs['scf'].pop('kpoints')
+    inputs['scf']['kpoints_distance'] = 0.1
+    process = generate_workchain_phonon(the_inputs=inputs)
+    process.setup()
+    process.set_reference_kpoints()
+
+    assert 'kpoints' in process.ctx
+
 
 @pytest.mark.usefixtures('aiida_profile')
 def test_run_base_supercell(generate_workchain_phonon):
@@ -224,22 +238,52 @@ def test_inspect_base_supercell(
 
 
 @pytest.mark.usefixtures('aiida_profile')
+def test_run_supercells(generate_workchain_phonon):
+    """Test `PhononWorkChain.run_supercells` method."""
+    process = generate_workchain_phonon()
+    process.setup()
+    process.run_supercells()
+
+    assert 'supercells' in process.outputs
+    assert 'supercells' in process.ctx
+    assert 'supercell_1' in process.outputs['supercells']
+
+
+@pytest.mark.usefixtures('aiida_profile')
+def test_should_run_forces(generate_workchain_phonon):
+    """Test `PhononWorkChain.should_run_forces` method."""
+    process = generate_workchain_phonon()
+    process.setup()
+    process.run_supercells()
+    assert process.should_run_forces()
+
+
+@pytest.mark.usefixtures('aiida_profile')
 def test_run_forces(generate_workchain_phonon, generate_base_scf_workchain_node):
     """Test `PhononWorkChain.run_forces` method."""
-    process = generate_workchain_phonon()
+    append_inputs = {
+        'settings': {
+            'sleep_submission_time': 0.,
+            'max_concurrent_base_workchains': 1,
+        }
+    }
+    process = generate_workchain_phonon(append_inputs=append_inputs)
 
     process.setup()
     process.set_reference_kpoints()
     process.run_base_supercell()
+    process.run_supercells()
 
     assert 'scf_supercell_0'
 
+    num_supercells = len(process.ctx.supercells)
     process.ctx.scf_supercell_0 = generate_base_scf_workchain_node()
     process.run_forces()
 
     assert 'supercells' in process.outputs
     assert 'supercell_1' in process.outputs['supercells']
     assert 'scf_supercell_1' in process.ctx
+    assert num_supercells == len(process.ctx.supercells) + 1
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -251,6 +295,7 @@ def test_run_forces_with_hubbard(generate_workchain_phonon, generate_base_scf_wo
     process.setup()
     process.set_reference_kpoints()
     process.run_base_supercell()
+    process.run_supercells()
 
     assert 'scf_supercell_0'
 
@@ -261,6 +306,7 @@ def test_run_forces_with_hubbard(generate_workchain_phonon, generate_base_scf_wo
     assert 'supercell_1' in process.outputs['supercells']
     assert isinstance(process.outputs['supercells']['supercell_1'], HubbardStructureData)
     assert 'scf_supercell_1' in process.ctx
+    assert len(process.ctx.supercells) == 0
 
 
 @pytest.mark.parametrize(('expected_result', 'exit_status'),
