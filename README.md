@@ -9,6 +9,7 @@ Raman spectra in different settings.
 |    | |
 |-----|----------------------------------------------------------------------------|
 |Latest release| [![PyPI version](https://badge.fury.io/py/aiida-vibroscopy.svg)](https://badge.fury.io/py/aiida-vibroscopy)[![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy) |
+|References| [![Static Badge](https://img.shields.io/badge/npj%20comp.%20mat.%20-%20implementation%20-%20purple?style=flat)](https://www.nature.com/articles/s41524-024-01236-3) |
 |Getting help| [![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/) [![Discourse status](https://img.shields.io/discourse/status?server=https%3A%2F%2Faiida.discourse.group%2F)](https://aiida.discourse.group/)
 |Build status| [![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions) [![Coverage Status](https://codecov.io/gh/bastonero/aiida-vibroscopy/branch/main/graph/badge.svg)](https://codecov.io/gh/bastonero/aiida-vibroscopy) |
 |Activity| [![PyPI-downloads](https://img.shields.io/pypi/dm/aiida-vibroscopy.svg?style=flat)](https://pypistats.org/packages/aiida-vibroscopy) [![Commit Activity](https://img.shields.io/github/commit-activity/m/bastonero/aiida-vibroscopy.svg)](https://github.com/bastonero/aiida-vibroscopy/pulse)
