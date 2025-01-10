@@ -49,6 +49,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'sphinx_copybutton',
+    'sphinx_click.ext',
     'sphinx_togglebutton',
     'sphinx_design',
     'aiida.sphinxext',
