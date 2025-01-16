@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Tuple, Union
+from typing import Tuple,
 
 from aiida import orm
 from aiida.engine import calcfunction
