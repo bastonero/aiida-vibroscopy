@@ -1,0 +1,70 @@
+clean_workdir: false # whether to clean the working directiories
+dielectric:
+  clean_workdir: false
+  kpoints_parallel_distance: 0.2 # kpoints distance in Angstrom^-1 to sample the BZ parallel to the electric field. If used, it should help in converging faster the final results
+  property: raman
+  # central_difference: # if you know what you are doing, custom numerical derivatives with respect to electric field
+  #   accuracy: 2
+  #   electric_field_step: 0.0005
+  scf:
+    kpoints_distance: 0.4 # kpoints distance in Angstrom^-1 to sample the BZ
+    kpoints_force_parity: false
+    max_iterations: 5
+    pw:
+      metadata:
+        options:
+          max_wallclock_seconds: 43200
+          resources:
+            num_machines: 1
+            num_mpiprocs_per_machine: 1
+          # queue_name: partition_name # for SLURM
+          # account: account_name # for SLURM, also for project etc
+          withmpi: true
+      parameters:
+        ELECTRONS:
+          conv_thr: 2.0e-12
+          electron_maxstep: 80
+          mixing_beta: 0.4
+        SYSTEM:
+          ecutrho: 240.0
+          ecutwfc: 30.0
+  settings:
+    sleep_submission_time: 1.0
+phonon:
+  clean_workdir: false
+  displacement_generator:
+    distance: 0.01 # atomic displacements for phonon calculation, in Angstrom
+  scf:
+    kpoints_distance: 0.15 # kpoints distance in Angstrom^-1 to sample the BZ
+    kpoints_force_parity: false
+    max_iterations: 5
+    pw:
+      metadata:
+        options:
+          max_wallclock_seconds: 43200
+          resources:
+            num_machines: 1
+            num_mpiprocs_per_machine: 1
+          # queue_name: partition_name # for SLURM
+          # account: account_name # for SLURM, also for project etc
+          withmpi: true
+      settings:
+        cmdline: ['-nk', '8']
+        # gamma_only: True # to use only if KpointsData has only a mesh 1 1 1 0 0 0 (i.e. Gamma not shifted)
+      parameters:
+        ELECTRONS:
+          conv_thr: 2.0e-12
+          electron_maxstep: 80
+          mixing_beta: 0.4
+        SYSTEM:
+          ecutrho: 240.0
+          ecutwfc: 30.0
+  settings:
+    sleep_submission_time: 1.0 # waiting time in seconds between different submission of SCF calculation. Recommended to be at least 1 second, to not overload.
+settings:
+  run_parallel: true
+  use_primitive_cell: false
+symmetry:
+  distinguish_kinds: false
+  is_symmetry: true
+  symprec: 1.0e-05

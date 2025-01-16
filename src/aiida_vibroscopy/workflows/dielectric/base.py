@@ -144,7 +144,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             non_db=True,
             validator=cls._validate_properties,
             help=(
-                'Valid inputs are: \n \n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
+                'Valid inputs are:'+'\n * '.join(f'{flag_name}' for flag_name in cls._AVAILABLE_PROPERTIES)
             )
         )
         spec.input(
@@ -185,7 +185,8 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         )
         spec.input(
             'central_difference.diagonal_scale', valid_type=orm.Float, default=lambda: orm.Float(1/np.sqrt(2)),
-            help='Scaling factor for electric fields non parallel to cartesiaan axis (i.e. E --> scale*E).',
+            help=('Scaling factor for electric fields non-parallel to cartesiaan axis (e.g. scale*(E,E,O)). '
+                  '1/Sqrt(2) guarantees the same norm in all directions (recommended).'),
             validator=validate_positive,
         )
         spec.input(
