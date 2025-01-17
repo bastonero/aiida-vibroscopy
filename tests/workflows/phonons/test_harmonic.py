@@ -141,20 +141,36 @@ def test_setup(generate_workchain_harmonic):
 
 @pytest.mark.usefixtures('aiida_profile')
 def test_run_phonon(generate_workchain_harmonic):
-    """Test `HarmonicWorkChain.run_phonon`."""
-    process = generate_workchain_harmonic()
+    """Test `HarmonicWorkChain.run_phonon`.
+
+    Test that the symmetry options are passed as well.
+    """
+    symmetry = {'symprec': orm.Float(1.0), 'distinguish_kinds': orm.Bool(True), 'is_symmetry': orm.Bool(False)}
+    process = generate_workchain_harmonic(append_inputs={'symmetry': symmetry})
     process.setup()
     process.run_phonon()
     assert 'phonon' in process.ctx
+    workchain = orm.load_node(process.ctx.phonon.pk)
+    assert workchain.inputs.symmetry.symprec.value == 1.0
+    assert workchain.inputs.symmetry.distinguish_kinds.value == True
+    assert workchain.inputs.symmetry.is_symmetry.value == False
 
 
 @pytest.mark.usefixtures('aiida_profile')
 def test_run_dielectric(generate_workchain_harmonic):
-    """Test `HarmonicWorkChain.run_dielectric`."""
-    process = generate_workchain_harmonic()
+    """Test `HarmonicWorkChain.run_dielectric`.
+
+    Test that the symmetry options are passed as well.
+    """
+    symmetry = {'symprec': orm.Float(1.0), 'distinguish_kinds': orm.Bool(True), 'is_symmetry': orm.Bool(False)}
+    process = generate_workchain_harmonic(append_inputs={'symmetry': symmetry})
     process.setup()
     process.run_dielectric()
     assert 'dielectric' in process.ctx
+    workchain = orm.load_node(process.ctx.dielectric.pk)
+    assert workchain.inputs.symmetry.symprec.value == 1.0
+    assert workchain.inputs.symmetry.distinguish_kinds.value == True
+    assert workchain.inputs.symmetry.is_symmetry.value == False
 
 
 @pytest.mark.usefixtures('aiida_profile')

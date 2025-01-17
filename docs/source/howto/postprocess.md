@@ -1,6 +1,6 @@
 (howto-postprocess)=
 
-# How-to post-process data
+# Post-process data
 
 Here you will find some _how-tos_ on how to post-process the `VibrationalData` and `PhonopyData`.
 These can be generated via the `HarmonicWorkChain`, the `IRamanSpectraWorkChain` or the `PhononWorkChain`.
@@ -10,13 +10,12 @@ Please, have a look at the [tutorials](tutorials) for an overview, and at the sp
 You can always access to the detailed description of a function/method putting a `?` question mark in front
 of the function and press enter. This will print the description of the function, with detailed information
 on inputs, outputs and purpose.
-``` {note}
+
 A rendered version can also be found in the documentation referring to
 the dedicated [API section](reference).
-```
 :::
 
-## How to get powder spectra
+## Powder spectra
 
 You can get the powder infrared and/or Raman spectra from a computed {{ vibrational_data }}. For Raman:
 
@@ -28,8 +27,8 @@ vibro = load_node(IDENTIFIER) # a VibrationalData node
 polarized_intensities, depolarized_intensities, frequencies, labels = vibro.run_powder_raman_intensities(frequency_laser=532, temperature=300)
 ```
 
-The total powder intensity will be the some of the polarized (backscattering geometry)
-and depolarized (90º geometry) intensities:
+The total powder intensity will be the some of the polarized (backscattering geometry, HH/VV setup)
+and depolarized (90º geometry, HV setup) intensities:
 
 ```python
 total = polarized_intensities + depolarized_intensities
@@ -44,7 +43,7 @@ intensities, frequencies, labels = vibro.run_powder_ir_intensities()
 The `labels` output is referring to the irreducible representation labels of the modes.
 
 
-## How to get single crystal spectra
+## Single crystal polarized spectra
 
 ::: {important}
 It is extremely important that you match the experimental conditions, meaning the direction of
@@ -53,7 +52,7 @@ on the convention used, both in the code and in the experiments.
 :::
 
 ::: {note} Convention
-In the following methods, the direction of the light must be given in crystal/fractional coordinates.
+In the following methods, the direction of the light must be given in **Cartesian coordinates**.
 :::
 
 You can get the single crystal infrared and/or Raman spectra from a computed {{ vibrational_data }}. For Raman:
@@ -86,7 +85,7 @@ incoming = [0,0,1] # light polatization of the incident laser beam
 intensities, frequencies, labels = vibro.run_single_crystal_ir_intensities(pol_incoming=incoming)
 ```
 
-::: {admonition} Cartesian coordinates
+<!-- ::: {admonition} Cartesian coordinates
 :class: hint
 To get the direction in Cartesian coordinates expressed in crystal coordinates of the primitive cell, you can use the following
 snippet
@@ -99,14 +98,9 @@ incoming_cartesian = [0,0,1]
 inv_cell = np.linalg.inv(cell)
 incoming = np.dot(invcell.T, incoming_cartesian)
 ```
-For the q-direction instead you need to transform them into reciprocal space crystal coordinates, as follows
-```python
-q_nac_cartesian = [0,0,1]
-q_nac_crystal = np.dot(cell, q_nac_cartesian)
-```
-:::
+::: -->
 
-## How to get the IR/Raman active modes
+## IR/Raman active modes
 
 To get the active modes from a computed {{ vibrational_data }}:
 

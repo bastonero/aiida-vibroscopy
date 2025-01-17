@@ -3,7 +3,7 @@
 # Formulation
 
 In this section we briefly explore the underlying theory and formulation made used in the workflows.
-For a more in depth explanation, please refer to the [main paper of the package](https://arxiv.org/abs/2308.04308).
+For a more in depth explanation, please refer to the [main paper of the package](https://doi.org/10.1038/s41524-024-01236-3).
 
 Considered good sources are:
 
@@ -21,7 +21,7 @@ In the code, all properties are computed within the __Born-Oppenheimer__ and __h
 The vibrational spectra are computed in the __first-order non-resonant__ regime: the infrared using the __dipole-dipole__ approximation, and the Raman using the __Placzek__ approximation.
 
 :::{important}
-These are considered __good approximations for insulators__. Nevertheless, a frequency dependent solution form is usually used also for the __resonant__ case and for __metals__. _Nevertheless_, one must be aware that in such cases (resonance, metals) these approximations might not hold, as multiphonon processes, non-adiabaticity, excitonic effects (i.e. electronic excitations), or even exciton-phonon interactions might be non negligible, thus comparison with experiments could result poor. If these effects are important for your case, you can refer to [S. Reichardt and L. Wirtz, _Science Advances_, __7__, 32 (__2020__)](https://www.science.org/doi/10.1126/sciadv.abb5915).
+These are considered __good approximations for insulators__. Nevertheless, a frequency dependent solution form is usually used also for the __resonant__ case and for __metals__. _Nevertheless_, one must be aware that in such cases (resonance, metals) these approximations might not hold, as multiphonon processes, non-adiabaticity, excitonic effects (i.e. electronic excitations), or even exciton-phonon interactions might be non negligible, thus comparison with experiments could result poor. If these effects are important for your case, you can refer to [S. Reichardt and L. Wirtz, _Science Advances_, **7**, 32 (__2020__)](https://www.science.org/doi/10.1126/sciadv.abb5915).
 
 Moreover, temperature effects can also play a crucial role, as __anharmonic__ effects (of ions) should be incorporate to the phonons. A state-of-the-art approach, which differs from the classical molecular dynamics solutions, can be found using the [time-dependent self-consistent harmonic approximation](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.103.104305).
 :::

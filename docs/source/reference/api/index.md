@@ -1,4 +1,4 @@
-(reference)=
+(reference-api)=
 
 # Python API
 
@@ -7,5 +7,5 @@ If you only want to get to know the input nested structure of the workflows, ple
 ```{toctree}
 :maxdepth: 4
 
-api/aiida_vibroscopy/index
+aiida_vibroscopy/index
 ```

@@ -1,6 +1,6 @@
 (howto-overrides)=
 
-# How-to use protocols and overrides
+# Protocols and overrides
 
 :::{important}
 The following how-to assume that you are familiar with submitting the workflows of the package.
@@ -17,7 +17,7 @@ as you probably noticed in the [tutorials](tutorials).
 Not necesseraly all the WorkChains have the `get_builder_from_protocol`. E.g. The {class}`~aiida_vibroscopy.workflows.dielectric.numerical_derivatives`.
 :::
 
-## How to use in general
+## General usage
 
 Depending on the WorkChain, you will need to specify some minimal, _but required_, inputs. Here is an example:
 
@@ -48,7 +48,7 @@ Out[1]:
 
 ```
 
-## How to use overrides (beginner)
+## Overrides (beginner)
 
 As stated at the beginning, you might need to tweak your builder inputs before submitting. Instead of modifying the inputs via the builder, you can do it via `overrides`. The way the overrides must be secified __is WorkChain dependent__. The structure should be the same as the input specification of the specific WorkChain, so always refer to the inputs of the particular workflow, which you can find [here](topics-workflows).
 
@@ -169,7 +169,7 @@ builder = DielectricWorkChain.get_builder_from_protocol(code=code, structure=str
 
 You got the gist, so it will be the same for the `phonon` inputs, which corresponds to the `PhononWorkChain`.
 
-## How to overrides (advanced)
+## Overrides (advanced)
 
 Once you got used to using the overrides, you will notice your python script will become quite a mess.
 The idea is to write the overrides in a separate file, using for example the convenient `YAML` format,
@@ -199,7 +199,7 @@ phonon:
     scf:
         pw:
             kpoints_distance: 0.2
-            pw:
+            parameters:
                 ...
 dielectric:
     central_difference:
@@ -209,7 +209,7 @@ dielectric:
             ...
 ```
 
-## Get automated inputs for insulators, metals, and magnetism
+## Automated inputs for insulators, metals, and magnetism
 
 Inputs might change depending on the nature of the material: insulating, metallic, a form of magnetism.
 This can be the need of specifying a smearing or a magnetic configuration.

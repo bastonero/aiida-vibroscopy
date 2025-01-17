@@ -291,6 +291,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         key = 'phonon'
         inputs = AttributeDict(self.exposed_inputs(PhononWorkChain, namespace=key))
         inputs.scf.pw.structure = self.inputs.structure
+        inputs.symmetry = self.inputs.symmetry
         inputs.metadata.call_link_label = key
 
         future = self.submit(PhononWorkChain, **inputs)
@@ -302,6 +303,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         key = 'dielectric'
         inputs = AttributeDict(self.exposed_inputs(DielectricWorkChain, namespace=key))
         inputs.scf.pw.structure = self.inputs.structure
+        inputs.symmetry = self.inputs.symmetry
 
         if self.inputs.settings.use_primitive_cell:
             inputs.scf.pw.structure = self.ctx.preprocess_data.calcfunctions.get_primitive_cell()

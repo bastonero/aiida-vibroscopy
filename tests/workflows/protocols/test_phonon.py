@@ -82,11 +82,15 @@ def test_overrides(fixture_code, generate_structure):
         'displacement_generator': {
             'distance': 0.005
         },
+        'settings': {
+            'max_concurrent_base_workchains': 1,
+        }
     }
     builder = PhononWorkChain.get_builder_from_protocol(code, structure, overrides=overrides)
 
     assert builder.primitive_matrix.get_list() == [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     assert builder.displacement_generator.get_dict() == {'distance': 0.005}
+    assert builder.settings.max_concurrent_base_workchains == 1
 
 
 def test_phonon_properties(fixture_code, generate_structure):

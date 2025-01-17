@@ -1,0 +1,20 @@
+{
+  "signedContributors": [
+    {
+      "name": "bastonero",
+      "id": 79980269,
+      "comment_id": 2343829130,
+      "created_at": "2024-09-11T14:22:56Z",
+      "repoId": 390674389,
+      "pullRequestNo": 78
+    },
+    {
+      "name": "vdemestral",
+      "id": 114935148,
+      "comment_id": 2580462168,
+      "created_at": "2025-01-09T14:49:31Z",
+      "repoId": 390674389,
+      "pullRequestNo": 67
+    }
+  ]
+}

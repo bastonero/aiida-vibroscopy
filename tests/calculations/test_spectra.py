@@ -7,6 +7,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for :mod:`calculations.spectra_utils`."""
+# yapf:disable
 import numpy as np
 import pytest
 
@@ -23,19 +24,17 @@ def generate_phonopy_instance():
     - symmetry info
     """
 
-    def _generate_phonopy_instance():
+    def _generate_phonopy_instance(name='AlAs'):
         """Return AlAs Phonopy instance."""
         import os
 
         import phonopy
 
-        filename = 'phonopy_AlAs.yaml'
+        filename = f'phonopy_{name}.yaml'
         basepath = os.path.dirname(os.path.abspath(__file__))
         phyaml = os.path.join(basepath, filename)
 
-        ph = phonopy.load(phyaml)
-
-        return ph
+        return phonopy.load(phyaml)
 
     return _generate_phonopy_instance
 
@@ -51,46 +50,56 @@ def generate_third_rank_tensors():
 
     def _generate_third_rank_tensors():
         """Return AlAs Phonopy instance."""
-        chi2 = np.array([[[-1.42547451e-50, -4.81482486e-35, 1.36568821e-14],
-                          [-4.81482486e-35, 0.00000000e+00, 4.24621905e+01],
-                          [1.36568821e-14, 4.24621905e+01, 5.20011857e-15]],
-                         [[-3.20988324e-35, 0.00000000e+00, 4.24621905e+01],
-                          [0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
-                          [4.24621905e+01, 0.00000000e+00, 5.20011857e-15]],
-                         [[1.36568821e-14, 4.24621905e+01, 5.20011857e-15],
-                          [4.24621905e+01, -2.40741243e-35, 5.20011857e-15],
-                          [5.20011857e-15, 5.20011857e-15, 9.55246283e-31]]])
+        c = 42.4621905  # pm/V
+        chi2 = np.array([[
+                [0, 0, 0],
+                [0, 0, c],
+                [0, 0, 0]],
+            [
+                [0, 0, c],
+                [0, 0, 0],
+                [0, 0, 0]
+            ],
+            [
+                [0, c, 0],
+                [c, 0, 0],
+                [0, 0, 0]
+            ]
+        ])
 
-        raman = np.array([[[[7.82438427e-38, -1.38120586e-37, -1.13220290e-17],
-                            [-1.37630797e-37, -5.64237288e-37, -3.52026291e-02],
-                            [-1.13220290e-17, -3.52026291e-02, -4.31107870e-18]],
-                           [[-4.23177966e-37, -7.99336159e-37, -3.52026291e-02],
-                            [-5.48564030e-37, -4.99585099e-38, 1.47328625e-36],
-                            [-3.52026291e-02, 1.77891478e-36, -4.31107870e-18]],
-                           [[-1.13220290e-17, -3.52026291e-02, -4.31107870e-18],
-                            [-3.52026291e-02, -2.66445386e-37, -4.31107870e-18],
-                            [-4.31107870e-18, -4.31107870e-18, -7.91497448e-34]]],
-                          [[[-1.01998624e-37, -1.60357021e-36, 1.13220290e-17],
-                            [-1.45026616e-36, 2.31964219e-36, 3.52026291e-02],
-                            [1.13220290e-17, 3.52026291e-02, 4.31107870e-18]],
-                           [[7.67989643e-37, -7.36643127e-37, 3.52026291e-02],
-                            [-4.23177966e-37, -1.59671316e-37, -7.20969869e-37],
-                            [3.52026291e-02, -5.09380885e-37, 4.31107870e-18]],
-                           [[1.13220290e-17, 3.52026291e-02, 4.31107870e-18],
-                            [3.52026291e-02, -2.66445386e-37, 4.31107870e-18],
-                            [4.31107870e-18, 4.31107870e-18, 7.91868953e-34]]]])
+        a = 3.52026291e-02  # 1/Ang
+        raman = np.array([
+            [
+                [[0, 0, 0], [0, 0, -a], [0, -a, 0]],
+                [[0, 0, -a],[0, 0, 0],[-a, 0, 0]],
+                [[0, -a, 0], [-a, 0, 0],[0, 0, 0]],
+            ],
+            [
+                [[0, 0, 0], [0, 0, a], [0, a, 0]],
+                [[0, 0, a], [0, 0, 0], [a, 0, 0]],
+                [[0, a, 0], [a, 0, 0], [0, 0, 0]],
+            ]
+        ])
+
         return raman, chi2
 
     return _generate_third_rank_tensors
 
 
-@pytest.mark.skip(reason='This may fail for unknown reasons during online testing.')
 def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generate_third_rank_tensors):
-    """Test the `compute_raman_susceptibility_tensors` function."""
+    """Test the `compute_raman_susceptibility_tensors` function.
+
+    For cubic semiconductors AB, the Raman susceptibility for phonons polarized along the `l`
+    direction can be written as sqrt(mu*Omega)*alpha_{12} = Omega dChi_{12}/dtau_{A,3},
+    where A is the atom located at the origin, and the atom B in (1/4,1/4,1/4).
+
+    As a consequence, we can test the implementation when specifying a q-direction (Cartesian).
+    """
     from aiida_vibroscopy.calculations.spectra_utils import compute_raman_susceptibility_tensors
     from aiida_vibroscopy.common.constants import DEFAULT
 
     ph = generate_phonopy_instance()
+    ph.symmetrize_force_constants()
     vol = ph.unitcell.volume
     raman, chi2 = generate_third_rank_tensors()
 
@@ -101,36 +110,138 @@ def test_compute_raman_susceptibility_tensors(generate_phonopy_instance, generat
         phonopy_instance=ph,
         raman_tensors=raman,
         nlo_susceptibility=chi2,
-        nac_direction=(0, 0, 0),
+        nac_direction=[1, 0, 0],
     )
 
+    alpha_comp = prefactor * alpha[2, 1, 2]
+    alpha_theo = vol * raman[0, 0, 1, 2]
     if DEBUG:
         print('\n', '================================', '\n')
+        print((prefactor * alpha).round(3))
         print('\t', 'DEBUG')
-        print(prefactor * alpha[1, 1, 2], vol * raman[1, 0, 1, 2])
+        print(alpha_comp, alpha_theo)
         print('\n', '================================', '\n')
 
-    assert np.abs(prefactor * alpha[1, 1, 2] + vol * raman[1, 0, 1, 2]) < 0.01
+    assert np.abs(abs(alpha_comp) - abs(alpha_theo)) < 1e-5
 
     alpha, _, _ = compute_raman_susceptibility_tensors(
         phonopy_instance=ph,
         raman_tensors=raman,
         nlo_susceptibility=chi2,
-        nac_direction=np.dot(ph.primitive.cell, [0, 0, 1]),
+        nac_direction=[0, 0, 1],
     )
     diel = ph.nac_params['dielectric']
     borns = ph.nac_params['born']
 
-    dchivol = vol * raman[1, 0, 1, 2] - DEFAULT.nlo_conversion * borns[1, 0, 0] * chi2[0, 1, 2] / diel[0, 0]
+    nlocorr = DEFAULT.nlo_conversion * borns[1, 2, 2] * chi2[0, 1, 2] / diel[2, 2]
+    alpha_theo = vol * raman[1, 0, 1, 2] - nlocorr
+
+    # we take the last, cause it is associated to the LO mode
+    alpha_comp = prefactor * alpha[2, 0, 1]
+    if DEBUG:
+        print('\n', '================================', '\n')
+        print('\t', 'DEBUG')
+        print((prefactor * alpha).round(3))
+        print('NLO corr. expected: ', nlocorr)
+        print('Born corr. expected: ', -borns[1, 0, 0] / np.sqrt(reduced_mass))
+        print('Conversion factor nlo: ', DEFAULT.nlo_conversion)
+        print(alpha_comp, alpha_theo)
+        print('\n', '================================', '\n')
+
+    assert np.abs(abs(alpha_comp) - abs(alpha_theo)) < 1e-3
+
+
+def test_compute_clamped_pockels_tensor(generate_phonopy_instance, generate_third_rank_tensors, ndarrays_regression):
+    """Test the `compute_clamped_pockels_tensor` function."""
+    import os
+
+    from aiida_vibroscopy.calculations.spectra_utils import compute_clamped_pockels_tensor
+
+    ph = generate_phonopy_instance('BTO')
+    basepath = os.path.dirname(os.path.abspath(__file__))
+    chi2 = np.load(os.path.join(basepath, 'chi2_BTO.npy'))
+    raman = np.load(os.path.join(basepath, 'raman_BTO.npy'))
+
+    pockels, pockels_el, pockels_ion = compute_clamped_pockels_tensor(
+        phonopy_instance=ph,
+        raman_tensors=raman,
+        nlo_susceptibility=chi2,
+    )
 
     if DEBUG:
         print('\n', '================================', '\n')
         print('\t', 'DEBUG')
-        print('NLO corr. expected: ', -DEFAULT.nlo_conversion * borns[1, 0, 0] * chi2[0, 1, 2] / diel[0, 0])
-        print('Born corr. expected: ', -borns[1, 0, 0] / np.sqrt(reduced_mass))
-        print('Conversion factor nlo: ', DEFAULT.nlo_conversion)
-        # print(prefactor * alpha)
-        print(dchivol, prefactor * np.abs(alpha).max())
+        print(pockels)
+        print('\t', 'DEBUG EL')
+        print(pockels_el)
+        print('\t', 'DEBUG ION')
+        print(pockels_ion)
         print('\n', '================================', '\n')
 
-    assert np.abs(prefactor * alpha[2, 0, 1] - dchivol) < 0.01
+    results = {
+        'pockels': pockels,
+        'pockels_el': pockels_el,
+        'pockels_ion': pockels_ion,
+    }
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))
+
+
+def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors, ndarrays_regression):
+    """Test the post-processing methods with data regression techniques."""
+    from aiida_vibroscopy.calculations.spectra_utils import (
+        compute_active_modes,
+        compute_complex_dielectric,
+        compute_raman_space_average,
+        compute_raman_susceptibility_tensors,
+    )
+
+    results = {}
+    ph = generate_phonopy_instance()
+    ph.symmetrize_force_constants()
+    raman, chi2 = generate_third_rank_tensors()
+
+    freqs, _, _ = compute_active_modes(phonopy_instance=ph)
+    results['active_modes_freqs'] = freqs
+    # results['active_modes_eigvecs'] = eigenvectors
+
+    freqs, _ , _ = compute_active_modes(phonopy_instance=ph, nac_direction=[0,0,1])
+    results['active_modes_nac_freqs'] = freqs
+    # results['active_modes_nac_eigvecs'] = eigenvectors
+
+    alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2)
+    ints_hh, ints_hv = compute_raman_space_average(alpha)
+    # results['raman_susceptibility_tensors'] = alpha
+    results['intensities_hh'] = ints_hh
+    results['intensities_hv'] = ints_hv
+
+    # alpha, _, _ = compute_raman_susceptibility_tensors(ph, raman, chi2, nac_direction=[0,0,1])
+    # results['raman_susceptibility_tensors_nac'] = alpha
+
+    # pols, _, _ = compute_polarization_vectors(ph)
+    # results['polarization_vectors'] = pols
+
+    # pols, _, _ = compute_polarization_vectors(ph, nac_direction=[0,0,1])
+    # results['polarization_vectors_nac'] = pols
+
+    freq_range = np.linspace(10,1000,900)
+    eps = compute_complex_dielectric(ph, freq_range=freq_range)
+    results['complex_dielectric'] = eps
+
+    eps = compute_complex_dielectric(ph, nac_direction=[0,0,1], freq_range=freq_range)
+    results['complex_dielectric_nac'] = eps
+
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))
+
+
+def test_generate_vibrational_data_from_forces(generate_vibrational_data_from_forces, ndarrays_regression):
+    """Test `generate_vibrational_data_from_phonopy`."""
+    vibro = generate_vibrational_data_from_forces()
+
+    results = {
+        'dielectric': vibro.dielectric,
+        'raman': vibro.raman_tensors,
+        'nlo': vibro.nlo_susceptibility,
+        'becs': vibro.born_charges,
+        'forces': vibro.forces,
+    }
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-8, rtol=1e-8))
