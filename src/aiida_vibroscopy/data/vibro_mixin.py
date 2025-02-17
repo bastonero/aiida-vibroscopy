@@ -666,7 +666,7 @@ class VibrationalMixin:
 
     def run_clamped_pockels_tensor(
         self,
-        nac_direction: tuple[float, float, float] = lambda: [0, 0, 0],
+        nac_direction: tuple[float, float, float] = None,
         imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
         skip_frequencies: int = 3,
         asr_sum_rules: bool = False,
