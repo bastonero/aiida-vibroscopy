@@ -65,6 +65,10 @@ jobs:
                 -   python-version: '3.11'
                     phonopy-version: '2.19.0'
 
+        defaults:
+            run:
+                shell: bash -l {0}
+
         services:
             postgres:
                 image: postgres:12
