@@ -57,17 +57,8 @@ jobs:
         runs-on: ubuntu-latest
 
         strategy:
-            fail-fast: false
             matrix:
-                include:
-                -   python-version: '3.9'
-                    phonopy-version: '2.19.0'
-                -   python-version: '3.11'
-                    phonopy-version: '2.19.0'
-
-        defaults:
-            run:
-                shell: bash -l {0}
+                python-version: ['3.10','3.12']
 
         services:
             postgres:
@@ -88,17 +79,12 @@ jobs:
                 restore-keys:
                     pip-${{ matrix.python-version }}-tests
 
-        -   name: Setup Conda
-            uses: conda-incubator/setup-miniconda@v3
+        -   name: Set up Python ${{ matrix.python-version }}
+            uses: actions/setup-python@v2
             with:
                 python-version: ${{ matrix.python-version }}
-                channels: conda-forge
-                auto-activate-base: true
 
-        -   name: Set up Phonopy ${{ matrix.phonopy-version }}
-            run: conda install -y phonopy==${{ matrix.phonopy-version }}
-
-        -   name: Install Python dependencies
+        -   name: Install python dependencies
             run: pip install -e .[tests]
 
         -   name: Run pytest
