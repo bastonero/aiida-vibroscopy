@@ -114,3 +114,21 @@ frequencies, _, labels = vibro.run_active_modes(selectrion_rules='ir')
 
 This will return the IR active frequencies and the corresponding irreducible representation labels.
 For Raman active modes, specify `'raman'` instead.
+
+## Clamped Pockels tensor
+
+You can get individual variables consituting the Pockels tensor from a computed {{ vibrational_data }}. For instance:
+
+```python
+from aiida.orm import load_node
+
+vibro = load_node(IDENTIFIER) # a VibrationalData node
+
+r_tot, r_el, r_ion = vibro.run_clamped_pockels_tensor()
+```
+
+The total Pockels tensor will be the sum of the electronic and ionic tensors:
+
+```python
+r_tot, r_el, r_ion
+```

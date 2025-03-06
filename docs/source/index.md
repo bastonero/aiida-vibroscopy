@@ -51,6 +51,11 @@ An AiiDA plugin package for the calculation of __infrared__ and __Raman__ spectr
 [![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
 [![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
 
+:::{versionadded} 1.2.0
+* New **command line interface** to submit workflows! 🎮
+* New post-processing calculation to compute **Pockels tensor**! Check out the [new tutorial](6_pockels.ipynb) 🚀
+:::
+
 ______________________________________________________________________
 
 

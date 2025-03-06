@@ -19,6 +19,7 @@ from aiida_vibroscopy.calculations.spectra_utils import (
     compute_raman_space_average,
     compute_raman_susceptibility_tensors,
 )
+from aiida_vibroscopy.common import UNITS
 from aiida_vibroscopy.utils.integration.lebedev import LebedevScheme
 from aiida_vibroscopy.utils.spectra import raman_prefactor
 
@@ -662,3 +663,60 @@ class VibrationalMixin:
         """Return the available orders for quadrature integration on the nac direction unitary sphere."""
         from aiida_vibroscopy.utils.integration.lebedev import get_available_quadrature_order_schemes
         get_available_quadrature_order_schemes()
+
+    def run_clamped_pockels_tensor(
+        self,
+        nac_direction: tuple[float, float, float] = None,
+        imaginary_thr: float = -5.0 / UNITS.thz_to_cm,
+        skip_frequencies: int = 3,
+        asr_sum_rules: bool = False,
+        symmetrize_fc: bool = False,
+        **kwargs,
+    ) -> np.ndarray:
+        """Compute the clamped Pockels tensor in Cartesian coordinates.
+
+        .. note:: Units are in pm/V
+
+        :param nac_direction: non-analytical direction in Cartesian coordinates;
+            (3,) shape :class:`list` or :class:`numpy.ndarray`
+        :param degeneracy_tolerance: degeneracy tolerance for irreducible representation
+        :param imaginary_thr: threshold for activating warnings on negative frequencies (in Hz)
+        :param skip_frequencies: number of frequencies to not include (i.e. the acoustic modes)
+        :param asr_sum_rules: whether to apply acoustic sum rules to the force constants
+        :param symmetrize_fc: whether to symmetrize the force constants using space group
+        :param kwargs: see also the :func:`~aiida_phonopy.data.phonopy.get_phonopy_instance` method
+
+            * subtract_residual_forces:
+                whether or not subract residual forces (if set);
+                bool, defaults to False
+            * symmetrize_nac:
+                whether or not to symmetrize the nac parameters
+                using point group symmetry; bool, defaults to self.is_symmetry
+
+        :return: tuple of (r_ion + r_el, r_el, r_ion), each having (3, 3, 3) shape array
+        """
+        from aiida_vibroscopy.calculations.spectra_utils import compute_clamped_pockels_tensor
+
+        if not isinstance(symmetrize_fc, bool) or not isinstance(asr_sum_rules, bool):
+            raise TypeError('the input is not of the correct type')
+
+        phonopy_instance = self.get_phonopy_instance(**kwargs)
+
+        if phonopy_instance.force_constants is None:
+            phonopy_instance.produce_force_constants()
+
+        if asr_sum_rules:
+            phonopy_instance.symmetrize_force_constants()
+        if symmetrize_fc:
+            phonopy_instance.symmetrize_force_constants_by_space_group()
+
+        results = compute_clamped_pockels_tensor(
+            phonopy_instance=phonopy_instance,
+            raman_tensors=self.raman_tensors,
+            nlo_susceptibility=self.nlo_susceptibility,
+            nac_direction=nac_direction,
+            imaginary_thr=imaginary_thr,
+            skip_frequencies=skip_frequencies,
+        )
+
+        return results
