@@ -24,7 +24,7 @@ New post-processing calculation to compute **Pockels tensor**! Check out the [**
 3. [Raman spectra](../3_iraman.ipynb): learn the automated calculation of Raman spectra of silicon.
 4. [Polar materials](../4_polar.ipynb): predict the phonon and dielectric properties of AlAs with LO-TO splitting.
 5. [Spectra using different functionals](../5_iraman_functionals.ipynb): compute the vibrational spectra of LiCoO{sub}`2` using DFT and __DFT+U+V__, and understand the power of Hubbard corrections comparing the results to experiments!
-6. [**Pockels tensor**](../6_pockels.ipynb): compute the Pockels tensor of AlAs, and resolve the electronic and ionic contributions.
+6. [**Pockels tensor**](../6_pockels.ipynb) (thanks to _Virginie de Mestral_): compute the Pockels tensor of AlAs, and resolve the electronic and ionic contributions.
 
 Here below the estimated time to run each tutorial (jupyter notebook):
 
