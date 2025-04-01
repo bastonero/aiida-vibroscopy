@@ -17,7 +17,7 @@ from aiida_vibroscopy.workflows.spectra.iraman import IRamanSpectraWorkChain
 def test_get_available_protocols():
     """Test ``IRamanSpectraWorkChain.get_available_protocols``."""
     protocols = IRamanSpectraWorkChain.get_available_protocols()
-    assert sorted(protocols.keys()) == ['fast', 'balanced', 'stringent']
+    assert sorted(protocols.keys()) == sorted(['fast', 'balanced', 'stringent'])
     assert all('description' in protocol for protocol in protocols.values())
 
 
