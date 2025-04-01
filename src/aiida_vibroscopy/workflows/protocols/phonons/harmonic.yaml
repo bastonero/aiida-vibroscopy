@@ -16,11 +16,11 @@ default_inputs:
         symprec: 1.e-5
         distinguish_kinds: false
         is_symmetry: true
-default_protocol: moderate
+default_protocol: balanced
 protocols:
-    moderate:
-        description: 'Protocol to perform a full phonon calculation at normal precision at moderate computational cost.'
-    precise:
+    balanced:
+        description: 'Protocol to perform a full phonon calculation at normal precision at balanced computational cost.'
+    stringent:
         description: 'Protocol to perform a full phonon calculation at high precision at higher computational cost.'
         dielectric:
             scf:

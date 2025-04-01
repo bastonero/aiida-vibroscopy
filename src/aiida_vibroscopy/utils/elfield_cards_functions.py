@@ -19,7 +19,7 @@ def get_vector_from_number(number: int, value: float) -> tuple[float, float, flo
 
     * 0, 1, 2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
     * 0, 1, 2, 3, 4, 5 for second order derivatives: l <--> ij --> {ij}k ;
-        precisely (k = 0, 1, 2):
+        stringently (k = 0, 1, 2):
         - 0 --> {00}k
         - 1 --> {11}k
         - 2 --> {22}k

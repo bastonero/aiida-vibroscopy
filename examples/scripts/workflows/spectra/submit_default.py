@@ -14,7 +14,7 @@ load_profile()
 # Please, change the following inputs.
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
-protocol = 'fast'  # also 'moderate' and 'precise'; 'moderate' should be good enough in general
+protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
 # ====================================================================== #
 # If you don't have a StructureData, but you have a CIF or XYZ, or similar, file
 # you can import your structure uncommenting the following:

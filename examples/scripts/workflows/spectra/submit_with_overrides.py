@@ -16,7 +16,7 @@ load_profile()
 # Please, change the following inputs.
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
-protocol = 'fast'  # also 'moderate' and 'precise'; 'moderate' should be good enough in general
+protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
 overrides_filepath = './overrides.yaml'  # should be a path, e.g. /path/to/overrides.yaml. Format is YAML
 # Consult the documentation for HOW-TO for how to use properly the overrides.
 # !!!!! FOR FULL INPUT NESTED STRUCTURE: https://aiida-vibroscopy.readthedocs.io/en/latest/topics/workflows/spectra/iraman.html

@@ -18,13 +18,13 @@ from aiida_vibroscopy.workflows.phonons.harmonic import HarmonicWorkChain
 def test_get_available_protocols():
     """Test ``HarmonicWorkChain.get_available_protocols``."""
     protocols = HarmonicWorkChain.get_available_protocols()
-    assert sorted(protocols.keys()) == ['fast', 'moderate', 'precise']
+    assert sorted(protocols.keys()) == ['fast', 'balanced', 'stringent']
     assert all('description' in protocol for protocol in protocols.values())
 
 
 def test_get_default_protocol():
     """Test ``HarmonicWorkChain.get_default_protocol``."""
-    assert HarmonicWorkChain.get_default_protocol() == 'moderate'
+    assert HarmonicWorkChain.get_default_protocol() == 'balanced'
 
 
 def test_default(fixture_code, generate_structure, data_regression, serialize_builder):
