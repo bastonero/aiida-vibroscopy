@@ -426,6 +426,18 @@ def generate_upf_data():
 
 
 @pytest.fixture
+def generate_remote_folder(fixture_localhost):
+    """Generate a `RemoteData node."""
+
+    def _generate_remote_folder(remote_path='/tmp'):
+        """Generate a `RemoteData node."""
+        from aiida.orm import RemoteData
+        return RemoteData(computer=fixture_localhost, remote_path=remote_path).store()
+
+    return _generate_remote_folder
+
+
+@pytest.fixture
 def generate_inputs_pw_base(generate_inputs_pw):
     """Generate default inputs for a `PwBaseWorkChain`."""
 

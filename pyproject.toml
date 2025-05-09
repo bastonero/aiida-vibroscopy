@@ -72,6 +72,12 @@ aiida-vibroscopy = 'aiida_vibroscopy.cli:cmd_root'
 "vibroscopy.fp" = "aiida_vibroscopy.data.vibro_fp:VibrationalFrozenPhononData"
 "vibroscopy.vibrational" =  "aiida_vibroscopy.data.vibro_lr:VibrationalData"
 
+[project.entry-points.'aiida.calculations']
+"vibroscopy.elph" = "aiida_vibroscopy.calculations.elph:ElPhCalculation"
+
+[project.entry-points.'aiida.parsers']
+"vibroscopy.elph" = "aiida_vibroscopy.parsers.elph:ElPhParser"
+
 [project.entry-points.'aiida.workflows']
 "vibroscopy.dielectric" = "aiida_vibroscopy.workflows.dielectric.base:DielectricWorkChain"
 "vibroscopy.dielectric.numerical_derivatives" = "aiida_vibroscopy.workflows.dielectric.numerical_derivatives:NumericalDerivativesWorkChain"
