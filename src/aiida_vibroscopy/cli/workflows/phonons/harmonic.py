@@ -11,7 +11,7 @@ from ...utils import defaults, launch, options
 @cmd_launch.command('harmonic')
 @options.PW_CODE()
 @options.STRUCTURE(default=defaults.get_structure)
-@options.PROTOCOL(type=click.Choice(['fast', 'moderate', 'precise']), default='moderate', show_default=True)
+@options.PROTOCOL(type=click.Choice(['fast', 'balanced', 'stringent']), default='balanced', show_default=True)
 @options.PSEUDO_FAMILY()
 @options.KPOINTS_MESH(show_default=False)
 @options.OVERRIDES()

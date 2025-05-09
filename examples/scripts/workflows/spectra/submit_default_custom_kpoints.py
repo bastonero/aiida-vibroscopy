@@ -14,7 +14,7 @@ load_profile()
 # Please, change the following inputs.
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
-protocol = 'fast'  # also 'moderate' and 'precise'; 'moderate' should be good enough in general
+protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
 mesh = [[2, 2, 2], [0, 0, 0]]  # k-point mesh 2x2x2 gamma centered
 # kpoints = [[2,2,2], [0.5,0.5,0.5]] # k-point mesh 2x2x2 shifted. Corresponds to 2 2 2 1 1 1 in QE input
 # ====================================================================== #

@@ -40,10 +40,10 @@ Options:
                                   [required]
   -S, --structure DATA            A StructureData node identified by its ID or
                                   UUID.
-  -p, --protocol [fast|moderate|precise]
+  -p, --protocol [fast|balanced|stringent]
                                   Select the protocol that defines the
                                   accuracy of the calculation.  [default:
-                                  moderate]
+                                  balanced]
   -F, --pseudo-family GROUP       Select a pseudopotential family, identified
                                   by its label.
   -k, --kpoints-mesh <INTEGER INTEGER INTEGER FLOAT FLOAT FLOAT>...
@@ -69,7 +69,7 @@ Options:
 > aiida-vibroscopy launch dielectric \
     --pw pw@localhost \ # change here with your installed code
     -S 12345 \ # replace with you StructureData
-    --protocol moderate \ # (optional) choose between fast, moderate, precise
+    --protocol balanced \ # (optional) choose between fast, balanced, stringent
     --pseudo-family SSSP/1.3/PBEsol/efficiency \ # (optional) change with your favorite
     --kpoints-mesh 4 4 4 \ # (optional) it overrides the overrides, in particular removes kpoints_distance and kpoints_parallel_distance
     --overrides overrides.yaml \ # (optional) filepath to overrides

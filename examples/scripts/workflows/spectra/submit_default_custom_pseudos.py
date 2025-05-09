@@ -40,7 +40,7 @@ load_profile()
 # Please, change the following inputs.
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
-protocol = 'fast'  # also 'moderate' and 'precise'; 'moderate' should be good enough in general
+protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
 pseudo_family_name = 'LABEL'  # here the LABEL you registered before, or e.g. SSSP/1.3/PBEsol/efficiency for the SSSP example showed
 # ====================================================================== #
 # If you don't have a StructureData, but you have a CIF or XYZ, or similar, file
