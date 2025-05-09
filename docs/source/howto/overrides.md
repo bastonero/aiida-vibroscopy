@@ -42,8 +42,8 @@ To get to know the available protocols:
 ```python
 In [1]: WorkChain.get_available_protocols()
 Out[1]:
-{'moderate': {'description': 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'},
- 'precise': {'description': 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'},
+{'balanced': {'description': 'Protocol to perform an IR/Raman spectra calculation at normal precision at balanced computational cost.'},
+ 'stringent': {'description': 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'},
  'fast': {'description': 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'}}
 
 ```
