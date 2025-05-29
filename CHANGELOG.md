@@ -1,3 +1,26 @@
+## v1.3.0
+
+This release aligns with the new protocols released in `aiida-quantumespresso`, both for the naming and for their parametrizations.
+
+
+### 📚 Documentation
+
+* :notebook: `Docs`: update reference for Pockels paper [[3ff9871](https://github.com/aiidateam/aiida-quantumespresso/commit/3ff98717f7843d04f6b4e315746340ba744ed925)]
+* Docs: highlight contributor and readability changes [[6a5e0c4](https://github.com/aiidateam/aiida-quantumespresso/commit/6a5e0c4c08002bcc250520ad1fe1886e75a37ee0)]
+
+
+### 🔧 Maintenance
+
+* DevOps: drop conda setup for CD [[9a05371](https://github.com/aiidateam/aiida-quantumespresso/commit/9a053710f10e35e1bb126c566020038379c305e3)]
+
+
+### ⬆️ Update dependencies
+
+* Dependencies: update protocol names [[6ee9325](https://github.com/aiidateam/aiida-quantumespresso/commit/6ee932534cedbf1de2a352f88e27741b91b3855c)]
+
+
+
+
 ## v1.2.0
 
 This release adds several new features and fixes. In particular, the new command line interface and
