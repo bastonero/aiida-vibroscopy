@@ -50,6 +50,7 @@ An AiiDA plugin package for the calculation of __infrared__ and __Raman__ spectr
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy)
 [![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
 [![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
+[![DOI](https://img.shields.io/badge/DOI-10.1038/s41524024012363-purple.svg)](https://doi.org/10.1038/s41524-024-01236-3)
 
 :::{versionadded} 1.2.0
 * New **command line interface** to submit workflows! 🎮
