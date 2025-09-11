@@ -3,11 +3,11 @@ default_inputs:
     options:
         run_parallel: True
         sleep_submission_time: 3.0
-default_protocol: moderate
+default_protocol: balanced
 protocols:
-    moderate:
-        description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at moderate computational cost.'
-    precise:
+    balanced:
+        description: 'Protocol to perform an IR/Raman spectra calculation at normal precision at balanced computational cost.'
+    stringent:
         description: 'Protocol to perform an IR/Raman spectra calculation at high precision at higher computational cost.'
     fast:
         description: 'Protocol to perform an IR/Raman spectra calculation at low precision at minimal computational cost for testing purposes.'

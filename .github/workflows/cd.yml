@@ -14,7 +14,7 @@ jobs:
 
         steps:
         -   name: Checkout source
-            uses: actions/checkout@v2
+            uses: actions/checkout@v4
 
         -   name: Set up Python 3.9
             uses: actions/setup-python@v2
@@ -30,10 +30,10 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        -   uses: actions/checkout@v2
+        -   uses: actions/checkout@v4
 
         -   name: Cache Python dependencies
-            uses: actions/cache@v1
+            uses: actions/cache@v4
             with:
                 path: ~/.cache/pip
                 key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
@@ -57,13 +57,8 @@ jobs:
         runs-on: ubuntu-latest
 
         strategy:
-            fail-fast: false
             matrix:
-                include:
-                -   python-version: '3.9'
-                    phonopy-version: '2.19.0'
-                -   python-version: '3.11'
-                    phonopy-version: '2.19.0'
+                python-version: ['3.10','3.12']
 
         services:
             postgres:
@@ -74,26 +69,22 @@ jobs:
                 -   5672:5672
 
         steps:
-        -   uses: actions/checkout@v2
+        -   uses: actions/checkout@v4
 
         -   name: Cache Python dependencies
-            uses: actions/cache@v1
+            uses: actions/cache@v4
             with:
                 path: ~/.cache/pip
                 key: pip-${{ matrix.python-version }}-tests-${{ hashFiles('**/setup.json') }}
                 restore-keys:
                     pip-${{ matrix.python-version }}-tests
 
-        -   name: Setup Conda
-            uses: s-weigand/setup-conda@v1
+        -   name: Set up Python ${{ matrix.python-version }}
+            uses: actions/setup-python@v2
             with:
                 python-version: ${{ matrix.python-version }}
-                conda-channels: conda-forge
 
-        -   name: Set up Phonopy ${{ matrix.phonopy-version }}
-            run: pip install phonopy==${{ matrix.phonopy-version }}
-
-        -   name: Install Python dependencies
+        -   name: Install python dependencies
             run: pip install -e .[tests]
 
         -   name: Run pytest
@@ -107,7 +98,7 @@ jobs:
 
         steps:
         -   name: Checkout source
-            uses: actions/checkout@v2
+            uses: actions/checkout@v4
 
         -   name: Set up Python 3.9
             uses: actions/setup-python@v2

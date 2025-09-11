@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=line-too-long,wildcard-import,pointless-string-statement,unused-wildcard-import
-"""Submit an IRamanSpectraWorkChain via the get_builder_from_protocol using the overrides."""
-from pathlib import Path
-
+"""Submit an IRamanSpectraWorkChain via the get_builder_from_protocol."""
 from aiida import load_profile
 from aiida.engine import submit
 from aiida.orm import *
@@ -16,11 +14,7 @@ load_profile()
 # Please, change the following inputs.
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
-protocol = 'fast'  # also 'moderate' and 'precise'; 'moderate' should be good enough in general
-overrides_filepath = './overrides.yaml'  # should be a path, e.g. /path/to/overrides.yaml. Format is YAML
-# Consult the documentation for HOW-TO for how to use properly the overrides.
-# !!!!! FOR FULL INPUT NESTED STRUCTURE: https://aiida-vibroscopy.readthedocs.io/en/latest/topics/workflows/spectra/iraman.html
-# You can follow the input structure provided on the website to fill further the overrides.
+protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
 # ====================================================================== #
 # If you don't have a StructureData, but you have a CIF or XYZ, or similar, file
 # you can import your structure uncommenting the following:
@@ -42,7 +36,6 @@ def main():
         code=code,
         structure=structure,
         protocol=protocol,
-        overrides=Path(overrides_filepath),
         **kwargs,
     )
 

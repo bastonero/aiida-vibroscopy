@@ -14,6 +14,7 @@ myst:
 
 installation/index
 tutorials/index
+commands
 ```
 
 ```{toctree}
@@ -38,7 +39,7 @@ topics/conventions
 :hidden: true
 :caption: Reference
 
-reference/index
+reference/api/index
 ```
 
 # AiiDA Vibroscopy
@@ -49,6 +50,12 @@ An AiiDA plugin package for the calculation of __infrared__ and __Raman__ spectr
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/aiida-vibroscopy.svg)](https://pypi.python.org/pypi/aiida-vibroscopy)
 [![Build Status](https://github.com/bastonero/aiida-vibroscopy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bastonero/aiida-vibroscopy/actions)
 [![Docs status](https://readthedocs.org/projects/aiida-vibroscopy/badge)](http://aiida-vibroscopy.readthedocs.io/)
+[![DOI](https://img.shields.io/badge/DOI-10.1038/s41524024012363-purple.svg)](https://doi.org/10.1038/s41524-024-01236-3)
+
+:::{versionadded} 1.2.0
+* New **command line interface** to submit workflows! 🎮
+* New post-processing calculation to compute **Pockels tensor**! Check out the [new tutorial](6_pockels.ipynb) 🚀
+:::
 
 ______________________________________________________________________
 
@@ -104,11 +111,15 @@ If you use this plugin for your research, please cite the following works:
 
 > Lorenzo Bastonero and Nicola Marzari, [*Automated all-functionals infrared and Raman spectra*](https://doi.org/10.1038/s41524-024-01236-3), npj Computational Materials **10**, 55 (2024)
 
-> Sebastiaan. P. Huber, Spyros Zoupanos, Martin Uhrin, Leopold Talirz, Leonid Kahle, Rico Häuselmann, Dominik Gresch, Tiziano Müller, Aliaksandr V. Yakutovich, Casper W. Andersen, Francisco F. Ramirez, Carl S. Adorf, Fernando Gargiulo, Snehal Kumbhar, Elsa Passaro, Conrad Johnston, Andrius Merkys, Andrea Cepellotti, Nicolas Mounet, Nicola Marzari, Boris Kozinsky, and Giovanni Pizzi, [*AiiDA 1.0, a scalable computational infrastructure for automated reproducible workflows and data provenance*](https://doi.org/10.1038/s41597-020-00638-4), Scientific Data **7**, 300 (2020)
+> Sebastiaan. P. Huber _et al._, [*AiiDA 1.0, a scalable computational infrastructure for automated reproducible workflows and data provenance*](https://doi.org/10.1038/s41597-020-00638-4), Scientific Data **7**, 300 (2020)
 
-> Martin Uhrin, Sebastiaan. P. Huber, Jusong Yu, Nicola Marzari, and Giovanni Pizzi, [*Workflows in AiiDA: Engineering a high-throughput, event-based engine for robust and modular computational workflows*](https://doi.org/10.1016/j.commatsci.2020.110086), Computational Materials Science **187**, 110086 (2021)
+> Martin Uhrin _et al._, [*Workflows in AiiDA: Engineering a high-throughput, event-based engine for robust and modular computational workflows*](https://www.sciencedirect.com/science/article/pii/S0927025620305772), Computational Materials Science **187**, 110086 (2021)
 
-Please, also cite the underlying Quantum ESPRESSO and Phonopy codes references.
+Please, also cite the underlying **Quantum ESPRESSO** and **Phonopy** codes references.
+
+If you also calculate the Pockels tensors in a post-processing step, please also consider to cite:
+
+> Virginie de Mestral _el al._, [*Ab initio functional-independent calculations of the clamped Pockels tensor of tetragonal barium titanate*](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.184306), Phys. Rev. B **111**, 184306 (2025)
 
 # Acknowledgements
 

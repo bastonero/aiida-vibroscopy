@@ -1,3 +1,77 @@
+## v1.3.0
+
+This release aligns with the new protocols released in `aiida-quantumespresso`, both for the naming and for their parametrizations.
+
+
+### 📚 Documentation
+
+* :notebook: `Docs`: update reference for Pockels paper [[3ff9871](https://github.com/aiidateam/aiida-quantumespresso/commit/3ff98717f7843d04f6b4e315746340ba744ed925)]
+* Docs: highlight contributor and readability changes [[6a5e0c4](https://github.com/aiidateam/aiida-quantumespresso/commit/6a5e0c4c08002bcc250520ad1fe1886e75a37ee0)]
+
+
+### 🔧 Maintenance
+
+* DevOps: drop conda setup for CD [[9a05371](https://github.com/aiidateam/aiida-quantumespresso/commit/9a053710f10e35e1bb126c566020038379c305e3)]
+
+
+### ⬆️ Update dependencies
+
+* Dependencies: update protocol names [[6ee9325](https://github.com/aiidateam/aiida-quantumespresso/commit/6ee932534cedbf1de2a352f88e27741b91b3855c)]
+
+
+
+
+## v1.2.0
+
+This release adds several new features and fixes. In particular, the new command line interface and
+the possibility of calculating the Pockels tensor in the post-processing of a VibrationalData node
+represent the major additions to the new version. Conveniently, now the `PhononWorkChain` can run
+concurrently up to a maximum number of `PwBaseWorkChain`, which is very helpful to run phonons locally,
+or to avoid high usage of an HPC, especially when the calculation are short or when the space on disk
+needed is large (making a submission "in batches" key solution).
+
+
+### ✨ New features
+
+* First implementation of CLI [[388d648](https://github.com/aiidateam/aiida-quantumespresso/commit/388d648b64778060b50fcf8e7095f6521e29d254)]
+* Add clamped Pockels calculation capability [[a4512de](https://github.com/aiidateam/aiida-quantumespresso/commit/a4512de84b7c390d848e239ed0feb37a6fe900f1)]
+
+
+### 🙏 New contributions
+
+* @vdemestral has signed the CLA in bastonero/aiida-vibroscopy#67[[81367a0](https://github.com/aiidateam/aiida-quantumespresso/commit/81367a07e91a505c720c77c80c784dcf270f3280)]
+
+
+### 👌 Improvements
+
+* `PhononWorkChain`: add max concurrent running pw workchains [[07c67bf](https://github.com/aiidateam/aiida-quantumespresso/commit/07c67bfc89315fd0d3c57e07ac1955862a322ad8)]
+
+
+### 🐛 Bug fixes
+
+* `DielectricWorkChain`: fix validator [[85ecb45](https://github.com/aiidateam/aiida-quantumespresso/commit/85ecb45535cf30ee9fd976dc0effffab8acf0970)]
+
+
+### 📚 Documentation
+
+* :books: Docs: add reference article badge [[35aac4c](https://github.com/aiidateam/aiida-quantumespresso/commit/35aac4ccb793639ba1342c43d76762fa45198fd9)]
+* Docs: replace emojis MD with associated symbol [[4a22c1c](https://github.com/aiidateam/aiida-quantumespresso/commit/4a22c1cea2798f82b906837d5c1e341232c1c756)]
+* Add clamped Pockels calculation capability [[a4512de](https://github.com/aiidateam/aiida-quantumespresso/commit/a4512de84b7c390d848e239ed0feb37a6fe900f1)]
+
+
+### 🔧 Maintenance
+
+* Fix CI after CLA bot [[7b6ef34](https://github.com/aiidateam/aiida-quantumespresso/commit/7b6ef3402317e93b7ea9a97ff2673cf36fd360ca)]
+
+
+### ⬆️ Update dependencies
+
+* DevOps: update docs dependencies [[d72c86b](https://github.com/aiidateam/aiida-quantumespresso/commit/d72c86b32f9c5d339c07d00f5da8f5185afa4cf9)]
+* DevOps: update actions version in github workflows [[7ca172c](https://github.com/aiidateam/aiida-quantumespresso/commit/7ca172cc331e078bc79ad02af0c78db6a67cd84f)]
+
+
+
+
 ## v1.1.1
 
 This minor release adds the new AiiDA contributor license agreement (CLA), and its GitHub bot,

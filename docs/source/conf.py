@@ -23,10 +23,10 @@ import aiida_vibroscopy
 
 project = 'aiida-vibroscopy'
 copyright = ( # pylint: disable=redefined-builtin, line-too-long
-    f"""2023-{time.localtime().tm_year}, University of Bremen, Germany, U Bremen Excellence Chair;
-    Authors: Lorenzo Bastonero. Paul Scherrer Institut, Switzerland, Laboratory of Materials Simulations;
-    Authors: Giovanni Pizzi. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, Laboratory of Theory
-    and Simulation of Materials (THEOS); Authors: Nicola Marzari."""
+    f"""2023-{time.localtime().tm_year}, University of Bremen, Germany, U Bremen Excellence Chair.
+    Paul Scherrer Institut, Switzerland, Laboratory of Materials Simulations.
+    ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, Laboratory of Theory
+    and Simulation of Materials (THEOS)."""
 ) # pylint: disable=redefined-builtin, line-too-long
 
 # The full version, including alpha/beta/rc tags.
@@ -49,6 +49,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'sphinx_copybutton',
+    'sphinx_click.ext',
     'sphinx_togglebutton',
     'sphinx_design',
     'aiida.sphinxext',

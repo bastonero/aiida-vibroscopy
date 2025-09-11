@@ -26,11 +26,11 @@ classifiers = [
 keywords = ['aiida', 'workflows']
 requires-python = '>=3.8'
 dependencies = [
-    "aiida-core>=2.2.2,<3.0.0",
-    "aiida-quantumespresso>=4.3.0",
-    "aiida-phonopy>=1.1.3",
-    "spglib<2.5",
-    "phonopy>=2.19.0,<=2.25.0",
+    "aiida-core~=2.3",
+    "aiida-quantumespresso~=4.10",
+    "aiida-phonopy~=1.1",
+    "spglib~=2.2.0",
+    "phonopy~=2.19,<=2.25.0",
 ]
 
 [project.urls]
@@ -52,16 +52,21 @@ tests = [
     'pytest-timeout',
 ]
 docs = [
-    'myst-nb~=1.0.0',
+    'myst-nb~=1.0',
+    'jupytext>=1.11.2,<1.15.0',
     'sphinx~=6.2.1',
     'sphinx-copybutton~=0.5.2',
     'sphinx-book-theme~=1.0.1',
+    'sphinx-click~=4.4.0',
     'sphinx-design~=0.4.1',
     'sphinxcontrib-details-directive~=0.1.0',
     'sphinx-autoapi~=3.0.0',
-    'myst_parser~=1.0.0',
+    'myst-parser~=3.0.0',
     'sphinx-togglebutton',
 ]
+
+[project.scripts]
+aiida-vibroscopy = 'aiida_vibroscopy.cli:cmd_root'
 
 [project.entry-points.'aiida.data']
 "vibroscopy.fp" = "aiida_vibroscopy.data.vibro_fp:VibrationalFrozenPhononData"

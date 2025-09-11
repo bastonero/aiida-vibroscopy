@@ -98,11 +98,12 @@ def validate_parent_scf(parent_scf, _):
 
 def validate_inputs(inputs, _):
     """Validate the entire inputs namespace."""
-    if 'electric_field_step' in inputs['central_difference'] and 'accuracy' not in inputs['central_difference']:
-        return (
-            'cannot evaluate numerical accuracy when `electric_field_step` '
-            'is specified but `accuracy` is not in `central_difference`'
-        )
+    if 'central_difference' in inputs:
+        if 'electric_field_step' in inputs['central_difference'] and 'accuracy' not in inputs['central_difference']:
+            return (
+                'cannot evaluate numerical accuracy when `electric_field_step` '
+                'is specified but `accuracy` is not in `central_difference`'
+            )
 
     if 'kpoints_parallel_distance' in inputs and 'kpoints_distance' not in inputs['scf']:
         return '`kpoints_parallel_distance` works only when specifying `scf.kpoints_distance`'
@@ -667,7 +668,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     # Here I label:
                     # * 0,1,2 for first order derivatives: l --> {l}j ; e.g. 0 does 00, 01, 02
                     # * 0,1,2,3,4,5 for second order derivatives: l <--> ij --> {ij}k ;
-                    #   precisely 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2
+                    #   stringently 0 > {00}k; 1 > {11}k; 2 > {22}k; 3 > {12}k; 4 > {02}k; 5 --> {01}k | k=0,1,2
                     key = f'field_index_{number}'  # adding the iteration as well?
                     inputs.metadata.call_link_label = key
 

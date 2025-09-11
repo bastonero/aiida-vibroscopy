@@ -15,5 +15,5 @@ class PhononProperty(enum.Enum):
 
     NONE = None
     BANDS = {'band': 'auto'}
-    DOS = {'dos': True, 'mesh': 1000, 'write_mesh': False}
-    THERMODYNAMIC = {'tprop': True, 'mesh': 1000, 'write_mesh': False}
+    DOS = {'dos': True, 'mesh': 300, 'write_mesh': False}
+    THERMODYNAMIC = {'tprop': True, 'mesh': 300, 'write_mesh': False}
