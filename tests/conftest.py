@@ -8,6 +8,7 @@
 #################################################################################
 # pylint: disable=redefined-outer-name
 """Initialise a text database and profile for pytest."""
+import asyncio
 import io
 import os
 import pathlib
@@ -15,7 +16,14 @@ import tempfile
 
 import pytest
 
-pytest_plugins = ['aiida.manage.tests.pytest_fixtures']  # pylint: disable=invalid-name
+pytest_plugins = ['aiida.tools.pytest_fixtures']  # pylint: disable=invalid-name
+
+
+@pytest.fixture(scope='session', autouse=True)
+def clean_asyncio_tasks():
+    """Ensure clean shutdown of asyncio tasks at the end of the test session."""
+    yield
+    asyncio.run(asyncio.sleep(0))
 
 
 @pytest.fixture(scope='session')
@@ -142,47 +150,50 @@ def serialize_builder():
     return _serialize_builder
 
 
-@pytest.fixture(scope='session', autouse=True)
-def sssp(aiida_profile, generate_upf_data):
-    """Create an SSSP pseudo potential family from scratch."""
+@pytest.fixture(scope='session')
+def pseudo_family(generate_upf_data):
+    """Create pseudo potential families from scratch."""
     from aiida.common.constants import elements
-    from aiida.plugins import GroupFactory
-
-    aiida_profile.clear_profile()
-
-    SsspFamily = GroupFactory('pseudo.family.sssp')
+    from aiida_pseudo.data.pseudo.upf import UpfData
+    from aiida_pseudo.groups.family import PseudoDojoFamily, SsspFamily
 
     cutoffs = {}
     stringency = 'standard'
 
-    with tempfile.TemporaryDirectory() as dirpath:
-        for values in elements.values():
+    for label, cutoff_values in zip(
+        ('SSSP/1.3/PBEsol/precision', 'SSSP/1.3/PBEsol/efficiency', 'PseudoDojo/0.4/PBEsol/FR/standard/upf'),
+        ((40.0, 320.0), (30.0, 240.0), (60.0, 400.0))
+    ):
+        with tempfile.TemporaryDirectory() as dirpath:
+            for values in elements.values():
 
-            element = values['symbol']
+                element = values['symbol']
 
-            actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
+                actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
 
-            if element in actinides:
-                continue
+                if element in actinides:
+                    continue
 
-            upf = generate_upf_data(element)
-            dirpath = pathlib.Path(dirpath)
-            filename = dirpath / f'{element}.upf'
+                upf = generate_upf_data(element)
+                dirpath = pathlib.Path(dirpath)
+                filename = dirpath / f'{element}.upf'
 
-            with open(filename, 'w+b') as handle:
-                with upf.open(mode='rb') as source:
-                    handle.write(source.read())
-                    handle.flush()
+                with open(filename, 'w+b') as handle:
+                    with upf.open(mode='rb') as source:
+                        handle.write(source.read())
+                        handle.flush()
 
-            cutoffs[element] = {
-                'cutoff_wfc': 30.0,
-                'cutoff_rho': 240.0,
-            }
+                cutoffs[element] = {
+                    'cutoff_wfc': cutoff_values[0],
+                    'cutoff_rho': cutoff_values[1],
+                }
 
-        label = 'SSSP/1.3/PBEsol/efficiency'
-        family = SsspFamily.create_from_folder(dirpath, label)
+            if label.startswith('SSSP'):
+                family = SsspFamily.create_from_folder(dirpath, label)
+            elif label.startswith('PseudoDojo'):
+                family = PseudoDojoFamily.create_from_folder(dirpath, label, pseudo_type=UpfData)
 
-    family.set_cutoffs(cutoffs, stringency, unit='Ry')
+        family.set_cutoffs(cutoffs, stringency, unit='Ry')
 
     return family
 
@@ -414,10 +425,10 @@ def generate_inputs_dielectric(generate_inputs_pw):
 @pytest.fixture(scope='session')
 def generate_upf_data():
     """Return a `UpfData` instance for the given element a file for which should exist in `tests/fixtures/pseudos`."""
+    from aiida_pseudo.data.pseudo import UpfData
 
     def _generate_upf_data(element):
         """Return `UpfData` node."""
-        from aiida_pseudo.data.pseudo import UpfData
         content = f'<UPF version="2.0.1"><PP_HEADER\nelement="{element}"\nz_valence="4.0"\n/></UPF>\n'
         stream = io.BytesIO(content.encode('utf-8'))
         return UpfData(stream, filename=f'{element}.upf')

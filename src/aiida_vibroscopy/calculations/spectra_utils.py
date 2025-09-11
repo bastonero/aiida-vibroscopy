@@ -97,7 +97,7 @@ def compute_active_modes(
 
     bands_indices = irreps.band_indices
     characters = irreps.characters.real
-    labels = irreps._get_ir_labels()  #pylint: disable=protected-access
+    labels = irreps._ir_labels  #pylint: disable=protected-access
 
     mode_index = 0
 
@@ -216,6 +216,7 @@ def compute_raman_susceptibility_tensors(
     # rcell = np.linalg.inv(phonopy_instance.unitcell.cell) # as columns
     # q_cartesian = np.dot(rcell, nac_direction)  # in Cartesian coordinates
     q_cartesian = np.zeros((3)) if nac_direction is None else np.array(nac_direction)
+    nac_direction_ = nac_direction if nac_direction is None else np.array(nac_direction)
 
     selection_rule = 'raman' if use_irreps else None
 
@@ -225,7 +226,7 @@ def compute_raman_susceptibility_tensors(
 
     freqs, neigvs, labels = compute_active_modes(
         phonopy_instance=phonopy_instance,
-        nac_direction=q_cartesian,
+        nac_direction=nac_direction_,
         degeneracy_tolerance=degeneracy_tolerance,
         selection_rule=selection_rule
     )
@@ -366,10 +367,7 @@ def compute_complex_dielectric(
     :return: (3, 3, num steps) shape :class:`numpy.ndarray`, `num steps` refers to the
         number of frequency steps where the complex dielectric function is evaluated
     """
-    from phonopy import units
-    from qe_tools import CONSTANTS
-
-    prefactor = 4 * np.pi * units.VaspToCm**2 * 2. * CONSTANTS.ry_to_ev * CONSTANTS.bohr_to_ang
+    prefactor = UNITS.complex_dielectric_factor
 
     polarizations, frequencies, _ = compute_polarization_vectors(
         phonopy_instance=phonopy_instance,
