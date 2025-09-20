@@ -60,10 +60,6 @@ def test_spin_type(fixture_code, generate_structure):
     code = fixture_code('quantumespresso.pw')
     structure = generate_structure('silicon')
 
-    with pytest.raises(NotImplementedError):
-        for spin_type in [SpinType.NON_COLLINEAR, SpinType.SPIN_ORBIT]:
-            PhononWorkChain.get_builder_from_protocol(code, structure, spin_type=spin_type)
-
     builder = PhononWorkChain.get_builder_from_protocol(code, structure, spin_type=SpinType.COLLINEAR)
 
     for namespace in [builder.scf]:

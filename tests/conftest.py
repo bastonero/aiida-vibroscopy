@@ -150,8 +150,8 @@ def serialize_builder():
     return _serialize_builder
 
 
-@pytest.fixture(scope='session')
-def pseudo_family(generate_upf_data):
+@pytest.fixture(scope='session', autouse=True)
+def pseudo_family(aiida_profile, generate_upf_data):
     """Create pseudo potential families from scratch."""
     from aiida.common.constants import elements
     from aiida_pseudo.data.pseudo.upf import UpfData
@@ -159,6 +159,7 @@ def pseudo_family(generate_upf_data):
 
     cutoffs = {}
     stringency = 'standard'
+    families = []
 
     for label, cutoff_values in zip(
         ('SSSP/1.3/PBEsol/precision', 'SSSP/1.3/PBEsol/efficiency', 'PseudoDojo/0.4/PBEsol/FR/standard/upf'),
@@ -194,6 +195,7 @@ def pseudo_family(generate_upf_data):
                 family = PseudoDojoFamily.create_from_folder(dirpath, label, pseudo_type=UpfData)
 
         family.set_cutoffs(cutoffs, stringency, unit='Ry')
+        families.append(family)
 
     return family
 
