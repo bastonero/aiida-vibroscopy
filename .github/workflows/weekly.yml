@@ -34,7 +34,7 @@ jobs:
         -   uses: actions/checkout@v2
 
         -   name: Cache Python dependencies
-            uses: actions/cache@v1
+            uses: actions/cache@v4
             with:
                 path: ~/.cache/pip
                 key: pip-${{ matrix.python-version }}-tests-${{ hashFiles('**/setup.json') }}
@@ -48,11 +48,11 @@ jobs:
 
         -   name: Install Python dependencies
             id: install
-            run: |
-                pip install -e .[tests]
-                pip install git+https://github.com/aiidateam/aiida-core@main#egg=aiida-core[atomic_tools]
-                pip install git+https://github.com/aiidateam/aiida-quantumespresso.git@main
-                pip install git+https://github.com/phonopy/phonopy.git@develop
+            run: pip install -e .[tests]
+
+        # pip install git+https://github.com/aiidateam/aiida-core@main#egg=aiida-core
+        # pip install git+https://github.com/phonopy/phonopy.git@develop
+        # pip install git+https://github.com/aiidateam/aiida-quantumespresso.git@main
 
         -   name: Run pytest
             id: tests
