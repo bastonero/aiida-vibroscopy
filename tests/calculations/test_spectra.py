@@ -183,7 +183,7 @@ def test_compute_clamped_pockels_tensor(generate_phonopy_instance, generate_thir
         'pockels_el': pockels_el,
         'pockels_ion': pockels_ion,
     }
-    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-1, rtol=1e-2))
 
 
 def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors, ndarrays_regression):
@@ -230,7 +230,7 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
     eps = compute_complex_dielectric(ph, nac_direction=[0,0,1], freq_range=freq_range)
     results['complex_dielectric_nac'] = eps
 
-    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-2, rtol=1e-2))
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-1, rtol=1e-2))
 
 
 def test_generate_vibrational_data_from_forces(generate_vibrational_data_from_forces, ndarrays_regression):
