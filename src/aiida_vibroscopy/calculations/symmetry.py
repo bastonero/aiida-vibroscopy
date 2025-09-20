@@ -265,7 +265,7 @@ def transform_trajectory(
     lattice = cell.cell
     positions = cell.scaled_positions
     r_cart = similarity_transformation(lattice.T, rotation)
-    num_atoms = cell.get_number_of_atoms()
+    num_atoms = len(cell)
 
     forces_ = np.zeros_like(forces)
     pola_ = np.dot(r_cart, polarisation)

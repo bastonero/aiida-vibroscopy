@@ -12,10 +12,12 @@
 from types import SimpleNamespace
 
 import numpy as np
-from phonopy import units
+from phonopy.physical_units import get_physical_units
 from qe_tools import CONSTANTS
 
 __all__ = ('DEFAULT',)
+
+units = get_physical_units()
 
 # We here refer to SI to the general convention in material science of:
 # * Length ==> in Angstrom
@@ -34,7 +36,7 @@ DEFAULT = SimpleNamespace(
     # The exrta 'e' comes from the Ang/V = e * (Ang/eV) of Chi(2).
     nlo_conversion=0.02 *
     (2.0 * CONSTANTS.ry_to_ev * CONSTANTS.bohr_to_ang),  # we remove 4pi and put it back in the cross sections
-    cm_to_kelvin=units.CmToEv / units.Kb,
+    cm_to_kelvin=units.CmToEv / units.KB,
     thz_to_cm=units.THzToCm,  # THz to cm^-1
     debey_ang=1.0 / 0.2081943,  # 1 Debey = 0.2081943 e * Angstrom ==> e = (1/0.2081943) D/A
     # The absolute theoretical Raman cross-section per unit volume is obtained with the
@@ -49,6 +51,8 @@ DEFAULT = SimpleNamespace(
     elementary_charge_si=1.602176634e-19,  # elementary charge in Coulomb
     electron_mass_si=units.Me,  # electron mass in kg
     atomic_mass_si=units.AMU,  # atomic mass unit in kg
+    complex_dielectric_factor=4 * np.pi * (units.DefaultToTHz * units.THzToCm)**2 * 2. * CONSTANTS.ry_to_ev *
+    CONSTANTS.bohr_to_ang,
     # to be defined:
     # * kelvin to eV
     # * nm to eV

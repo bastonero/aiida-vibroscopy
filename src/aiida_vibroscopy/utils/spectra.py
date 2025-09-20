@@ -21,7 +21,11 @@ def boson_factor(frequency: float, temperature: float = 300) -> float:
     :param temperature: temperature in Kelvin
     :return: boson occupation factor (adimensional)
     """
-    from phonopy.units import CmToEv, Kb
+    from phonopy.physical_units import get_physical_units
+
+    units = get_physical_units()
+    CmToEv = units.CmToEv
+    Kb = units.KB
 
     return 1.0 / (1.0 - np.exp(-CmToEv * frequency / (temperature * Kb)))
 
