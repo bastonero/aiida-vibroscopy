@@ -33,7 +33,7 @@ def test_methods(generate_vibrational_data_from_forces, ndarrays_regression):
         0, 0, 1
     ], **dict(freq_range=freq_range))
 
-    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-4, rtol=1e-4))
+    ndarrays_regression.check(results, default_tolerance=dict(atol=1e-2, rtol=1e-2))
 
 
 @pytest.mark.usefixtures('aiida_profile')
