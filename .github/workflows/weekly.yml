@@ -1,0 +1,73 @@
+name: weekly
+
+on:
+    schedule:
+    -   cron: '0 0 * * 0'  # Run every week on Sunday
+    push:
+        paths:
+        - '.github/workflows/weekly.yml'
+    pull_request:
+        paths:
+        - '.github/workflows/weekly.yml'
+
+
+jobs:
+
+    tests:
+
+        if: github.repository == 'bastonero/aiida-vibroscopy'  # Prevent running the builds on forks as well
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                python-version: ['3.9', '3.12']
+
+        services:
+            postgres:
+                image: postgres:12
+            rabbitmq:
+                image: rabbitmq:latest
+                ports:
+                -   5672:5672
+
+        steps:
+        -   uses: actions/checkout@v2
+
+        -   name: Cache Python dependencies
+            uses: actions/cache@v4
+            with:
+                path: ~/.cache/pip
+                key: pip-${{ matrix.python-version }}-tests-${{ hashFiles('**/setup.json') }}
+                restore-keys:
+                    pip-${{ matrix.python-version }}-tests
+
+        -   name: Set up Python ${{ matrix.python-version }}
+            uses: actions/setup-python@v2
+            with:
+                python-version: ${{ matrix.python-version }}
+
+        -   name: Install Python dependencies
+            id: install
+            run: |
+                pip install -e .[tests]
+                pip install git+https://github.com/aiidateam/aiida-core@main#egg=aiida-core
+                pip install git+https://github.com/phonopy/phonopy.git@develop
+                pip install git+https://github.com/aiidateam/aiida-quantumespresso.git@main
+
+        -   name: Run pytest
+            id: tests
+            env:
+                AIIDA_WARN_v3: 1
+            run: pytest -sv tests
+
+        # -   name: Slack notification
+        #     if: always() && (steps.install.outcome == 'Failure' || steps.tests.outcome == 'Failure')
+        #     uses: rtCamp/action-slack-notify@master
+        #     env:
+        #         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        #         SLACK_ICON: https://www.materialscloud.org/discover/images/0ba0a17d.aiida-logo-128.png
+        #         SLACK_USERNAME: aiida-quantumespresso
+        #         SLACK_CHANNEL: dev-aiida-qe
+        #         SLACK_COLOR: b60205
+        #         SLACK_TITLE: "Nightly build against `aiida-core/main` failed"
+        #         SLACK_MESSAGE: "The tests fail with the current version of `aiida-core/main`."
