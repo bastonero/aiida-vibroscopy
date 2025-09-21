@@ -1,3 +1,34 @@
+## v1.4.0
+
+This release comes with the support of the latest `phonopy` versions, which between v2.26 and v2.38 were breaking the tests for
+Raman with long-range corrections. We also reduced the mesh size for interpolation, as the previous value was unnecessarily
+large (and therefore computationally expensive).
+
+Finally, we also now introduce a weekly run of the test suite, so to monitor breaking versions against the main
+dependencies of the package.
+
+
+### 👌 Improvements
+
+* `Properties`: reduce mesh for phonon mesh interpolation [[7a357d0](https://github.com/aiidateam/aiida-quantumespresso/commit/7a357d0f3a3c2a6a5725eb4fb96c38ed719a6021)]
+
+
+### 📚 Documentation
+
+* Docs: update reference tag with DOI [[2a88b24](https://github.com/aiidateam/aiida-quantumespresso/commit/2a88b24375400ed5bcc4c93939af4fa1dd301967)]
+
+
+### 🔧 Maintenance
+
+* DevOps: add a weekly build and test [[8dbde79](https://github.com/aiidateam/aiida-quantumespresso/commit/8dbde7911a75f925538b63932bf2c19c6dab7a11)]
+
+
+### ⬆️ Update dependencies
+
+* ⬆️ Phonopy: support newer versions [[1a3c4c8](https://github.com/aiidateam/aiida-quantumespresso/commit/1a3c4c8b6f12e3e95adea19e511d6d9ed7156c10)]
+
+
+
 ## v1.3.0
 
 This release aligns with the new protocols released in `aiida-quantumespresso`, both for the naming and for their parametrizations.
