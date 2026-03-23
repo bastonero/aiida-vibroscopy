@@ -424,7 +424,7 @@ def compute_clamped_pockels_tensor(
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray,
     nac_direction: None | list[float, float, float] = None,
-    imaginary_thr: float = -5.0 * 1.0e+12, # in Hz
+    imaginary_thr: float = -5.0, # in THz
     skip_frequencies: int = 3,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute the clamped Pockels tensor in Cartesian coordinates.
@@ -439,11 +439,10 @@ def compute_clamped_pockels_tensor(
 
     :return: tuple of (r_ion + r_el, r_el, r_ion), each having (3, 3, 3) shape array
     """
-    borns = phonopy_instance.nac_params['born'] * UNITS.elementary_charge_si  # convert to Coulomb
+    borns = phonopy_instance.nac_params['born']
     dielectric = phonopy_instance.nac_params['dielectric']
 
     dielectric_inv = np.linalg.inv(dielectric)
-    raman = raman_tensors * 1.0e10  # convert to 1/m
 
     q_reduced = None
     # Have a look in compute_active_modes for the notation
@@ -452,13 +451,14 @@ def compute_clamped_pockels_tensor(
                            nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
 
     phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
-    frequencies = phonopy_instance.qpoints.frequencies[0] * 1.0e+12  # THz -> Hz
+    frequencies = phonopy_instance.qpoints.frequencies[0]  # THz
     eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
 
     if frequencies.min() < imaginary_thr:
-        raise ValueError('Negative frequencies detected.')
+        import warnings
+        warnings.warn(f'Negative frequencies detected below {imaginary_thr} THz.')
 
-    masses = phonopy_instance.masses * UNITS.atomic_mass_si
+    masses = phonopy_instance.masses
     sqrt_masses = np.array([[np.sqrt(mass)] for mass in masses])
 
     shape = (len(frequencies), len(masses), 3)  # (modes, atoms, 3)
@@ -468,7 +468,7 @@ def compute_clamped_pockels_tensor(
     # norm_eigvectors shape|indices = (modes, atoms, 3) | (m, a, p)
     # raman  shape|indices = (atoms, 3, 3, 3) | (a, p, i, j)
     # The contraction is performed over a and k, resulting in (m, i, j) raman susceptibility tensors.
-    alpha = np.tensordot(norm_eigvectors, raman, axes=([1, 2], [0, 1]))
+    alpha = np.tensordot(norm_eigvectors, raman_tensors, axes=([1, 2], [0, 1]))
 
     # borns charges shape|indices = (atoms, 3, 3) | (a, k, p)
     # norm_eigvectors shape|indices = (modes, atoms, 3) | (m, a, p)
@@ -482,9 +482,11 @@ def compute_clamped_pockels_tensor(
         ir_contribution[:, i] = 0
     r_ion_inner = np.tensordot(alpha, ir_contribution, axes=([0], [1]))  # (i, j, k)
 
+    fscale = 1.0e-2 * UNITS.elementary_charge_si / UNITS.atomic_mass_si
+
     r_ion_left = np.dot(dielectric_inv, np.transpose(r_ion_inner, axes=[1, 0, 2]))
     r_ion_transposed = np.dot(np.transpose(r_ion_left, axes=[0, 2, 1]), dielectric_inv)
-    r_ion = -np.transpose(r_ion_transposed, axes=[0, 2, 1]) * 1.0e+12  # pm/V
+    r_ion = -np.transpose(r_ion_transposed, axes=[0, 2, 1]) * fscale  # pm/V
 
     r_el_left = np.dot(dielectric_inv, np.transpose(nlo_susceptibility, axes=[1, 0, 2]))
     r_el_transposed = -2 * np.dot(np.transpose(r_el_left, axes=[0, 2, 1]), dielectric_inv)
