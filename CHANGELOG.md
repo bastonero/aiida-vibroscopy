@@ -1,3 +1,34 @@
+## v1.5.0
+
+Minor release to support many new dependencies, such as Python 3.13 and 3.14, phonopy 3.0, and aiida-core 2.8.
+We also add a new feature in the `DielectricWorkChain` to check whether the ground-state is metallic or not before continuing or stop smoothly.
+
+
+### ‼️ Breaking changes
+
+* Deps: support phonopy v3.x [[bf7ce3d](https://github.com/bastonero/aiida-vibroscopy/commit/bf7ce3dfd9787ba4513d74d814cffba131b8f2ae)]
+
+### ✨ New features
+
+* `Dielectric`: add check and exit code for metallic ground-states [[ce961f8](https://github.com/bastonero/aiida-vibroscopy/commit/ce961f8347a51d3bfe65ca1f0a7548ff3436e396)]
+
+### 🗑️ Deprecations
+
+* Python: support 3.13; drop 3.8/3.9 [[24ac762](https://github.com/bastonero/aiida-vibroscopy/commit/24ac762c937abde9afb721d6785812189988e06d)]
+
+### 🔧 Maintenance
+
+* DevOps: use python 3.10 in github workflows [[45f121d](https://github.com/bastonero/aiida-vibroscopy/commit/45f121dbeb7d7e1f0fe4fc6eb7cfd25385102d63)]
+
+### ⬆️ Update dependencies
+
+* Python: support 3.14 [[42ba68a](https://github.com/bastonero/aiida-vibroscopy/commit/42ba68ae4864976b3ca68c98ee99e9abc2de7822)]
+* Python: support 3.13; drop 3.8/3.9 [[24ac762](https://github.com/bastonero/aiida-vibroscopy/commit/24ac762c937abde9afb721d6785812189988e06d)]
+* Deps: support phonopy v3.x [[bf7ce3d](https://github.com/bastonero/aiida-vibroscopy/commit/bf7ce3dfd9787ba4513d74d814cffba131b8f2ae)]
+* Deps: exclude aiida-quantumespresso v4.14 [[78e68b4](https://github.com/bastonero/aiida-vibroscopy/commit/78e68b4b4b5350f96ffc7f83b25c4dc939b0a1e1)]
+
+
+
 ## v1.4.0
 
 This release comes with the support of the latest `phonopy` versions, which between v2.26 and v2.38 were breaking the tests for
