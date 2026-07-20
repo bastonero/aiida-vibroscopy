@@ -27,7 +27,7 @@ keywords = ['aiida', 'workflows']
 requires-python = '>=3.10'
 dependencies = [
     "aiida-core~=2.8",
-    "aiida-quantumespresso~=4.10,!=4.14",
+    "aiida-quantumespresso>=4.10,!=4.14,<6.0",
     "aiida-phonopy~=1.5",
     "spglib~=2.6",
     "phonopy~=3.0",
