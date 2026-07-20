@@ -1,3 +1,12 @@
+## v1.6.0
+
+Minor release to support aiida-quantumespresso v5.0. As the latter does not introduce any breaking changes with the major number update, we still support v4.x compatible versions.
+
+### ⬆️ Update dependencies
+
+* Deps: support aiida-qe v5.0 [[05692b0](https://github.com/bastonero/aiida-vibroscopy/commit/05692b0864c83cb53de74b4c2dc84dbd12aace9f)]
+
+
 ## v1.5.0
 
 Minor release to support many new dependencies, such as Python 3.13 and 3.14, phonopy 3.0, and aiida-core 2.8.
