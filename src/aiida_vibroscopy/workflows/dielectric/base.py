@@ -641,10 +641,10 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
     def check_insulator(self):
         """Check whether the system is an insulator after the nscf."""
-        workchain = self.ctx.nscf.outputs
+        outputs = self.ctx.nscf.outputs
 
-        bands = workchain.outputs.output_band
-        parameters = workchain.outputs.output_parameters.get_dict()
+        bands = outputs.output_band
+        parameters = outputs.output_parameters.get_dict()
 
         fermi_energy = parameters['fermi_energy']
         number_electrons = parameters['number_of_electrons']
