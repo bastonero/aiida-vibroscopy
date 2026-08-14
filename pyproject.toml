@@ -1,10 +1,11 @@
 [build-system]
-requires = ['flit_core>=3.4,<4']
-build-backend = 'flit_core.buildapi'
+requires = ['hatchling']
+build-backend = 'hatchling.build'
 
 [project]
 name = 'aiida-vibroscopy'
-dynamic = ['description', 'version']
+dynamic = ['version']
+description = 'AiiDA plugin for vibrational spectroscopy using Quantum ESPRESSO'
 authors = [
     {name = 'Lorenzo Bastonero', email = 'bastonero.lorenzo@gmail.com'}
 ]
@@ -38,9 +39,7 @@ Source = "https://github.com/bastonero/aiida-vibroscopy"
 
 [project.optional-dependencies]
 pre-commit = [
-    'pre-commit~=4.0',
-    'pylint==4.0.7',
-    'toml',
+    'pre-commit>=4.3.0',
 ]
 tests = [
     'pgtest~=1.3',
@@ -64,6 +63,11 @@ docs = [
     'sphinx-togglebutton',
 ]
 
+[dependency-groups]
+dev = [
+  "aiida-vibroscopy[docs,tests,pre-commit]",
+]
+
 [project.scripts]
 aiida-vibroscopy = 'aiida_vibroscopy.cli:cmd_root'
 
@@ -79,17 +83,44 @@ aiida-vibroscopy = 'aiida_vibroscopy.cli:cmd_root'
 "vibroscopy.spectra.iraman" = "aiida_vibroscopy.workflows.spectra.iraman:IRamanSpectraWorkChain"
 "vibroscopy.spectra.intensities_average" = "aiida_vibroscopy.workflows.spectra.intensities_average:IntensitiesAverageWorkChain"
 
-[tool.flit.module]
-name = 'aiida_vibroscopy'
+[tool.hatch.build.targets.wheel]
+packages = ['src/aiida_vibroscopy']
 
-[tool.flit.sdist]
+[tool.hatch.build.targets.sdist]
 exclude = [
-    'docs/',
-    'tests/',
-    '.github/',
-    '.gitignore',
-    '.pre-commit-config.yaml',
+  '.github/',
+  '.gitignore',
+  '.pre-commit-config.yaml',
+  'docs/',
+  'examples/',
+  'tests/',
 ]
+
+[tool.hatch.version]
+path = 'src/aiida_vibroscopy/__init__.py'
+
+[tool.hatch.envs.default]
+installer = 'uv'
+
+[tool.hatch.envs.pre-commit]
+features = ["pre-commit"]
+scripts.install = 'pre-commit install'
+scripts.run = 'pre-commit run {args}'
+
+[tool.hatch.envs.hatch-test]
+features = ["tests"]
+randomize = false
+parallel = false
+run = "pytest {args}"
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+[tool.hatch.envs.docs]
+features = ["docs"]
+scripts.clean = 'make -C docs clean'
+scripts.build = 'make -C docs html'
+scripts.view = 'make -C docs view'
 
 [tool.flynt]
 line-length = 120
