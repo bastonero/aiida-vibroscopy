@@ -44,6 +44,10 @@ repos:
         entry: pylint
         types: [python]
         language: system
+        exclude: >-
+            (?x)^(
+                examples/.*
+            )$
 
 
 -   repo: https://github.com/PyCQA/pydocstyle
