@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for :mod:`calculations.spectra_utils`."""
+
 import numpy as np
 import pytest
 
@@ -47,7 +47,7 @@ def generate_trajectory():
         from aiida.orm import TrajectoryData
         import numpy as np
 
-        # yapf: disable
+        # fmt: off
         node = TrajectoryData()
         polarization = scale * np.array([[-4.88263729e-09, 6.84208048e-09, 1.67517339e-01]])
         node.set_array('electronic_dipole_cartesian_axes', polarization)
@@ -76,7 +76,7 @@ def generate_trajectory():
             [ 4.21853809, 4.21853809, 1.40621634 ],
             [ 4.21853809, 1.40621634, 4.21853809 ],
         ]])
-        # yapf: enable
+        # fmt: on
         symbols = ['Al', 'Al', 'Al', 'Al', 'As', 'As', 'As', 'As']
         node.set_trajectory(stepids=stepids, cells=cells, symbols=symbols, positions=positions, times=times)
 

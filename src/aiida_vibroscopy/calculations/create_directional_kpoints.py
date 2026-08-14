@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Calculation function to compute a k-point mesh for a structure with a directional k-point distance."""
+
 from aiida.engine import calcfunction
 
 
@@ -28,7 +28,7 @@ def create_directional_kpoints(structure, direction, parallel_distance, orthogon
     from aiida.orm import KpointsData
     import numpy as np
 
-    epsilon = 1E-5
+    epsilon = 1e-5
 
     kpoints_ortho = KpointsData()
     kpoints_ortho.set_cell_from_structure(structure)
@@ -42,7 +42,6 @@ def create_directional_kpoints(structure, direction, parallel_distance, orthogon
     mesh = kpoints_ortho.get_kpoints_mesh()[0]
 
     for i, weigth in enumerate(weigths):
-
         kpoints_para = KpointsData()
         kpoints_para.set_cell_from_structure(structure)
         distance = parallel_distance.value / weigth if weigth > epsilon else orthogonal_distance.value

@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-# pylint: disable=redefined-outer-name
 """Fixtures for the command line interface."""
+
 import pytest
 
 
@@ -13,6 +12,7 @@ def mock_launch_process(*_, **__):
 def filepath_cli_fixture(filepath_tests):
     """Return the filepath for CLI fixtures."""
     from pathlib import Path
+
     return Path(filepath_tests, 'cli', 'fixtures')
 
 
@@ -65,6 +65,7 @@ def run_cli_process_launch_command(run_cli_command, monkeypatch):
     def _inner(command, options=None, raises=None):
         """Run the command and check the result."""
         from aiida_vibroscopy.cli.utils import launch
+
         monkeypatch.setattr(launch, 'launch_process', mock_launch_process)
         return run_cli_command(command, options, raises)
 

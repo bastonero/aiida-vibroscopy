@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Module implementing a general Lebedev integration scheme on sphere."""
+
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ import json
 import numpy as np
 import sympy
 
-# yapf: disable
+# fmt: off
 available_orders = [
     3, 5, 7, 9, 11, 13, 15, 17,
     19, 21, 23, 25, 27, 29, 31,
@@ -22,7 +22,7 @@ available_orders = [
     77, 83, 89, 95, 101, 107,
     113, 119, 125, 131,
 ]
-# yapf: enable
+# fmt: on
 
 
 class LebedevScheme:
@@ -107,22 +107,24 @@ def _a2(vals):
     """Return the expanded symmetry points."""
     symbolic = np.asarray(vals).dtype == sympy.Basic
     a = 1 / sympy.sqrt(2) if symbolic else 1 / np.sqrt(2)
-    points = np.array([
-        [+a, +a, 0],
-        [+a, -a, 0],
-        [-a, +a, 0],
-        [-a, -a, 0],
-        #
-        [+a, 0, +a],
-        [+a, 0, -a],
-        [-a, 0, +a],
-        [-a, 0, -a],
-        #
-        [0, +a, +a],
-        [0, +a, -a],
-        [0, -a, +a],
-        [0, -a, -a],
-    ]).T
+    points = np.array(
+        [
+            [+a, +a, 0],
+            [+a, -a, 0],
+            [-a, +a, 0],
+            [-a, -a, 0],
+            #
+            [+a, 0, +a],
+            [+a, 0, -a],
+            [-a, 0, +a],
+            [-a, 0, -a],
+            #
+            [0, +a, +a],
+            [0, +a, -a],
+            [0, -a, +a],
+            [0, -a, -a],
+        ]
+    ).T
     return points
 
 
@@ -130,16 +132,18 @@ def _a3(vals):
     """Return the expanded symmetry points."""
     symbolic = np.asarray(vals).dtype == sympy.Basic
     a = 1 / sympy.sqrt(3) if symbolic else 1 / np.sqrt(3)
-    points = np.array([
-        [+a, +a, +a],
-        [+a, +a, -a],
-        [+a, -a, +a],
-        [+a, -a, -a],
-        [-a, +a, +a],
-        [-a, +a, -a],
-        [-a, -a, +a],
-        [-a, -a, -a],
-    ]).T
+    points = np.array(
+        [
+            [+a, +a, +a],
+            [+a, +a, -a],
+            [+a, -a, +a],
+            [+a, -a, -a],
+            [-a, +a, +a],
+            [-a, +a, -a],
+            [-a, -a, +a],
+            [-a, -a, -a],
+        ]
+    ).T
     return points
 
 
@@ -162,37 +166,39 @@ def _pq02(vals):
     else:
         zero = np.zeros_like(a)
 
-    points = np.array([
-        [+a, +b, zero],
-        [-a, +b, zero],
-        [-a, -b, zero],
-        [+a, -b, zero],
-        #
-        [+b, +a, zero],
-        [-b, +a, zero],
-        [-b, -a, zero],
-        [+b, -a, zero],
-        #
-        [+a, zero, +b],
-        [-a, zero, +b],
-        [-a, zero, -b],
-        [+a, zero, -b],
-        #
-        [+b, zero, +a],
-        [-b, zero, +a],
-        [-b, zero, -a],
-        [+b, zero, -a],
-        #
-        [zero, +a, +b],
-        [zero, -a, +b],
-        [zero, -a, -b],
-        [zero, +a, -b],
-        #
-        [zero, +b, +a],
-        [zero, -b, +a],
-        [zero, -b, -a],
-        [zero, +b, -a],
-    ])
+    points = np.array(
+        [
+            [+a, +b, zero],
+            [-a, +b, zero],
+            [-a, -b, zero],
+            [+a, -b, zero],
+            #
+            [+b, +a, zero],
+            [-b, +a, zero],
+            [-b, -a, zero],
+            [+b, -a, zero],
+            #
+            [+a, zero, +b],
+            [-a, zero, +b],
+            [-a, zero, -b],
+            [+a, zero, -b],
+            #
+            [+b, zero, +a],
+            [-b, zero, +a],
+            [-b, zero, -a],
+            [+b, zero, -a],
+            #
+            [zero, +a, +b],
+            [zero, -a, +b],
+            [zero, -a, -b],
+            [zero, +a, -b],
+            #
+            [zero, +b, +a],
+            [zero, -b, +a],
+            [zero, -b, -a],
+            [zero, +b, -a],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 
@@ -211,22 +217,24 @@ def _rs0(vals):
     else:
         zero = np.zeros_like(a)
 
-    points = np.array([
-        [+a, +b, zero],
-        [-a, +b, zero],
-        [-a, -b, zero],
-        [+a, -b, zero],
-        #
-        [+b, zero, +a],
-        [-b, zero, +a],
-        [-b, zero, -a],
-        [+b, zero, -a],
-        #
-        [zero, +a, +b],
-        [zero, -a, +b],
-        [zero, -a, -b],
-        [zero, +a, -b],
-    ])
+    points = np.array(
+        [
+            [+a, +b, zero],
+            [-a, +b, zero],
+            [-a, -b, zero],
+            [+a, -b, zero],
+            #
+            [+b, zero, +a],
+            [-b, zero, +a],
+            [-b, zero, -a],
+            [+b, zero, -a],
+            #
+            [zero, +a, +b],
+            [zero, -a, +b],
+            [zero, -a, -b],
+            [zero, +a, -b],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 
@@ -249,34 +257,36 @@ def _llm2(vals):
         assert len(vals) == 2
         L, m = vals
 
-    points = np.array([
-        [+L, +L, +m],
-        [-L, +L, +m],
-        [+L, -L, +m],
-        [-L, -L, +m],
-        [+L, +L, -m],
-        [-L, +L, -m],
-        [+L, -L, -m],
-        [-L, -L, -m],
-        #
-        [+L, +m, +L],
-        [-L, +m, +L],
-        [+L, +m, -L],
-        [-L, +m, -L],
-        [+L, -m, +L],
-        [-L, -m, +L],
-        [+L, -m, -L],
-        [-L, -m, -L],
-        #
-        [+m, +L, +L],
-        [+m, -L, +L],
-        [+m, +L, -L],
-        [+m, -L, -L],
-        [-m, +L, +L],
-        [-m, -L, +L],
-        [-m, +L, -L],
-        [-m, -L, -L],
-    ])
+    points = np.array(
+        [
+            [+L, +L, +m],
+            [-L, +L, +m],
+            [+L, -L, +m],
+            [-L, -L, +m],
+            [+L, +L, -m],
+            [-L, +L, -m],
+            [+L, -L, -m],
+            [-L, -L, -m],
+            #
+            [+L, +m, +L],
+            [-L, +m, +L],
+            [+L, +m, -L],
+            [-L, +m, -L],
+            [+L, -m, +L],
+            [-L, -m, +L],
+            [+L, -m, -L],
+            [-L, -m, -L],
+            #
+            [+m, +L, +L],
+            [+m, -L, +L],
+            [+m, +L, -L],
+            [+m, -L, -L],
+            [-m, +L, +L],
+            [-m, -L, +L],
+            [-m, +L, -L],
+            [-m, -L, -L],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 
@@ -301,63 +311,65 @@ def _rsw2(vals):
         assert len(vals) == 3
         r, s, w = vals
 
-    points = np.array([
-        [+r, +s, +w],
-        [+w, +r, +s],
-        [+s, +w, +r],
-        [+s, +r, +w],
-        [+w, +s, +r],
-        [+r, +w, +s],
-        #
-        [-r, +s, +w],
-        [+w, -r, +s],
-        [+s, +w, -r],
-        [+s, -r, +w],
-        [+w, +s, -r],
-        [-r, +w, +s],
-        #
-        [+r, -s, +w],
-        [+w, +r, -s],
-        [-s, +w, +r],
-        [-s, +r, +w],
-        [+w, -s, +r],
-        [+r, +w, -s],
-        #
-        [+r, +s, -w],
-        [-w, +r, +s],
-        [+s, -w, +r],
-        [+s, +r, -w],
-        [-w, +s, +r],
-        [+r, -w, +s],
-        #
-        [-r, -s, +w],
-        [+w, -r, -s],
-        [-s, +w, -r],
-        [-s, -r, +w],
-        [+w, -s, -r],
-        [-r, +w, -s],
-        #
-        [-r, +s, -w],
-        [-w, -r, +s],
-        [+s, -w, -r],
-        [+s, -r, -w],
-        [-w, +s, -r],
-        [-r, -w, +s],
-        #
-        [+r, -s, -w],
-        [-w, +r, -s],
-        [-s, -w, +r],
-        [-s, +r, -w],
-        [-w, -s, +r],
-        [+r, -w, -s],
-        #
-        [-r, -s, -w],
-        [-w, -r, -s],
-        [-s, -w, -r],
-        [-s, -r, -w],
-        [-w, -s, -r],
-        [-r, -w, -s],
-    ])
+    points = np.array(
+        [
+            [+r, +s, +w],
+            [+w, +r, +s],
+            [+s, +w, +r],
+            [+s, +r, +w],
+            [+w, +s, +r],
+            [+r, +w, +s],
+            #
+            [-r, +s, +w],
+            [+w, -r, +s],
+            [+s, +w, -r],
+            [+s, -r, +w],
+            [+w, +s, -r],
+            [-r, +w, +s],
+            #
+            [+r, -s, +w],
+            [+w, +r, -s],
+            [-s, +w, +r],
+            [-s, +r, +w],
+            [+w, -s, +r],
+            [+r, +w, -s],
+            #
+            [+r, +s, -w],
+            [-w, +r, +s],
+            [+s, -w, +r],
+            [+s, +r, -w],
+            [-w, +s, +r],
+            [+r, -w, +s],
+            #
+            [-r, -s, +w],
+            [+w, -r, -s],
+            [-s, +w, -r],
+            [-s, -r, +w],
+            [+w, -s, -r],
+            [-r, +w, -s],
+            #
+            [-r, +s, -w],
+            [-w, -r, +s],
+            [+s, -w, -r],
+            [+s, -r, -w],
+            [-w, +s, -r],
+            [-r, -w, +s],
+            #
+            [+r, -s, -w],
+            [-w, +r, -s],
+            [-s, -w, +r],
+            [-s, +r, -w],
+            [-w, -s, +r],
+            [+r, -w, -s],
+            #
+            [-r, -s, -w],
+            [-w, -r, -s],
+            [-s, -w, -r],
+            [-s, -r, -w],
+            [-w, -s, -r],
+            [-r, -w, -s],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 
@@ -371,39 +383,41 @@ def _rst(vals):
         assert len(vals) == 3
         r, s, w = vals
 
-    points = np.array([
-        [+r, +s, +w],
-        [+w, +r, +s],
-        [+s, +w, +r],
-        #
-        [-r, +s, +w],
-        [+w, -r, +s],
-        [+s, +w, -r],
-        #
-        [+r, -s, +w],
-        [+w, +r, -s],
-        [-s, +w, +r],
-        #
-        [+r, +s, -w],
-        [-w, +r, +s],
-        [+s, -w, +r],
-        #
-        [-r, -s, +w],
-        [+w, -r, -s],
-        [-s, +w, -r],
-        #
-        [-r, +s, -w],
-        [-w, -r, +s],
-        [+s, -w, -r],
-        #
-        [+r, -s, -w],
-        [-w, +r, -s],
-        [-s, -w, +r],
-        #
-        [-r, -s, -w],
-        [-w, -r, -s],
-        [-s, -w, -r],
-    ])
+    points = np.array(
+        [
+            [+r, +s, +w],
+            [+w, +r, +s],
+            [+s, +w, +r],
+            #
+            [-r, +s, +w],
+            [+w, -r, +s],
+            [+s, +w, -r],
+            #
+            [+r, -s, +w],
+            [+w, +r, -s],
+            [-s, +w, +r],
+            #
+            [+r, +s, -w],
+            [-w, +r, +s],
+            [+s, -w, +r],
+            #
+            [-r, -s, +w],
+            [+w, -r, -s],
+            [-s, +w, -r],
+            #
+            [-r, +s, -w],
+            [-w, -r, +s],
+            [+s, -w, -r],
+            #
+            [+r, -s, -w],
+            [-w, +r, -s],
+            [-s, -w, +r],
+            #
+            [-r, -s, -w],
+            [-w, -r, -s],
+            [-s, -w, -r],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 
@@ -417,35 +431,37 @@ def _rst_weird(vals):
         assert len(vals) == 3
         r, s, t = vals
 
-    points = np.array([
-        [+r, +s, +t],
-        [-r, +t, +s],
-        [+s, +t, +r],
-        [-s, +r, +t],
-        [+t, +r, +s],
-        [-t, +s, +r],
-        #
-        [+r, -s, -t],
-        [-r, -t, -s],
-        [+s, -t, -r],
-        [-s, -r, -t],
-        [+t, -r, -s],
-        [-t, -s, -r],
-        #
-        [+r, +t, -s],
-        [-r, +s, -t],
-        [+s, +r, -t],
-        [-s, +t, -r],
-        [+t, +s, -r],
-        [-t, +r, -s],
-        #
-        [+r, -t, +s],
-        [-r, -s, +t],
-        [+s, -r, +t],
-        [-s, -t, +r],
-        [+t, -s, +r],
-        [-t, -r, +s],
-    ])
+    points = np.array(
+        [
+            [+r, +s, +t],
+            [-r, +t, +s],
+            [+s, +t, +r],
+            [-s, +r, +t],
+            [+t, +r, +s],
+            [-t, +s, +r],
+            #
+            [+r, -s, -t],
+            [-r, -t, -s],
+            [+s, -t, -r],
+            [-s, -r, -t],
+            [+t, -r, -s],
+            [-t, -s, -r],
+            #
+            [+r, +t, -s],
+            [-r, +s, -t],
+            [+s, +r, -t],
+            [-s, +t, -r],
+            [+t, +s, -r],
+            [-t, +r, -s],
+            #
+            [+r, -t, +s],
+            [-r, -s, +t],
+            [+s, -r, +t],
+            [-s, -t, +r],
+            [+t, -s, +r],
+            [-t, -r, +s],
+        ]
+    )
     points = np.moveaxis(points, 0, 1)
     return points
 

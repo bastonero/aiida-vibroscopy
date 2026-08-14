@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for the :mod:`workflows.phonons.iraman` module."""
+
 import pytest
 
 
@@ -16,6 +16,7 @@ def generate_workchain_average(generate_workchain, generate_vibrational_data_fro
 
     def _generate_workchain_average(append_inputs=None, return_inputs=False):
         from aiida import orm
+
         entry_point = 'vibroscopy.spectra.intensities_average'
         vibrational_data = generate_vibrational_data_from_forces()
         parameters = orm.Dict({'quadrature_order': 3})

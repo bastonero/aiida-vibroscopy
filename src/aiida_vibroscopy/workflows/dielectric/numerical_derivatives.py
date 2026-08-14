@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Workflow for numerical derivatives."""
+
 from aiida import orm
 from aiida.common import AttributeDict
 from aiida.engine import WorkChain
@@ -29,7 +29,7 @@ def validate_data(data, _):
         # first, control if `null`
         if label.startswith('null'):
             control_null_namespace += 1
-        elif not label[-1] in ['0', '1', '2', '3', '4', '5']:
+        elif label[-1] not in ['0', '1', '2', '3', '4', '5']:
             return f'`{label[-1]}` is an invalid label ending for field labels`'
 
 
@@ -93,14 +93,14 @@ class NumericalDerivativesWorkChain(WorkChain):
     must be passed with a different key, namely ``null_field``.
     This is to avoid errors and due to the fact that is common
     to the all derivatives.
-    """  # pylint: disable=line-too-long
+    """
 
     @classmethod
     def define(cls, spec):
         """Define the process specification."""
         super().define(spec)
 
-        # yapf: disable
+        # fmt: off
         spec.input('structure', valid_type=orm.StructureData)
         spec.input_namespace(
             'data', validator=validate_data,
@@ -164,7 +164,7 @@ class NumericalDerivativesWorkChain(WorkChain):
         spec.output(
             'units', valid_type=orm.Dict, required=False,
             help='Units of the susceptibility derivatives tensors.')
-        # yapf: enable
+        # fmt: on
 
     def run_results(self):
         """Wrap up results from previous calculations."""
@@ -182,7 +182,7 @@ class NumericalDerivativesWorkChain(WorkChain):
             preprocess_data=preprocess_data,
             electric_field=self.inputs.central_difference.electric_field_step,
             accuracy_order=self.inputs.central_difference.accuracy,
-            **kwargs
+            **kwargs,
         )
 
         # Derivatives of the susceptibility

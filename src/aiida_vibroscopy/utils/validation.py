@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Validation function utilities."""
+
 from __future__ import annotations
 
 __all__ = ('validate_tot_magnetization', 'validate_matrix', 'validate_positive')
@@ -37,7 +37,7 @@ def validate_matrix(value, _):
 
     for row in value:
         if isinstance(row, list):
-            if not len(row) in [0, 3]:
+            if len(row) not in [0, 3]:
                 return 'matrix need to have 3x1 or 3x3 shape.'
             for element in row:
                 if not isinstance(element, (int, float)):

@@ -7,6 +7,7 @@
 # serve to show the default.
 #
 """Configuration file for the documentation."""
+
 import pathlib
 import time
 
@@ -22,12 +23,12 @@ import aiida_vibroscopy
 # -- Project information -----------------------------------------------------
 
 project = 'aiida-vibroscopy'
-copyright = ( # pylint: disable=redefined-builtin, line-too-long
+copyright = (  # pylint: disable=redefined-builtin, line-too-long
     f"""2023-{time.localtime().tm_year}, University of Bremen, Germany, U Bremen Excellence Chair.
     Paul Scherrer Institut, Switzerland, Laboratory of Materials Simulations.
     ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, Laboratory of Theory
     and Simulation of Materials (THEOS)."""
-) # pylint: disable=redefined-builtin, line-too-long
+)  # pylint: disable=redefined-builtin, line-too-long
 
 # The full version, including alpha/beta/rc tags.
 release = aiida_vibroscopy.__version__
@@ -37,7 +38,7 @@ version = '.'.join(aiida_vibroscopy.__version__.split('.')[:2])
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.0'
+# needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -96,7 +97,7 @@ source_suffix = {
 }
 
 # Don't run the already executed notebooks
-nb_execution_mode = 'off' # cache
+nb_execution_mode = 'off'  # cache
 
 # Execution timeout (seconds)
 nb_execution_timeout = 600
@@ -146,7 +147,7 @@ html_theme_options = {
         'text': 'AiiDA Vibroscopy',
         'image_light': '_static/vibroscopy_logo.png',
         'image_dark': '_static/vibroscopy_logo.png',
-    }
+    },
 }
 html_static_path = ['_static']
 html_context = {
@@ -156,9 +157,7 @@ html_context = {
     'doc_path': 'docs/source',
     'default_mode': 'light',
 }
-html_sidebars = {
-    '**': ['navbar-logo.html', 'navbar-icon-links.html', 'search-field.html', 'sbt-sidebar-nav.html']
-}
+html_sidebars = {'**': ['navbar-logo.html', 'navbar-icon-links.html', 'search-field.html', 'sbt-sidebar-nav.html']}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -185,13 +184,10 @@ htmlhelp_basename = 'aiida-vibroscopydoc'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #'preamble': '',
-
     # Latex figure (float) alignment
     #'figure_align': 'htbp',
 }
@@ -204,23 +200,23 @@ latex_elements = {
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-#latex_logo = None
+# latex_logo = None
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
-#latex_use_parts = False
+# latex_use_parts = False
 
 # If true, show page references after internal links.
-#latex_show_pagerefs = False
+# latex_show_pagerefs = False
 
 # If true, show URL addresses after external links.
-#latex_show_urls = False
+# latex_show_urls = False
 
 # Documents to append as an appendix to all manuals.
-#latex_appendices = []
+# latex_appendices = []
 
 # If false, no module index is generated.
-#latex_domain_indices = True
+# latex_domain_indices = True
 
 # -- Options for manual page output ---------------------------------------
 
@@ -230,7 +226,7 @@ latex_elements = {
 # ]
 
 # If true, show URL addresses after external links.
-#man_show_urls = False
+# man_show_urls = False
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -241,16 +237,16 @@ latex_elements = {
 # ]
 
 # Documents to append as an appendix to all manuals.
-#texinfo_appendices = []
+# texinfo_appendices = []
 
 # If false, no module index is generated.
-#texinfo_domain_indices = True
+# texinfo_domain_indices = True
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
-#texinfo_show_urls = 'footnote'
+# texinfo_show_urls = 'footnote'
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
-#texinfo_no_detailmenu = False
+# texinfo_no_detailmenu = False
 
 # Warnings to ignore when using the -n (nitpicky) option
 # We should ignore any python built-in exception, for instance
@@ -318,7 +314,8 @@ nitpick_ignore = [
 ]
 
 nitpick_ignore_regex = [
-    (r'py:.*', key) for key in [
+    (r'py:.*', key)
+    for key in [
         r'data.*',
         r'aiida.*',
         r'orm.*',

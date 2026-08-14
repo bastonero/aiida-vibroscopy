@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Command line scripts to launch a `IRamanSpectraWorkChain` for testing and demonstration purposes."""
+
 from aiida.cmdline.utils import decorators
 import click
 import yaml
@@ -37,14 +38,10 @@ def launch_workflow(pw_code, structure, protocol, pseudo_family, kpoints_mesh, o
         else:
             overrides = {
                 'dielectric': {
-                    'scf': {
-                        'pseudo_family': pseudo_family.label
-                    },
+                    'scf': {'pseudo_family': pseudo_family.label},
                 },
                 'phonon': {
-                    'scf': {
-                        'pseudo_family': pseudo_family.label
-                    },
+                    'scf': {'pseudo_family': pseudo_family.label},
                 },
             }
 

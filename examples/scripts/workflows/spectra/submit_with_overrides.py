@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=line-too-long,wildcard-import,pointless-string-statement,unused-wildcard-import
 """Submit an IRamanSpectraWorkChain via the get_builder_from_protocol using the overrides."""
+
 from pathlib import Path
 
 from aiida import load_profile

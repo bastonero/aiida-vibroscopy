@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for the :mod:`workflows.phonons.harmonic` module."""
+
 from aiida import orm
 import pytest
 
@@ -73,15 +73,15 @@ def generate_workchain_harmonic(generate_workchain, generate_inputs_pw_base):
             'phonon': {
                 'scf': scf_inputs,
                 'settings': {
-                    'sleep_submission_time': 0.,
-                }
+                    'sleep_submission_time': 0.0,
+                },
             },
             'dielectric': {
                 'property': 'raman',
                 'scf': scf_inputs,
                 'settings': {
-                    'sleep_submission_time': 0.,
-                }
+                    'sleep_submission_time': 0.0,
+                },
             },
             'settings': {},
             'symmetry': {},
@@ -135,8 +135,8 @@ def test_setup(generate_workchain_harmonic):
     assert 'preprocess_data' in process.ctx
     data = process.ctx.preprocess_data
     assert data.symprec == 1.0
-    assert data.distinguish_kinds == True
-    assert data.is_symmetry == False
+    assert data.distinguish_kinds
+    assert not data.is_symmetry
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -152,8 +152,8 @@ def test_run_phonon(generate_workchain_harmonic):
     assert 'phonon' in process.ctx
     workchain = orm.load_node(process.ctx.phonon.pk)
     assert workchain.inputs.symmetry.symprec.value == 1.0
-    assert workchain.inputs.symmetry.distinguish_kinds.value == True
-    assert workchain.inputs.symmetry.is_symmetry.value == False
+    assert workchain.inputs.symmetry.distinguish_kinds.value
+    assert not workchain.inputs.symmetry.is_symmetry.value
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -169,8 +169,8 @@ def test_run_dielectric(generate_workchain_harmonic):
     assert 'dielectric' in process.ctx
     workchain = orm.load_node(process.ctx.dielectric.pk)
     assert workchain.inputs.symmetry.symprec.value == 1.0
-    assert workchain.inputs.symmetry.distinguish_kinds.value == True
-    assert workchain.inputs.symmetry.is_symmetry.value == False
+    assert workchain.inputs.symmetry.distinguish_kinds.value
+    assert not workchain.inputs.symmetry.is_symmetry.value
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -182,8 +182,9 @@ def test_run_dielectric_with_primitive(generate_workchain_harmonic):
     assert 'dielectric' in process.ctx
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_PHONON_WORKCHAIN_FAILED, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'), ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_PHONON_WORKCHAIN_FAILED, 312))
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_processes(generate_workchain_harmonic, generate_phonon_workchain_node, expected_result, exit_status):
     """Test `HarmonicWorkChain.inspect_processes` only with PhononWorkChain."""
@@ -195,12 +196,17 @@ def test_inspect_processes(generate_workchain_harmonic, generate_phonon_workchai
         assert 'output_phonon' in process.outputs
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_DIELECTRIC_WORKCHAIN_FAILED, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'),
+    ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_DIELECTRIC_WORKCHAIN_FAILED, 312)),
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_processes_with_dielectric(
-    generate_workchain_harmonic, generate_phonon_workchain_node, generate_dielectric_workchain_node, expected_result,
-    exit_status
+    generate_workchain_harmonic,
+    generate_phonon_workchain_node,
+    generate_dielectric_workchain_node,
+    expected_result,
+    exit_status,
 ):
     """Test `HarmonicWorkChain.inspect_processes` with `DielectricWorkChain`."""
     process = generate_workchain_harmonic()
@@ -241,8 +247,10 @@ def test_should_run_phonopy(generate_workchain_harmonic, generate_inputs_phonopy
 
 @pytest.mark.usefixtures('aiida_profile')
 def test_run_phonopy(
-    generate_workchain_harmonic, generate_inputs_phonopy, generate_phonon_workchain_node,
-    generate_dielectric_workchain_node
+    generate_workchain_harmonic,
+    generate_inputs_phonopy,
+    generate_phonon_workchain_node,
+    generate_dielectric_workchain_node,
 ):
     """Test `HarmonicWorkChain.run_phonopy` method."""
     inputs = {'phonopy': generate_inputs_phonopy()}
@@ -256,8 +264,10 @@ def test_run_phonopy(
     assert 'phonopy' in process.ctx
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_PHONOPY_CALCULATION_FAILED, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'),
+    ((None, 0), (HarmonicWorkChain.exit_codes.ERROR_PHONOPY_CALCULATION_FAILED, 312)),
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_phonopy(generate_workchain_harmonic, generate_phonopy_calcjob_node, expected_result, exit_status):
     """Test `HarmonicWorkChain.inspect_phonopy` method."""

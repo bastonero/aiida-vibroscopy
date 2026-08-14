@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for the :mod:`workflows.phonons.iraman` module."""
+
 import pytest
 
 from aiida_vibroscopy.workflows.spectra.iraman import IRamanSpectraWorkChain
@@ -24,16 +24,8 @@ def generate_workchain_iraman(generate_workchain, generate_inputs_pw_base):
 
         inputs = {
             'structure': structure,
-            'phonon': {
-                'scf': scf_inputs
-            },
-            'dielectric': {
-                'property': 'raman',
-                'scf': scf_inputs,
-                'settings': {
-                    'sleep_submission_time': 0.
-                }
-            },
+            'phonon': {'scf': scf_inputs},
+            'dielectric': {'property': 'raman', 'scf': scf_inputs, 'settings': {'sleep_submission_time': 0.0}},
             'settings': {},
             'symmetry': {},
         }
@@ -106,6 +98,7 @@ def test_inspect_process(generate_workchain_iraman):
 def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrational_data_from_forces):
     """Test `IRamanSpectraWorkChain.run_intensities_averaged` method."""
     from aiida.orm import Dict
+
     options = Dict({'quadrature_order': 3})
     process = generate_workchain_iraman(append_inputs={'intensities_average': {'options': options}})
 
@@ -128,12 +121,15 @@ def test_run_intensities_averaged(generate_workchain_iraman, generate_vibrationa
 def test_inspect_averaging(generate_workchain_iraman, generate_intensities_workchain_node):
     """Test `IRamanSpectraWorkChain.inspect_averaging` method."""
     from aiida.common import AttributeDict
+
     process = generate_workchain_iraman()
 
-    process.ctx.intensities_average = AttributeDict({
-        'numerical_order_2_step_1': generate_intensities_workchain_node(),
-        'numerical_order_4': generate_intensities_workchain_node(),
-    })
+    process.ctx.intensities_average = AttributeDict(
+        {
+            'numerical_order_2_step_1': generate_intensities_workchain_node(),
+            'numerical_order_4': generate_intensities_workchain_node(),
+        }
+    )
 
     # Sanity check
     assert 'ir_averaged' in process.ctx.intensities_average['numerical_order_4'].outputs

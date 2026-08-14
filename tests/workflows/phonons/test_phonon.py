@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for the :mod:`workflows.phonons.phonon` module."""
+
 from aiida import orm
 from aiida.common import AttributeDict
 from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
@@ -30,7 +30,7 @@ def generate_workchain_phonon(generate_workchain, generate_inputs_pw_base):
         inputs = {
             'scf': scf_inputs,
             'settings': {
-                'sleep_submission_time': 0.,
+                'sleep_submission_time': 0.0,
                 'max_concurrent_base_workchains': -1,
             },
             'symmetry': {},
@@ -60,19 +60,15 @@ def test_valididation_inputs(generate_workchain_phonon):
 
 @pytest.mark.parametrize(
     ('parameters', 'message'),
-    (({
-        'supercell_matrix': [1, 1]
-    }, 'need exactly 3 diagonal elements or 3x3 arrays.'), ({
-        'supercell_matrix': [[1], [1], [1]]
-    }, 'matrix need to have 3x1 or 3x3 shape.'), ({
-        'displacement_generator': {
-            'invalid': 1
-        }
-    }, "Unknown flags in 'displacements': {'invalid'}."), ({
-        'displacement_generator': {
-            'distance': True
-        }
-    }, 'Displacement options must be of the correct type; got invalid values [True].')),
+    (
+        ({'supercell_matrix': [1, 1]}, 'need exactly 3 diagonal elements or 3x3 arrays.'),
+        ({'supercell_matrix': [[1], [1], [1]]}, 'matrix need to have 3x1 or 3x3 shape.'),
+        ({'displacement_generator': {'invalid': 1}}, "Unknown flags in 'displacements': {'invalid'}."),
+        (
+            {'displacement_generator': {'distance': True}},
+            'Displacement options must be of the correct type; got invalid values [True].',
+        ),
+    ),
 )
 @pytest.mark.usefixtures('aiida_profile')
 def test_invalid_inputs(generate_workchain_phonon, parameters, message):
@@ -99,10 +95,10 @@ def test_setup(generate_workchain_phonon):
     process = generate_workchain_phonon()
     process.setup()
 
-    assert process.ctx.is_magnetic == False
-    assert process.ctx.is_insulator == True
-    assert process.ctx.plus_hubbard == False
-    assert process.ctx.old_plus_hubbard == False
+    assert not process.ctx.is_magnetic
+    assert process.ctx.is_insulator
+    assert not process.ctx.plus_hubbard
+    assert not process.ctx.old_plus_hubbard
     assert 'preprocess_data' in process.ctx
 
     data = process.ctx.preprocess_data
@@ -125,7 +121,7 @@ def test_setup_phonon_options(generate_workchain_phonon):
             'symprec': orm.Float(1.0),
             'distinguish_kinds': orm.Bool(False),
             'is_symmetry': orm.Bool(False),
-        }
+        },
     }
     process = generate_workchain_phonon(append_inputs=append_inputs)
     process.setup()
@@ -219,8 +215,9 @@ def test_run_base_supercell(generate_workchain_phonon):
     assert 'scf_supercell_0' in process.ctx
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (PhononWorkChain.exit_codes.ERROR_FAILED_BASE_SCF, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'), ((None, 0), (PhononWorkChain.exit_codes.ERROR_FAILED_BASE_SCF, 312))
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_base_supercell(
     generate_workchain_phonon, generate_base_scf_workchain_node, expected_result, exit_status
@@ -263,7 +260,7 @@ def test_run_forces(generate_workchain_phonon, generate_base_scf_workchain_node)
     """Test `PhononWorkChain.run_forces` method."""
     append_inputs = {
         'settings': {
-            'sleep_submission_time': 0.,
+            'sleep_submission_time': 0.0,
             'max_concurrent_base_workchains': 1,
         }
     }
@@ -309,8 +306,9 @@ def test_run_forces_with_hubbard(generate_workchain_phonon, generate_base_scf_wo
     assert len(process.ctx.supercells) == 0
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (PhononWorkChain.exit_codes.ERROR_SUB_PROCESS_FAILED, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'), ((None, 0), (PhononWorkChain.exit_codes.ERROR_SUB_PROCESS_FAILED, 312))
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_all_runs(generate_workchain_phonon, generate_base_scf_workchain_node, expected_result, exit_status):
     """Test `PhononWorkChain.inspect_all_runs`."""
@@ -337,8 +335,8 @@ def test_set_phonopy_data(generate_workchain_phonon, generate_trajectory):
     forces_1 = generate_trajectory()
     forces_2 = generate_trajectory()
 
-    process.out(f'supercells_forces.forces_1', forces_1)
-    process.out(f'supercells_forces.forces_2', forces_2)
+    process.out('supercells_forces.forces_1', forces_1)
+    process.out('supercells_forces.forces_2', forces_2)
 
     process.set_phonopy_data()
     assert 'phonopy_data' in process.ctx
@@ -364,16 +362,17 @@ def test_run_phonopy(generate_workchain_phonon, generate_inputs_phonopy, generat
     process.setup()
     forces_1 = generate_trajectory()
     forces_2 = generate_trajectory()
-    process.out(f'supercells_forces.forces_1', forces_1)
-    process.out(f'supercells_forces.forces_2', forces_2)
+    process.out('supercells_forces.forces_1', forces_1)
+    process.out('supercells_forces.forces_2', forces_2)
     process.set_phonopy_data()
     process.run_phonopy()
 
     assert 'phonopy_calculation' in process.ctx
 
 
-@pytest.mark.parametrize(('expected_result', 'exit_status'),
-                         ((None, 0), (PhononWorkChain.exit_codes.ERROR_PHONOPY_CALCULATION_FAILED, 312)))
+@pytest.mark.parametrize(
+    ('expected_result', 'exit_status'), ((None, 0), (PhononWorkChain.exit_codes.ERROR_PHONOPY_CALCULATION_FAILED, 312))
+)
 @pytest.mark.usefixtures('aiida_profile')
 def test_inspect_phonopy(generate_workchain_phonon, generate_phonopy_calcjob_node, expected_result, exit_status):
     """Test `PhononWorkChain.inspect_phonopy` method."""

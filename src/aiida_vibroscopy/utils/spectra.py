@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Utility functions for plotting spectra."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -50,4 +50,4 @@ def raman_prefactor(frequency: float, frequency_laser: float, temperature: float
     pre = DEFAULT.raman_xsection if absolute else 1
     laser = nanometer_to_cm(frequency_laser)
 
-    return pre * boson_factor(frequency, temperature) * (laser - frequency)**4 / frequency
+    return pre * boson_factor(frequency, temperature) * (laser - frequency) ** 4 / frequency

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Calcfunctions utils for spectra workflows."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -44,7 +44,7 @@ def boson_factor(frequency: float, temperature: float) -> float:
 
 def compute_active_modes(
     phonopy_instance: Phonopy,
-    degeneracy_tolerance: float = 1.e-5,
+    degeneracy_tolerance: float = 1.0e-5,
     nac_direction: list[float, float, float] | None = None,
     selection_rule: str | None = None,
     sr_thr: float = 1e-4,
@@ -74,8 +74,9 @@ def compute_active_modes(
     # x(p) = M^-1 x(u) ==> k(p) = M^T k(u);
     # q_reduced = np.dot(phonopy_instance.primitive_matrix.T, nac_dir)  # in reduced/crystal (PRIMITIVE) coordinates
     if nac_direction is not None:
-        q_reduced = np.dot(phonopy_instance.primitive.cell,
-                           nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
+        q_reduced = np.dot(phonopy_instance.primitive.cell, nac_direction) / (
+            2.0 * np.pi
+        )  # in reduced/crystal (PRIMITIVE) coordinates
 
     # Step 1 - set the irreducible representations and the phonons
     phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=q_reduced, degeneracy_tolerance=degeneracy_tolerance)
@@ -97,7 +98,7 @@ def compute_active_modes(
 
     bands_indices = irreps.band_indices
     characters = irreps.characters.real
-    labels = irreps._ir_labels  #pylint: disable=protected-access
+    labels = irreps._ir_labels
 
     mode_index = 0
 
@@ -114,7 +115,6 @@ def compute_active_modes(
                 condition = 10  # a number > 0
 
             if np.abs(condition) > sr_thr:  # selection rule (thr for inaccuracies)
-
                 for band_index in band_indices:
                     freq_active_modes.append(frequencies[band_index])
                     eigvectors_active_modes.append(eigvectors[band_index])
@@ -124,6 +124,7 @@ def compute_active_modes(
             for band_index in band_indices:
                 if frequencies[band_index] < imaginary_thr:
                     import warnings
+
                     warnings.warn(message)
 
         mode_index += degeneracy
@@ -166,11 +167,10 @@ def compute_raman_space_average(raman_susceptibility_tensors: np.ndarray) -> tup
         # intensities_hh.append(a2 + 4 * b2 / 45)
         # intensities_hv.append(3 * b2 / 45)
         #
-        G0 = (R.trace()**2) / 3.0
-        G1 = 0.5 * ((R[0][1] - R[1][0])**2 + (R[0][2] - R[2][0])**2 + (R[1][2] - R[2][1])**2)
-        G2 = (
-            0.5 * ((R[0][1] + R[1][0])**2 + (R[0][2] + R[2][0])**2 + (R[1][2] + R[2][1])**2) + (1. / 3.) *
-            ((R[0][0] - R[1][1])**2 + (R[0][0] - R[2][2])**2 + (R[1][1] - R[2][2])**2)
+        G0 = (R.trace() ** 2) / 3.0
+        G1 = 0.5 * ((R[0][1] - R[1][0]) ** 2 + (R[0][2] - R[2][0]) ** 2 + (R[1][2] - R[2][1]) ** 2)
+        G2 = 0.5 * ((R[0][1] + R[1][0]) ** 2 + (R[0][2] + R[2][0]) ** 2 + (R[1][2] + R[2][1]) ** 2) + (1.0 / 3.0) * (
+            (R[0][0] - R[1][1]) ** 2 + (R[0][0] - R[2][2]) ** 2 + (R[1][1] - R[2][2]) ** 2
         )
 
         intensities_hh.append((10 * G0 + 4 * G2) / 30)
@@ -228,7 +228,7 @@ def compute_raman_susceptibility_tensors(
         phonopy_instance=phonopy_instance,
         nac_direction=nac_direction_,
         degeneracy_tolerance=degeneracy_tolerance,
-        selection_rule=selection_rule
+        selection_rule=selection_rule,
     )
 
     # Here we check we do not have empty array.
@@ -298,7 +298,7 @@ def compute_polarization_vectors(
     use_irreps: bool = True,
     degeneracy_tolerance: float = 1e-5,
     sum_rules: bool = False,
-    **kwargs
+    **kwargs,
 ) -> tuple[list, list, list]:
     """Return the polarization vectors, frequencies (cm-1) and labels.
 
@@ -374,7 +374,7 @@ def compute_complex_dielectric(
         nac_direction=nac_direction,
         use_irreps=use_irreps,
         degeneracy_tolerance=degeneracy_tolerance,
-        sum_rules=sum_rules
+        sum_rules=sum_rules,
     )
 
     if isinstance(gammas, float):
@@ -389,7 +389,7 @@ def compute_complex_dielectric(
     if isinstance(freq_range, str):
         xi = max(0, frequencies.min() - 200)
         xf = frequencies.max() + 200
-        freq_range = np.arange(xi, xf, 1.)
+        freq_range = np.arange(xi, xf, 1.0)
 
     polarizations /= UNITS.debey_ang
     oscillator = np.zeros((3, 3))
@@ -405,12 +405,10 @@ def compute_complex_dielectric(
     for n, osc in enumerate(oscillators):
         for i1 in range(3):
             for i2 in range(3):
-                complex_diel[i1, i2] += (
-                    np.array(osc[i1, i2]) / (
-                        +np.array(frequencies[n])**2  # omega_n^2
-                        - np.array(freq_range)**2  # - omega^2
-                        - np.array(freq_range) * sigmas[n] * complex(1j)  # -i eta_n omega
-                    )
+                complex_diel[i1, i2] += np.array(osc[i1, i2]) / (
+                    +(np.array(frequencies[n]) ** 2)  # omega_n^2
+                    - np.array(freq_range) ** 2  # - omega^2
+                    - np.array(freq_range) * sigmas[n] * complex(1j)  # -i eta_n omega
                 )
 
     diel = phonopy_instance.nac_params['dielectric']
@@ -424,7 +422,7 @@ def compute_clamped_pockels_tensor(
     raman_tensors: np.ndarray,
     nlo_susceptibility: np.ndarray,
     nac_direction: None | list[float, float, float] = None,
-    imaginary_thr: float = -5.0, # in THz
+    imaginary_thr: float = -5.0,  # in THz
     skip_frequencies: int = 3,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute the clamped Pockels tensor in Cartesian coordinates.
@@ -447,8 +445,9 @@ def compute_clamped_pockels_tensor(
     q_reduced = None
     # Have a look in compute_active_modes for the notation
     if nac_direction is not None:
-        q_reduced = np.dot(phonopy_instance.primitive.cell,
-                           nac_direction) / (2. * np.pi)  # in reduced/crystal (PRIMITIVE) coordinates
+        q_reduced = np.dot(phonopy_instance.primitive.cell, nac_direction) / (
+            2.0 * np.pi
+        )  # in reduced/crystal (PRIMITIVE) coordinates
 
     phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
     frequencies = phonopy_instance.qpoints.frequencies[0]  # THz
@@ -456,6 +455,7 @@ def compute_clamped_pockels_tensor(
 
     if frequencies.min() < imaginary_thr:
         import warnings
+
         warnings.warn(f'Negative frequencies detected below {imaginary_thr} THz.')
 
     masses = phonopy_instance.masses
@@ -521,7 +521,7 @@ def get_supercells_for_hubbard(
         hubbard = ref_structure.hubbard
 
     for i, displacement in enumerate(displacements):
-        translation = [[0., 0., 0.] for _ in ref_structure.sites]
+        translation = [[0.0, 0.0, 0.0] for _ in ref_structure.sites]
 
         translation[displacement[0]] = displacement[1:4]
         ase = ref_structure.get_ase().copy()
@@ -540,7 +540,7 @@ def get_supercells_for_hubbard(
         if isinstance(ref_structure, HubbardStructureData):
             structure = HubbardStructureData.from_structure(structure, hubbard)
 
-        structures.update({f'supercell_{i+1}': structure})
+        structures.update({f'supercell_{i + 1}': structure})
 
     return structures
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Automatic IR and Raman spectra calculations using Phonopy and Quantum ESPRESSO."""
+
 from aiida import orm
 from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import WorkChain, if_
@@ -26,13 +26,12 @@ class IRamanSpectraWorkChain(WorkChain, ProtocolMixin):
         * :class:`~aiida_vibroscopy.workflows.phonons.base.PhononWorkChain` for finite displacements
     """
 
-    # yapf: disable
     @classmethod
     def define(cls, spec):
         """Define inputs, outputs, and outline."""
         super().define(spec)
 
-        # yapf: disable
+        # fmt: off
         spec.expose_inputs(
             HarmonicWorkChain,
             namespace_options={'required': True, 'populate_defaults': False,},
@@ -83,7 +82,7 @@ class IRamanSpectraWorkChain(WorkChain, ProtocolMixin):
         spec.exit_code(
             401, 'ERROR_AVERAGING_WORKCHAIN_FAILED',
             message='The averaging procedure for intensities had an unexpected error.')
-        # yapf: enable
+        # fmt: on
 
     @classmethod
     def get_protocol_filepath(cls):
@@ -91,6 +90,7 @@ class IRamanSpectraWorkChain(WorkChain, ProtocolMixin):
         from importlib_resources import files
 
         from ..protocols import spectra as stectra_protocols
+
         return files(stectra_protocols) / 'iraman.yaml'
 
     @classmethod
@@ -178,7 +178,6 @@ class IRamanSpectraWorkChain(WorkChain, ProtocolMixin):
     def inspect_averaging(self):
         """Inspect and expose the outputs."""
         for key, workchain in self.ctx.intensities_average.items():
-
             if workchain.is_failed:
                 self.report(f'`IntensitiesAverageWorkChain` failed with exit status {workchain.exit_status}')
                 return self.exit_codes.ERROR_AVERAGING_WORKCHAIN_FAILED
