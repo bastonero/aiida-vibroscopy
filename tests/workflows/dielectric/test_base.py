@@ -304,7 +304,8 @@ def test_check_insulator(generate_workchain_dielectric, monkeypatch):
 
     monkeypatch.setattr(
         'aiida_vibroscopy.workflows.dielectric.base.find_bandgap',
-        lambda *args, **kwargs: (True, 1.0),
+        lambda *args,
+        **kwargs: (True, 1.0),
     )
 
     process = generate_workchain_dielectric()
