@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Base workflow for dielectric properties calculation from finite fields."""
+
 from __future__ import annotations
 
 import time
@@ -56,7 +56,7 @@ def add_zero_polarization(trajectory: orm.TrajectoryData) -> orm.TrajectoryData:
     :return: a clone of the input `TrajectoryData` with a null electric dipole
     """
     new_trajectory = trajectory.clone()
-    new_trajectory.set_array('electronic_dipole_cartesian_axes', np.array([[0., 0., 0.]]))
+    new_trajectory.set_array('electronic_dipole_cartesian_axes', np.array([[0.0, 0.0, 0.0]]))
 
     return new_trajectory
 
@@ -65,7 +65,7 @@ def add_zero_polarization(trajectory: orm.TrajectoryData) -> orm.TrajectoryData:
 def get_electric_field_step(critical_electric_field: orm.Float, accuracy: orm.Int) -> orm.Float:
     """Return the central difference displacement step."""
     norm = critical_electric_field.value
-    norm = 0.001 if norm > 1.e-3 else norm
+    norm = 0.001 if norm > 1.0e-3 else norm
     return orm.Float(2 * norm / accuracy.value)
 
 
@@ -76,7 +76,7 @@ def get_accuracy_from_critical_field(norm: orm.Float) -> orm.Int:
     :param norm: intensity of critical electric field in Ry a.u.
     :return: even Int in aiida type.
     """
-    return orm.Int(4) if norm.value > 1.e-4 else orm.Int(2)
+    return orm.Int(4) if norm.value > 1.0e-4 else orm.Int(2)
 
 
 def validate_accuracy(value, _):
@@ -119,7 +119,7 @@ def validate_inputs(inputs, _):
                     return 'pool parallelization for electric field is not implemented'
 
 
-class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many-public-methods
+class DielectricWorkChain(WorkChain, ProtocolMixin):
     """Workchain computing different second and third order tensors.
 
     It computes the high frequency dielectric tensor, the Born effective charges,
@@ -129,15 +129,21 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
     _DEFAULT_NBERRYCYC = 1
     _AVAILABLE_PROPERTIES = (
-        'ir', 'born-charges', 'dielectric', 'nac', 'bec', 'raman', 'susceptibility-derivative',
-        'non-linear-susceptibility'
+        'ir',
+        'born-charges',
+        'dielectric',
+        'nac',
+        'bec',
+        'raman',
+        'susceptibility-derivative',
+        'non-linear-susceptibility',
     )
 
     @classmethod
     def define(cls, spec):
         """Define the process specification."""
         super().define(spec)
-        # yapf: disable
+        # fmt: off
         spec.input(
             'property',
             valid_type=str,
@@ -271,7 +277,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     'returned a non integer total magnetization (threshold exceeded).'))
         spec.exit_code(404, 'ERROR_METALLIC_GROUND_STATE',
             message='A metallic ground-state has been detected after the nscf PwBaseWorkChain')
-        # yapf: enable
+        # fmt: on
 
     @classmethod
     def _validate_properties(cls, value, _):
@@ -290,6 +296,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         from importlib_resources import files
 
         from ..protocols import dielectric as dielectric_protocols
+
         return files(dielectric_protocols) / 'base.yaml'
 
     @classmethod
@@ -350,7 +357,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             structure=self.inputs.scf.pw.structure,
             symprec=self.inputs.symmetry.symprec.value,
             is_symmetry=self.inputs.symmetry.is_symmetry.value,
-            distinguish_kinds=self.inputs.symmetry.distinguish_kinds.value
+            distinguish_kinds=self.inputs.symmetry.distinguish_kinds.value,
         )
 
         self.ctx.should_estimate_electric_field = True
@@ -403,11 +410,9 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 'structure': self.inputs.scf.pw.structure,
                 'distance': distance,
                 'force_parity': self.inputs.scf.get('kpoints_force_parity', orm.Bool(False)),
-                'metadata': {
-                    'call_link_label': 'create_kpoints_from_distance'
-                }
+                'metadata': {'call_link_label': 'create_kpoints_from_distance'},
             }
-            kpoints = create_kpoints_from_distance(**inputs)  # pylint: disable=unexpected-keyword-arg
+            kpoints = create_kpoints_from_distance(**inputs)
 
         self.ctx.kpoints = kpoints  # Needed for first SCF, and finite electric fields if needed
 
@@ -416,7 +421,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             for number in self.ctx.numbers:
                 inputs = {
                     'structure': self.inputs.scf.pw.structure,
-                    'direction': orm.List(get_vector_from_number(number, 1.)),
+                    'direction': orm.List(get_vector_from_number(number, 1.0)),
                     'parallel_distance': self.inputs.kpoints_parallel_distance,
                     'orthogonal_distance': self.inputs.scf.kpoints_distance,
                     'force_parity': self.inputs.scf.get('kpoints_force_parity', orm.Bool(False)),
@@ -425,14 +430,14 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                     },
                 }
 
-                self.ctx.kpoints_dict[number] = create_directional_kpoints(**inputs)  # pylint: disable=unexpected-keyword-arg
+                self.ctx.kpoints_dict[number] = create_directional_kpoints(**inputs)
 
             self.ctx.meshes = []
             self.ctx.kpoints_list = []
 
             for kpoints in self.ctx.kpoints_dict.values():
                 mesh = kpoints.get_kpoints_mesh()[0]  # not the offset
-                if not mesh in self.ctx.meshes:
+                if mesh not in self.ctx.meshes:
                     self.ctx.meshes.append(mesh)
                     self.ctx.kpoints_list.append(kpoints)
 
@@ -457,16 +462,20 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         parameters['SYSTEM'].pop('smearing', None)
 
         parameters['SYSTEM']['occupations'] = 'fixed'
-        parameters['CONTROL'].update({
-            'restart_mode': 'from_scratch',
-            'lelfield': True,
-            'tprnfor': True,  # must be True to compute forces
-            'tstress': False,  # do not waste time computing stress tensor - not needed
-        })
-        parameters['ELECTRONS'].update({
-            'efield_cart': electric_field_vector,
-            'startingpot': 'file',
-        })
+        parameters['CONTROL'].update(
+            {
+                'restart_mode': 'from_scratch',
+                'lelfield': True,
+                'tprnfor': True,  # must be True to compute forces
+                'tstress': False,  # do not waste time computing stress tensor - not needed
+            }
+        )
+        parameters['ELECTRONS'].update(
+            {
+                'efield_cart': electric_field_vector,
+                'startingpot': 'file',
+            }
+        )
         parameters['CONTROL'].setdefault('disk_io', 'medium')  # this allows smoother restart
 
         base_out = self.ctx.base_scf.outputs
@@ -475,16 +484,20 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         if electric_field_vector == [0, 0, 0]:
             # thr_init = max(1e-10, base_out.output_parameters.get_dict()['convergence_info']['scf_conv']['scf_error'])
             parameters['CONTROL']['nberrycyc'] = 1
-            parameters['ELECTRONS'].update({
-                # 'diago_thr_init': thr_init,
-                'efield_phase': 'write',  # write the polarization phase
-            })
+            parameters['ELECTRONS'].update(
+                {
+                    # 'diago_thr_init': thr_init,
+                    'efield_phase': 'write',  # write the polarization phase
+                }
+            )
         else:
             parameters['CONTROL'].setdefault('nberrycyc', self._DEFAULT_NBERRYCYC)
-            parameters['ELECTRONS'].update({
-                'startingwfc': 'file',
-                'efield_phase': 'read',
-            })
+            parameters['ELECTRONS'].update(
+                {
+                    'startingwfc': 'file',
+                    'efield_phase': 'read',
+                }
+            )
 
         # --- Magnetic ground state
         if self.ctx.is_magnetic:
@@ -494,11 +507,13 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
             if validate_tot_magnetization(tot_magnetization):
                 return self.exit_codes.ERROR_NON_INTEGER_TOT_MAGNETIZATION
 
-            parameters['SYSTEM'].update({
-                # In some rare cases, this makes the code to crash.
-                # 'nbnd': base_out.output_parameters.base.attributes.get('number_of_bands'),
-                'tot_magnetization': abs(round(tot_magnetization)),
-            })
+            parameters['SYSTEM'].update(
+                {
+                    # In some rare cases, this makes the code to crash.
+                    # 'nbnd': base_out.output_parameters.base.attributes.get('number_of_bands'),
+                    'tot_magnetization': abs(round(tot_magnetization)),
+                }
+            )
 
         # --- Fill the inputs
         inputs.pw.parameters = orm.Dict(parameters)
@@ -562,10 +577,12 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         outputs = self.ctx.base_scf.outputs
 
         parameters = inputs.pw.parameters.get_dict()
-        parameters['CONTROL'].update({
-            'calculation': 'nscf',
-            'restart_mode': 'from_scratch',
-        })
+        parameters['CONTROL'].update(
+            {
+                'calculation': 'nscf',
+                'restart_mode': 'from_scratch',
+            }
+        )
 
         nbnd = outputs.output_parameters.base.attributes.get('number_of_bands') + 10
         parameters['SYSTEM']['nbnd'] = nbnd
@@ -608,7 +625,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
 
     def run_null_field_scfs(self):
         """Run electric enthalpy scf with zero electric field."""
-        inputs = self.get_inputs(electric_field_vector=[0., 0., 0.])
+        inputs = self.get_inputs(electric_field_vector=[0.0, 0.0, 0.0])
         if 'parent_scf' in self.inputs:
             inputs.pw.parent_folder = self.inputs.parent_scf
         else:
@@ -660,7 +677,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         # to the format of the BandsData. To double check if actually needed.
         try:
             is_insulator_2, _ = find_bandgap(bands, number_electrons=number_electrons)
-        except:  # pylint: disable=bare-except
+        except Exception:
             is_insulator_2 = False
 
         if not (is_insulator_1 or is_insulator_2):
@@ -741,7 +758,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 self.ctx.meshes_dict[label] = workchains[0].inputs.kpoints.get_kpoints_mesh()[0]
                 field_data = {
                     str(i): wc.outputs.output_trajectory for i, wc in enumerate(workchains) if wc.is_finished_ok
-                }  # pylint: disable=locally-disabled, line-too-long
+                }
                 output_data.update({f'fields_data.{label}': field_data})
                 self.ctx.data.update({label: field_data})
         self.out_many(output_data)
@@ -756,6 +773,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
     def remove_reference_forces(self):
         """Subtract the reference forces to each electric field trajectory."""
         from aiida_vibroscopy.calculations.spectra_utils import subtract_residual_forces
+
         if 'kpoints_parallel_distance' in self.inputs:
             ref_meshes = orm.List(self.ctx.meshes)
         else:
@@ -786,9 +804,7 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
                 'is_symmetry': self.inputs.symmetry.is_symmetry,
                 'distinguish_kinds': self.inputs.symmetry.distinguish_kinds,
             },
-            'metadata': {
-                'call_link_label': 'numerical_derivatives'
-            }
+            'metadata': {'call_link_label': 'numerical_derivatives'},
         }
 
         node = self.submit(NumericalDerivativesWorkChain, **inputs)
@@ -818,10 +834,10 @@ class DielectricWorkChain(WorkChain, ProtocolMixin):  # pylint: disable=too-many
         for called_descendant in self.node.called_descendants:
             if isinstance(called_descendant, orm.CalcJobNode):
                 try:
-                    called_descendant.outputs.remote_folder._clean()  # pylint: disable=protected-access
+                    called_descendant.outputs.remote_folder._clean()
                     cleaned_calcs.append(called_descendant.pk)
                 except (IOError, OSError, KeyError):
                     pass
 
         if cleaned_calcs:
-            self.report(f"cleaned remote folders of calculations: {' '.join(map(str, cleaned_calcs))}")
+            self.report(f'cleaned remote folders of calculations: {" ".join(map(str, cleaned_calcs))}')

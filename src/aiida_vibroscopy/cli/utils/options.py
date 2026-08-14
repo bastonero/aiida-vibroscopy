@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Pre-defined overridable options for commonly used command line interface parameters."""
-# pylint: disable=too-few-public-methods,import-error
+
 from aiida.cmdline.params import types
 from aiida.cmdline.params.options import OverridableOption
 from aiida.cmdline.utils import decorators
@@ -26,11 +26,12 @@ class PseudoFamilyType(types.GroupParamType):
         except click.BadParameter:
             try:
                 from aiida.orm import load_group
+
                 load_group(value)
-            except exceptions.NotExistent:  # pylint: disable=try-except-raise
+            except exceptions.NotExistent:
                 raise
 
-            raise click.BadParameter(  # pylint: disable=raise-missing-from
+            raise click.BadParameter(
                 f'`{value}` is not of a supported pseudopotential family type.\nTo install a supported '
                 'pseudofamily, use the `aiida-pseudo` plugin. See the following link for detailed instructions:\n\n'
                 '    https://github.com/aiidateam/aiida-quantumespresso#pseudopotentials'
@@ -51,7 +52,7 @@ PW_CODE = OverridableOption(
     'pw_code',
     type=types.CodeParamType(entry_point='quantumespresso.pw'),
     required=True,
-    help='The code to use for the pw.x executable.'
+    help='The code to use for the pw.x executable.',
 )
 
 PHONOPY_CODE = OverridableOption(
@@ -59,7 +60,7 @@ PHONOPY_CODE = OverridableOption(
     'phonopy_code',
     type=types.CodeParamType(entry_point='phonopy.phonopy'),
     required=True,
-    help='The code to use for the phonopy executable.'
+    help='The code to use for the phonopy executable.',
 )
 
 PSEUDO_FAMILY = OverridableOption(
@@ -67,14 +68,14 @@ PSEUDO_FAMILY = OverridableOption(
     '--pseudo-family',
     type=PseudoFamilyType(sub_classes=('aiida.groups:pseudo.family',), pseudo_types=('pseudo.upf',)),
     required=False,
-    help='Select a pseudopotential family, identified by its label.'
+    help='Select a pseudopotential family, identified by its label.',
 )
 
 STRUCTURE = OverridableOption(
     '-S',
     '--structure',
     type=types.DataParamType(sub_classes=('aiida.data:core.structure',)),
-    help='A StructureData node identified by its ID or UUID.'
+    help='A StructureData node identified by its ID or UUID.',
 )
 
 KPOINTS_MESH = OverridableOption(
@@ -87,7 +88,7 @@ KPOINTS_MESH = OverridableOption(
     callback=validate.validate_kpoints_mesh,
     help='The number of points in the kpoint mesh along each basis vector and the offset. '
     'Example: `-k 2 2 2 0 0 0`. Specify `0.5 0.5 0.5` for the offset if you want to result '
-    'in the equivalent Quantum ESPRESSO pw.x `1 1 1` shift.'
+    'in the equivalent Quantum ESPRESSO pw.x `1 1 1` shift.',
 )
 
 PARENT_FOLDER = OverridableOption(
@@ -97,7 +98,7 @@ PARENT_FOLDER = OverridableOption(
     type=types.DataParamType(sub_classes=('aiida.data:core.remote',)),
     show_default=True,
     required=False,
-    help='A parent remote folder node identified by its ID or UUID.'
+    help='A parent remote folder node identified by its ID or UUID.',
 )
 
 DAEMON = OverridableOption(
@@ -106,7 +107,7 @@ DAEMON = OverridableOption(
     is_flag=True,
     default=True,
     show_default=True,
-    help='Submit the process to the daemon instead of running it and waiting for it to finish.'
+    help='Submit the process to the daemon instead of running it and waiting for it to finish.',
 )
 
 OVERRIDES = OverridableOption(
@@ -114,7 +115,7 @@ OVERRIDES = OverridableOption(
     '--overrides',
     type=click.File('r'),
     required=False,
-    help='The filename or filepath containing the overrides, in YAML format.'
+    help='The filename or filepath containing the overrides, in YAML format.',
 )
 
 PROTOCOL = OverridableOption(
@@ -122,5 +123,5 @@ PROTOCOL = OverridableOption(
     '--protocol',
     type=click.STRING,
     required=False,
-    help='Select the protocol that defines the accuracy of the calculation.'
+    help='Select the protocol that defines the accuracy of the calculation.',
 )

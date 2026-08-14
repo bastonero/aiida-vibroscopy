@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Workflow for numerical averaging of vibrational intensities."""
+
 from __future__ import annotations
 
 from aiida import orm
@@ -99,21 +99,23 @@ class IntensitiesAverageWorkChain(WorkChain):
             'parameters',
             valid_type=orm.Dict,
             default=lambda: orm.Dict({'quadrature_order': 41}),
-            help='Options for averaging on the non-analytical directions.'
+            help='Options for averaging on the non-analytical directions.',
         )
 
-        spec.outline(cls.run_results,)
+        spec.outline(
+            cls.run_results,
+        )
 
         spec.output(
             'ir_averaged',
             valid_type=orm.ArrayData,
-            help='Contains high frequency dielectric tensor computed in Cartesian coordinates.'
+            help='Contains high frequency dielectric tensor computed in Cartesian coordinates.',
         )
         spec.output(
             'raman_averaged',
             valid_type=orm.ArrayData,
             required=False,
-            help='Contains Born effective charges tensors computed in Cartesian coordinates.'
+            help='Contains Born effective charges tensors computed in Cartesian coordinates.',
         )
         spec.output('units', valid_type=orm.Dict, required=False, help='Units of intensities and frequencies.')
 

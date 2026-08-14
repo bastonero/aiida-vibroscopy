@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for the ``DielectricWorkChain.get_builder_from_protocol`` method."""
+
 from aiida.engine import ProcessBuilder
 from aiida_quantumespresso.common.types import ElectronicType, SpinType
 import pytest

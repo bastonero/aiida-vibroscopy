@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 """Tests for the ``launch phonon`` command."""
+
 from pathlib import Path
 
 from aiida_vibroscopy.cli.workflows.phonons.base import launch_workflow
 
 
-# yapf: disable
+# fmt: off
 def test_command_phonon(run_cli_process_launch_command, fixture_code, filepath_cli_fixture):
     """Test invoking the launch command with only required inputs."""
     code = fixture_code('quantumespresso.pw').store()

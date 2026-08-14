@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Minimal plotting module for plotting spectra."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -42,9 +42,9 @@ def get_spectra_plot(
     plt.rcParams['text.usetex'] = False
 
     plt.rcParams['xtick.major.size'] = 7.0
-    plt.rcParams['xtick.minor.size'] = 4.
+    plt.rcParams['xtick.minor.size'] = 4.0
     plt.rcParams['ytick.major.size'] = 7.0
-    plt.rcParams['ytick.minor.size'] = 4.
+    plt.rcParams['ytick.minor.size'] = 4.0
 
     plt.rcParams['axes.linewidth'] = 1.2
     plt.rcParams['legend.fontsize'] = 15
@@ -55,7 +55,7 @@ def get_spectra_plot(
     if x_range == 'auto':
         xi = max(0, frequencies.min() - 200)
         xf = frequencies.max() + 200
-        x_range = np.arange(xi, xf, 1.)
+        x_range = np.arange(xi, xf, 1.0)
 
     # Canvas
     _, ax = plt.subplots()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=wrong-import-position
 """Module for the command line interface."""
+
 from aiida.cmdline.groups import VerdiCommandGroup
 from aiida.cmdline.params import options, types
 import click

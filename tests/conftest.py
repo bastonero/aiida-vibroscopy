@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -6,8 +5,8 @@
 # The code is hosted on GitHub at https://github.com/bastonero/aiida-vibroscopy #
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
-# pylint: disable=redefined-outer-name
 """Initialise a text database and profile for pytest."""
+
 import asyncio
 import io
 import os
@@ -16,7 +15,7 @@ import tempfile
 
 import pytest
 
-pytest_plugins = ['aiida.tools.pytest_fixtures']  # pylint: disable=invalid-name
+pytest_plugins = ['aiida.tools.pytest_fixtures']
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -43,16 +42,11 @@ def filepath_fixtures(filepath_tests):
     return os.path.join(filepath_tests, 'fixtures')
 
 
-@pytest.fixture
-def filepath_fixtures(filepath_tests):
-    """Return the absolute filepath to the directory containing the file `fixtures`."""
-    return os.path.join(filepath_tests, 'fixtures')
-
-
 @pytest.fixture(scope='function')
 def fixture_sandbox_folder():
     """Return a `SandboxFolder`."""
     from aiida.common.folders import SandboxFolder
+
     with SandboxFolder() as folder:
         yield folder
 
@@ -97,7 +91,6 @@ def serialize_builder():
     """
 
     def serialize_data(data):
-        # pylint: disable=too-many-return-statements
         from aiida.orm import AbstractCode, BaseType, Data, Dict, KpointsData, List, RemoteData, SinglefileData
         from aiida.plugins import DataFactory
 
@@ -140,12 +133,12 @@ def serialize_builder():
             return data.get_content()
 
         if isinstance(data, Data):
-            return data.base.caching._get_hash()  # pylint: disable=protected-access
+            return data.base.caching._get_hash()
 
         return data
 
     def _serialize_builder(builder):
-        return serialize_data(builder._inputs(prune=True))  # pylint: disable=protected-access
+        return serialize_data(builder._inputs(prune=True))
 
     return _serialize_builder
 
@@ -163,11 +156,10 @@ def pseudo_family(aiida_profile, generate_upf_data):
 
     for label, cutoff_values in zip(
         ('SSSP/1.3/PBEsol/precision', 'SSSP/1.3/PBEsol/efficiency', 'PseudoDojo/0.4/PBEsol/FR/standard/upf'),
-        ((40.0, 320.0), (30.0, 240.0), (60.0, 400.0))
+        ((40.0, 320.0), (30.0, 240.0), (60.0, 400.0)),
     ):
         with tempfile.TemporaryDirectory() as dirpath:
             for values in elements.values():
-
                 element = values['symbol']
 
                 actinides = ('Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr')
@@ -235,19 +227,22 @@ def generate_structure():
 
         if structure_id is None:
             name = 'O'
-            cell = [[3.9625313477, -3.9625313477, 0.0], [-3.9625313477, 0.0, 3.9625313477],
-                    [0.0, -3.9625313477, -3.9625313477]]
+            cell = [
+                [3.9625313477, -3.9625313477, 0.0],
+                [-3.9625313477, 0.0, 3.9625313477],
+                [0.0, -3.9625313477, -3.9625313477],
+            ]
             structure = StructureData(cell=cell)
-            structure.append_atom(position=(0., 0., 0.), symbols='Mg', name='Mg')
+            structure.append_atom(position=(0.0, 0.0, 0.0), symbols='Mg', name='Mg')
             structure.append_atom(position=(1.98126567385, 1.98126567385, 1.98126567385), symbols='O', name='O')
 
         if structure_id == 'silicon':
             name = 'Si'
             param = 5.43
-            cell = [[param / 2., param / 2., 0], [param / 2., 0, param / 2.], [0, param / 2., param / 2.]]
+            cell = [[param / 2.0, param / 2.0, 0], [param / 2.0, 0, param / 2.0], [0, param / 2.0, param / 2.0]]
             structure = StructureData(cell=cell)
-            structure.append_atom(position=(0., 0., 0.), symbols='Si', name='Si')
-            structure.append_atom(position=(param / 4., param / 4., param / 4.), symbols='Si', name='Si')
+            structure.append_atom(position=(0.0, 0.0, 0.0), symbols='Si', name='Si')
+            structure.append_atom(position=(param / 4.0, param / 4.0, param / 4.0), symbols='Si', name='Si')
 
         if hubbard:
             structure = HubbardStructureData.from_structure(structure)
@@ -310,12 +305,12 @@ def generate_trajectory():
 
         if trajectory is None:
             node = TrajectoryData()
-            node.set_array('electronic_dipole_cartesian_axes', np.array([[[0., 0., 0.]]]))
-            node.set_array('forces', np.array([[[0., 0., 0.], [0., 0., 0.]]]))
+            node.set_array('electronic_dipole_cartesian_axes', np.array([[[0.0, 0.0, 0.0]]]))
+            node.set_array('forces', np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]))
             stepids = np.array([1])
             times = stepids * 0.0
-            cells = np.array([[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]])
-            positions = np.array([[[0., 0., 0.], [0., 0., 0.]]])
+            cells = np.array([[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]])
+            positions = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]])
             node.set_trajectory(stepids=stepids, cells=cells, symbols=['Mg', 'O'], positions=positions, times=times)
 
         return node.store()
@@ -332,18 +327,13 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
         from aiida.orm import Dict
         from aiida_quantumespresso.utils.resources import get_default_options
 
-        parameters = Dict({
-            'CONTROL': {
-                'calculation': 'scf'
-            },
-            'SYSTEM': {
-                'ecutrho': 400.0,
-                'ecutwfc': 50.0
-            },
-            'ELECTRONS': {
-                'mixing_beta': 0.4
-            },
-        })
+        parameters = Dict(
+            {
+                'CONTROL': {'calculation': 'scf'},
+                'SYSTEM': {'ecutrho': 400.0, 'ecutwfc': 50.0},
+                'ELECTRONS': {'mixing_beta': 0.4},
+            }
+        )
         structure = generate_structure()
         inputs = {
             'code': fixture_code('quantumespresso.pw'),
@@ -351,9 +341,7 @@ def generate_inputs_pw(fixture_code, generate_structure, generate_kpoints_mesh, 
             'kpoints': generate_kpoints_mesh(2),
             'parameters': parameters,
             'pseudos': {kind: generate_upf_data(kind) for kind in structure.get_kind_names()},
-            'metadata': {
-                'options': get_default_options()
-            }
+            'metadata': {'options': get_default_options()},
         }
 
         return inputs
@@ -374,9 +362,7 @@ def generate_inputs_phonopy(fixture_code):
         inputs = {
             'code': fixture_code('phonopy.phonopy'),
             'parameters': parameters,
-            'metadata': {
-                'options': get_default_options()
-            }
+            'metadata': {'options': get_default_options()},
         }
 
         return inputs
@@ -394,6 +380,7 @@ def generate_inputs_dielectric(generate_inputs_pw):
         """Generate default inputs for a `DielectricWorkChain`."""
         from aiida.common.extendeddicts import AttributeDict
         from aiida.orm import Bool, Float, Int
+
         inputs_scf = generate_inputs_pw()
 
         kpoints = inputs_scf.pop('kpoints')
@@ -405,9 +392,7 @@ def generate_inputs_dielectric(generate_inputs_pw):
                 'kpoints': kpoints,
             },
             'clean_workdir': Bool(clean_workdir),
-            'settings': {
-                'sleep_submission_time': 0.
-            },
+            'settings': {'sleep_submission_time': 0.0},
             'central_difference': {},
             'symmetry': {},
         }
@@ -473,12 +458,14 @@ def generate_base_scf_workchain_node(fixture_localhost, generate_trajectory):
         node.set_exit_status(exit_status)
 
         # Add output Dict
-        parameters = orm.Dict({
-            'occupations': 'fixed',
-            'number_of_bands': 5,
-            'total_magnetization': 1,
-            'volume': 10,
-        }).store()
+        parameters = orm.Dict(
+            {
+                'occupations': 'fixed',
+                'number_of_bands': 5,
+                'total_magnetization': 1,
+                'volume': 10,
+            }
+        ).store()
         parameters.base.links.add_incoming(node, link_type=LinkType.RETURN, link_label='output_parameters')
 
         # Add a CalcJob node with RemoteData
@@ -505,7 +492,9 @@ def generate_base_scf_workchain_node(fixture_localhost, generate_trajectory):
 def generate_dielectric_workchain_node():
     """Generate an instance of `WorkflowNode`."""
 
-    def _generate_dielectric_workchain_node(raman=False,):
+    def _generate_dielectric_workchain_node(
+        raman=False,
+    ):
         from aiida import orm
         from aiida.common import LinkType
         import numpy

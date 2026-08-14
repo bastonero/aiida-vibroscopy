@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,7 +6,8 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Tests for :mod:`calculations.spectra_utils`."""
-# yapf:disable
+
+# fmt: off
 import numpy as np
 import pytest
 
@@ -231,11 +231,6 @@ def test_compute_methods(generate_phonopy_instance, generate_third_rank_tensors,
     results['complex_dielectric_nac'] = eps
 
     ndarrays_regression.check(results, default_tolerance=dict(atol=1e-1, rtol=1e-2))
-
-
-def test_generate_vibrational_data_from_forces(generate_vibrational_data_from_forces, ndarrays_regression):
-    """Test `generate_vibrational_data_from_phonopy`."""
-    vibro = generate_vibrational_data_from_forces()
 
 
 def test_generate_vibrational_data_from_forces(generate_vibrational_data_from_forces, ndarrays_regression):

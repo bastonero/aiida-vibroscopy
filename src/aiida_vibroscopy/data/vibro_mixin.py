@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,9 +6,10 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Mixin for aiida-vibroscopy DataTypes."""
+
 from __future__ import annotations
 
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
 
@@ -141,11 +141,11 @@ class VibrationalMixin:
 
     def run_active_modes(
         self,
-        degeneracy_tolerance: float = 1.e-5,
+        degeneracy_tolerance: float = 1.0e-5,
         nac_direction: None | list[float, float, float] = None,
-        selection_rule: str['raman'] | str['ir'] | None = None,
+        selection_rule: Literal['raman', 'ir'] | None = None,
         sr_thr: float = 1e-4,
-        **kwargs
+        **kwargs,
     ) -> tuple:
         """Get active modes frequencies, eigenvectors and irreducible representation labels.
 
@@ -180,7 +180,7 @@ class VibrationalMixin:
             nac_direction=nac_direction,
             degeneracy_tolerance=degeneracy_tolerance,
             selection_rule=selection_rule,
-            sr_thr=sr_thr
+            sr_thr=sr_thr,
         )
 
     def run_raman_susceptibility_tensors(
@@ -256,7 +256,7 @@ class VibrationalMixin:
         asr_sum_rules: bool = False,
         symmetrize_fc: bool = False,
         sum_rules: bool = False,
-        **kwargs
+        **kwargs,
     ) -> tuple:
         """Return the polarization vectors, frequencies and representation labels.
 
@@ -390,7 +390,7 @@ class VibrationalMixin:
         frequency_laser: float = 532,
         temperature: float = 300,
         absolute: bool = True,
-        **kwargs
+        **kwargs,
     ) -> tuple:
         """Return powder Raman intensities.
 
@@ -467,7 +467,10 @@ class VibrationalMixin:
 
         prefactor = raman_prefactor(np.array(freqs), frequency_laser, temperature, absolute)
         return (
-            np.array(raman_hh).flatten() * prefactor, np.array(raman_hv).flatten() * prefactor, np.array(freqs), labels
+            np.array(raman_hh).flatten() * prefactor,
+            np.array(raman_hv).flatten() * prefactor,
+            np.array(freqs),
+            labels,
         )
 
     def run_single_crystal_ir_intensities(self, pol_incoming: tuple[float, float, float], **kwargs) -> tuple:
@@ -589,10 +592,10 @@ class VibrationalMixin:
                 # q_crystal = np.dot(cell, q)  # in reciprocal fractional/Crystal coordinates
                 q_pol, q_freqs, q_labels = self.run_polarization_vectors(**kwargs, **{'nac_direction': q})
 
-                for pol, f, l in zip(q_pol, q_freqs, q_labels):
+                for pol, f, label in zip(q_pol, q_freqs, q_labels):
                     ir_intensities.append(ws * np.dot(pol, pol))
                     freqs.append(f)
-                    labels.append(l)
+                    labels.append(label)
 
         return (np.array(ir_intensities) / np.array(freqs), np.array(freqs), labels)
 
@@ -656,12 +659,13 @@ class VibrationalMixin:
         """
         complex_diel = self.run_complex_dielectric_function(**kwargs)
         q_eps_q = np.tensordot(q_direction, np.tensordot(complex_diel, q_direction, (1, 0)), (0, 0))
-        return np.abs((np.sqrt(q_eps_q) - 1) / (np.sqrt(q_eps_q) + 1))**2
+        return np.abs((np.sqrt(q_eps_q) - 1) / (np.sqrt(q_eps_q) + 1)) ** 2
 
     @staticmethod
     def get_available_quadrature_order_schemes():
         """Return the available orders for quadrature integration on the nac direction unitary sphere."""
         from aiida_vibroscopy.utils.integration.lebedev import get_available_quadrature_order_schemes
+
         get_available_quadrature_order_schemes()
 
     def run_clamped_pockels_tensor(

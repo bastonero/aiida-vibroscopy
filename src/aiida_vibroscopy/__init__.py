@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,4 +6,5 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """AiiDA plugin for vibrational spectroscopy using Quantum ESPRESSO."""
+
 __version__ = '1.6.1'

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -35,6 +34,7 @@ PwBaseWorkChain = WorkflowFactory('quantumespresso.pw.base')
 def validate_inputs(inputs, _):
     """Validate `HarmonicWorkChain` inputs."""
     from aiida_quantumespresso.data.hubbard_structure import HubbardStructureData
+
     if inputs['settings']['use_primitive_cell'].value and isinstance(inputs['structure'], HubbardStructureData):
         return '`use_primitive_cell` cannot currently be used with `HubbardStructureData` inputs.'
 
@@ -48,13 +48,12 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
     for more details on how they are carried out.
     """
 
-    # yapf: disable
     @classmethod
     def define(cls, spec):
         """Define inputs, outputs, and outline."""
         super().define(spec)
 
-        # yapf: disable
+        # fmt: off
         spec.input('structure', valid_type=orm.StructureData)
         spec.expose_inputs(
             DielectricWorkChain, namespace='dielectric',
@@ -168,7 +167,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         spec.exit_code(400, 'ERROR_PHONON_WORKCHAIN_FAILED', message='The phonon workchain failed.')
         spec.exit_code(401, 'ERROR_DIELECTRIC_WORKCHAIN_FAILED', message='The dielectric workchain failed.')
         spec.exit_code(402, 'ERROR_PHONOPY_CALCULATION_FAILED', message='The phonopy calculation failed.')
-        # yapf: enable
+        # fmt: on
 
     @classmethod
     def get_protocol_filepath(cls):
@@ -176,6 +175,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         from importlib_resources import files
 
         from ..protocols import phonons
+
         return files(phonons) / 'harmonic.yaml'
 
     @classmethod
@@ -188,7 +188,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         overrides=None,
         options=None,
         phonon_property=PhononProperty.NONE,
-        **kwargs
+        **kwargs,
     ):
         """Return a builder prepopulated with inputs selected according to the chosen protocol.
 
@@ -337,11 +337,9 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         self.ctx.vibrational_data = {}
 
         if 'dielectric' in self.ctx:
-
             tensors_dict = self.ctx.dielectric.outputs.tensors
 
             for key, tensors in tensors_dict.items():
-
                 if not self.inputs.settings.use_primitive_cell.value:
                     tensors = elaborate_tensors(self.ctx.preprocess_data, tensors)
 
@@ -349,7 +347,7 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
                     vibrational_data = generate_vibrational_data_from_force_constants(
                         preprocess_data=self.ctx.preprocess_data,
                         force_constants=self.ctx.force_constants,
-                        tensors=tensors
+                        tensors=tensors,
                     )
                 else:
                     vibrational_data = generate_vibrational_data_from_phonopy(
@@ -394,10 +392,10 @@ class HarmonicWorkChain(WorkChain, ProtocolMixin):
         for called_descendant in self.node.called_descendants:
             if isinstance(called_descendant, orm.CalcJobNode):
                 try:
-                    called_descendant.outputs.remote_folder._clean()  # pylint: disable=protected-access
+                    called_descendant.outputs.remote_folder._clean()
                     cleaned_calcs.append(called_descendant.pk)
                 except (IOError, OSError, KeyError):
                     pass
 
         if cleaned_calcs:
-            self.report(f"cleaned remote folders of calculations: {' '.join(map(str, cleaned_calcs))}")
+            self.report(f'cleaned remote folders of calculations: {" ".join(map(str, cleaned_calcs))}')

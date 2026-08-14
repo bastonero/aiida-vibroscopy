@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Utility functions for validation of command line interface parameter inputs."""
+
 from aiida.cmdline.utils import decorators
 import click
 
@@ -16,7 +17,6 @@ def validate_kpoints_mesh(ctx, param, value):
     :param value: a tuple of three positive integers
     :returns: a KpointsData instance
     """
-    # pylint: disable=unused-argument
     from aiida.orm import KpointsData
 
     if not value:

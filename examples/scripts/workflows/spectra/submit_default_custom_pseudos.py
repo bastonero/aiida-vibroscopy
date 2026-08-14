@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=line-too-long,wildcard-import,pointless-string-statement,unused-wildcard-import
 """Submit an IRamanSpectraWorkChain via the get_builder_from_protocol with custom pseudo potentials."""
+
 from aiida import load_profile
 from aiida.engine import submit
 from aiida.orm import *
@@ -41,7 +42,9 @@ load_profile()
 pw_code_label = 'pw@localhost'
 structure_id = 0  # PK or UUID of your AiiDA StructureData
 protocol = 'fast'  # also 'balanced' and 'stringent'; 'balanced' should be good enough in general
-pseudo_family_name = 'LABEL'  # here the LABEL you registered before, or e.g. SSSP/1.3/PBEsol/efficiency for the SSSP example showed
+pseudo_family_name = (
+    'LABEL'  # here the LABEL you registered before, or e.g. SSSP/1.3/PBEsol/efficiency for the SSSP example showed
+)
 # ====================================================================== #
 # If you don't have a StructureData, but you have a CIF or XYZ, or similar, file
 # you can import your structure uncommenting the following:

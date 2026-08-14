@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Test the :mod:`utils.broadenings`."""
+
 import numpy as np
 import pytest
 
@@ -126,7 +126,7 @@ def test_voigt_inputs(generate_voigt_inputs):
     voigt_profile(*generate_voigt_inputs())
 
 
-def test_multilorentz_inputs(generate_voigt_inputs):
+def test_multilvoigt_inputs(generate_voigt_inputs):
     """Test the `multilorentz` function."""
     from aiida_vibroscopy.utils.broadenings import multilvoigt
 

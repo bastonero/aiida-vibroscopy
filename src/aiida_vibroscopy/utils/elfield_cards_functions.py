@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Functions helping in the generation of the multiple direction electric field cards."""
+
 from __future__ import annotations
 
 __all__ = ('get_vector_from_number', 'get_tuple_from_vector')
@@ -32,7 +32,7 @@ def get_vector_from_number(number: int, value: float) -> tuple[float, float, flo
 
     :return: (3,) shape list
     """
-    if not number in (0, 1, 2, 3, 4, 5):
+    if number not in (0, 1, 2, 3, 4, 5):
         raise ValueError('Only numbers from 0 to 5 are accepted')
 
     if number == 0:

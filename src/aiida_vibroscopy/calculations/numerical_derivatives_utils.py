@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Calcfunctions utils for numerical derivatives workchain."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -30,8 +30,10 @@ efield_au_to_si = UNITS.efield_au_to_si
 evang_to_rybohr = UNITS.evang_to_rybohr
 
 __all__ = (
-    'get_central_derivatives_coefficients', 'central_derivatives_calculator', 'compute_susceptibility_derivatives',
-    'compute_nac_parameters'
+    'get_central_derivatives_coefficients',
+    'central_derivatives_calculator',
+    'compute_susceptibility_derivatives',
+    'compute_nac_parameters',
 )
 
 # def map_polarization(polarization: np.ndarray, cell: np.ndarray, sign: Literal[-1, 1]) -> np.ndarray:
@@ -93,7 +95,7 @@ def get_central_derivatives_coefficients(accuracy: int, order: int) -> list[int]
             delta[m, n, n] = (c1 / c2) * (m * delta[m - 1, n - 1, n - 1] - alpha[n - 1] * delta[m, n - 1, n - 1])
         c1 = c2
 
-    coefficients = delta[order, accuracy, :(accuracy + 1)].tolist()
+    coefficients = delta[order, accuracy, : (accuracy + 1)].tolist()
     c0 = coefficients.pop(0)
     coefficients.append(c0)
 
@@ -131,7 +133,8 @@ def central_derivatives_calculator(
     for i, coefficient in enumerate(coefficients):
         for j in (0, 1):
             derivative = (
-                derivative + (sign(j)**order) * field_data[str(int(2 * i + j))].get_array(vector_name)[-1] * coefficient
+                derivative
+                + (sign(j) ** order) * field_data[str(int(2 * i + j))].get_array(vector_name)[-1] * coefficient
             )
 
     return derivative / denominator
@@ -158,11 +161,11 @@ def build_tensor_from_voigt(voigt, order: int, index: int | None = None) -> np.n
     """
     if order == 1:  # effective charges, dielectric tensors
         tensor = np.zeros((3, 3))
-        for l in range(3):  # l is the `polarization` index
+        for pol in range(3):  # the `polarization` index
             if index is not None:
-                tensor[l] = voigt[l][index]
+                tensor[pol] = voigt[pol][index]
             else:
-                tensor[l] = voigt[l]
+                tensor[pol] = voigt[pol]
         return tensor
 
     if order == 2:  # chi(2), raman tensors
@@ -189,8 +192,11 @@ def build_tensor_from_voigt(voigt, order: int, index: int | None = None) -> np.n
 
 @calcfunction
 def compute_susceptibility_derivatives(
-    preprocess_data: PreProcessData, electric_field: orm.Float, diagonal_scale: orm.Float, accuracy_order: orm.Int,
-    **kwargs
+    preprocess_data: PreProcessData,
+    electric_field: orm.Float,
+    diagonal_scale: orm.Float,
+    accuracy_order: orm.Int,
+    **kwargs,
 ) -> dict:
     """Return the Raman (1/Angstrom) and the non-linear optical susceptibility (pm/V) tensors.
 
@@ -282,7 +288,7 @@ def compute_susceptibility_derivatives(
                 order=2,
                 vector_name='forces',
                 data_0=data_0,
-                **step_value
+                **step_value,
             )
             chi2_voigt[int(key[-1])] = central_derivatives_calculator(
                 step_size=scale_step * applied_scale * field_step,
@@ -308,7 +314,7 @@ def compute_susceptibility_derivatives(
             nlo_susceptibility=chi2_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
-            is_symmetry=preprocess_data.is_symmetry
+            is_symmetry=preprocess_data.is_symmetry,
         )
 
         # Setting arrays
@@ -346,7 +352,7 @@ def compute_susceptibility_derivatives(
                 order=2,
                 vector_name='electronic_dipole_cartesian_axes',
                 data_0=data_0,
-                **value
+                **value,
             )
 
             data[key].pop(str(accuracy - 1))
@@ -364,7 +370,7 @@ def compute_susceptibility_derivatives(
             nlo_susceptibility=chi2_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
-            is_symmetry=preprocess_data.is_symmetry
+            is_symmetry=preprocess_data.is_symmetry,
         )
 
         # Setting arrays
@@ -375,10 +381,12 @@ def compute_susceptibility_derivatives(
         key_order = f'numerical_accuracy_{accuracy}'
         chis_data.update({key_order: deepcopy(chis_array_data)})
 
-    units_data = orm.Dict({
-        'raman_tensors': r'$1/\AA$',
-        'nlo_susceptibility': 'pm/V',
-    })
+    units_data = orm.Dict(
+        {
+            'raman_tensors': r'$1/\AA$',
+            'nlo_susceptibility': 'pm/V',
+        }
+    )
 
     return {**chis_data, 'units': units_data}
 
@@ -493,7 +501,7 @@ def compute_nac_parameters(
             epsilon=eps_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
-            is_symmetry=preprocess_data.is_symmetry
+            is_symmetry=preprocess_data.is_symmetry,
         )
 
         # Settings arrays
@@ -518,14 +526,17 @@ def compute_nac_parameters(
         bec_voigt = [0 for _ in range(3)]
 
         # i.e. {'field_index_1':{'0':Traj,'1':Traj, ...}, 'field_index_1':{...}, ..., 'field_index_5':{...} }
-        for key, value, in data.items():
+        for (
+            key,
+            value,
+        ) in data.items():
             if int(key[-1]) in (0, 1, 2):
                 chi_voigt[int(key[-1])] = central_derivatives_calculator(
                     step_size=field_step,
                     order=1,
                     vector_name='electronic_dipole_cartesian_axes',
                     data_0=data_0,
-                    **value
+                    **value,
                 )
                 bec_voigt[int(key[-1])] = central_derivatives_calculator(
                     step_size=field_step, order=1, vector_name='forces', data_0=data_0, **value
@@ -548,7 +559,7 @@ def compute_nac_parameters(
             epsilon=eps_tensor,
             ucell=preprocess_data.get_phonopy_instance().unitcell,
             symprec=preprocess_data.symprec,
-            is_symmetry=preprocess_data.is_symmetry
+            is_symmetry=preprocess_data.is_symmetry,
         )
 
         # Settings arrays

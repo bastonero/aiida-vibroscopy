@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Command line scripts to launch a `PhononWorkChain` for testing and demonstration purposes."""
+
 from aiida.cmdline.utils import decorators
 import click
 import yaml
@@ -38,9 +39,7 @@ def launch_workflow(pw_code, structure, protocol, pseudo_family, kpoints_mesh, p
             overrides.setdefault('scf', {})['pseudo_family'] = pseudo_family.label
         else:
             overrides = {
-                'scf': {
-                    'pseudo_family': pseudo_family.label
-                },
+                'scf': {'pseudo_family': pseudo_family.label},
             }
 
     builder = WorkflowFactory(entry_point_name).get_builder_from_protocol(

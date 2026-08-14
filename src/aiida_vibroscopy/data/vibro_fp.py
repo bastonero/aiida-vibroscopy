@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Mixin for forzen phonons vibrational data."""
+
 from aiida_phonopy.data.phonopy import PhonopyData
 
 from .vibro_mixin import VibrationalMixin
@@ -14,5 +14,5 @@ from .vibro_mixin import VibrationalMixin
 __all__ = ('VibrationalFrozenPhononData',)
 
 
-class VibrationalFrozenPhononData(PhonopyData, VibrationalMixin):  # pylint: disable=too-many-ancestors
+class VibrationalFrozenPhononData(PhonopyData, VibrationalMixin):
     """Vibrational data for IR and Raman spectra from frozen phonons."""

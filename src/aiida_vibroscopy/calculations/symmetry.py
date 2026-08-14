@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #################################################################################
 # Copyright (c), All rights reserved.                                           #
 # This file is part of the AiiDA-Vibroscopy code.                               #
@@ -7,6 +6,7 @@
 # For further information on the license, see the LICENSE.txt file              #
 #################################################################################
 """Symmetry utils for vectors and tensors, and for pre/post analysis."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -22,9 +22,14 @@ from phonopy.structure.cells import PhonopyAtoms
 from aiida_vibroscopy.utils.elfield_cards_functions import get_tuple_from_vector, get_vector_from_number
 
 __all__ = (
-    'tensor_3rd_rank_transformation', 'symmetrize_3nd_rank_tensor', 'take_average_of_dph0',
-    'symmetrize_susceptibility_derivatives', 'get_connected_fields_with_operations', 'transform_trajectory',
-    'get_trajectories_from_symmetries', 'get_irreducible_numbers_and_signs'
+    'tensor_3rd_rank_transformation',
+    'symmetrize_3nd_rank_tensor',
+    'take_average_of_dph0',
+    'symmetrize_susceptibility_derivatives',
+    'get_connected_fields_with_operations',
+    'transform_trajectory',
+    'get_trajectories_from_symmetries',
+    'get_irreducible_numbers_and_signs',
 )
 
 
@@ -90,7 +95,7 @@ def take_average_of_dph0(
         for r, t in zip(rotations, translations):
             diff = np.dot(positions, r.T) + t - positions[i]
             diff -= np.rint(diff)
-            dist = np.sqrt(np.sum(np.dot(diff, lattice)**2, axis=1))
+            dist = np.sqrt(np.sum(np.dot(diff, lattice) ** 2, axis=1))
             j = np.nonzero(dist < symprec)[0][0]
             r_cart = similarity_transformation(lattice.T, r)
             dchi_ph0_[i] += tensor_3rd_rank_transformation(r_cart, dchi_ph0[j])
@@ -166,7 +171,7 @@ def symmetrize_susceptibility_derivatives(
     if primitive_matrix is None and primitive is None:
         return dph0_, nlo_
 
-    pmat = (np.dot(np.linalg.inv(ucell.cell.T), primitive.cell.T) if primitive is not None else primitive_matrix)
+    pmat = np.dot(np.linalg.inv(ucell.cell.T), primitive.cell.T) if primitive is not None else primitive_matrix
 
     scell, pcell = _get_supercell_and_primitive(
         ucell,
@@ -210,7 +215,7 @@ def get_connected_fields_with_operations(
 
     directions = [list(direction) for direction in set(directions)]
 
-    not_discarded = [get_vector_from_number(i, 1.) for i in range(6)]
+    not_discarded = [get_vector_from_number(i, 1.0) for i in range(6)]
     not_discarded += np.negative(not_discarded).tolist()
     not_discarded = np.array(not_discarded)
 
@@ -273,7 +278,7 @@ def transform_trajectory(
     for i in range(num_atoms):
         diff = np.dot(positions, rotation.T) + translation - positions[i]
         diff -= np.rint(diff)
-        dist = np.sqrt(np.sum(np.dot(diff, lattice)**2, axis=1))
+        dist = np.sqrt(np.sum(np.dot(diff, lattice) ** 2, axis=1))
         j = np.nonzero(dist < symprec)[0][0]
         forces_[i] = np.dot(r_cart, forces[j])
 
@@ -352,8 +357,9 @@ def get_trajectories_from_symmetries(
     return full_data
 
 
-def get_irreducible_numbers_and_signs(preprocess_data: PreProcessData,
-                                      number_id: int) -> tuple[list[int], list[tuple[int, int]]]:
+def get_irreducible_numbers_and_signs(
+    preprocess_data: PreProcessData, number_id: int
+) -> tuple[list[int], list[tuple[int, int]]]:
     """Return independent numbers and corresponding sign to run.
 
     :param number_id: 3 or 6 for second or third order derivatives, respectively.

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Load and populate a temporary profile with a computer and code."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,8 +19,9 @@ import psutil
 
 
 @dataclass
-class AiiDALoaded: # pylint: disable=too-many-instance-attributes
+class AiiDALoaded:  # pylint: disable=too-many-instance-attributes
     """Dataclass for loading an AiiDA profile with predefined nodes."""
+
     profile: manage.Profile
     computer: orm.Computer | None
     pw_code: orm.Code | None
@@ -69,7 +71,6 @@ def load_temp_profile(
     profile = get_profile()
 
     if not (profile and profile.name == name):
-
         if wipe_previous and repo_path.exists():
             shutil.rmtree(repo_path)
         if wipe_previous and workdir_path.exists():
@@ -99,16 +100,7 @@ def load_temp_profile(
     structure = create_licoo_hubbard_structure() if add_structure_licoo else None
 
     return AiiDALoaded(
-        profile,
-        computer,
-        pw_code,
-        phonopy_code,
-        pseudos,
-        structure,
-        cpu_count,
-        workdir_path,
-        pwx_path,
-        phonopy_path
+        profile, computer, pw_code, phonopy_code, pseudos, structure, cpu_count, workdir_path, pwx_path, phonopy_path
     )
 
 
@@ -134,7 +126,7 @@ def load_pw_code(computer, exec_path: pathlib.Path):
     """Idempotent function to add the code to the database."""
     try:
         code = orm.load_code('pw@localhost')
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         code = orm.Code(
             input_plugin_name='quantumespresso.pw',
             remote_computer_exec=[computer, str(exec_path)],
@@ -150,7 +142,7 @@ def load_phonopy_code(computer, exec_path: pathlib.Path):
     """Idempotent function to add the code to the database."""
     try:
         code = orm.load_code('phonopy@localhost')
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         code = orm.Code(
             input_plugin_name='phonopy.phonopy',
             remote_computer_exec=[computer, str(exec_path)],
@@ -165,6 +157,7 @@ def load_phonopy_code(computer, exec_path: pathlib.Path):
 def create_licoo_hubbard_structure():
     """Creates a LiCoO2 crystal structure with Hubbard parameters."""
     from aiida_quantumespresso.common.hubbard import Hubbard
+
     hubbard_list = [
         (0, '3d', 0, '3d', 7.2362, (0, 0, 0), 'V'),
         (0, '3d', 2, '2p', 0.2999, (-1, 0, -1), 'V'),
@@ -172,7 +165,7 @@ def create_licoo_hubbard_structure():
         (0, '3d', 1, '2p', 0.2999, (-1, 0, 0), 'V'),
         (0, '3d', 2, '2p', 0.2999, (0, -1, -1), 'V'),
         (0, '3d', 2, '2p', 0.2999, (-1, -1, 0), 'V'),
-        (0, '3d', 1, '2p', 0.2999, (0, -1, 0), 'V')
+        (0, '3d', 1, '2p', 0.2999, (0, -1, 0), 'V'),
     ]
     a, b, c, d = 1.40803, 0.81293, 4.68453, 1.62585
     cell = [[a, -b, c], [0.0, d, c], [-a, -b, c]]
@@ -195,7 +188,7 @@ def load_sssp_pseudos(version='1.3', functional='PBEsol', protocol='efficiency')
 
     try:
         family = orm.Group.collection.get(label=label)
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         pseudos = pathlib.Path(__file__).parent / 'sssp_pseudos'
         pseudos.mkdir(exist_ok=True)
 
@@ -211,8 +204,8 @@ def load_sssp_pseudos(version='1.3', functional='PBEsol', protocol='efficiency')
         )
         family.set_cutoffs(
             {
-                k: {i: v[i] for i in ['cutoff_wfc', 'cutoff_rho']
-                    } for k, v in json.loads((pseudos / (filename + '.json')).read_text()).items()
+                k: {i: v[i] for i in ['cutoff_wfc', 'cutoff_rho']}
+                for k, v in json.loads((pseudos / (filename + '.json')).read_text()).items()
             },
             'normal',
             unit='Ry',
