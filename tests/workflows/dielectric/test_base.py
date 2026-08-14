@@ -285,6 +285,35 @@ def test_inspect_nscf(generate_workchain_dielectric, generate_base_scf_workchain
     assert result == expected_result
 
 
+@pytest.mark.usefixtures('aiida_profile')
+def test_check_insulator(generate_workchain_dielectric, monkeypatch):
+    """Test `DielectricWorkChain.check_insulator`."""
+    from aiida import orm
+    from aiida.common import LinkType
+
+    nscf = orm.WorkflowNode().store()
+
+    bands = orm.BandsData().store()
+    bands.base.links.add_incoming(nscf, link_type=LinkType.RETURN, link_label='output_band')
+
+    parameters = orm.Dict({
+        'fermi_energy': 0.0,
+        'number_of_electrons': 2,
+    }).store()
+    parameters.base.links.add_incoming(nscf, link_type=LinkType.RETURN, link_label='output_parameters')
+
+    monkeypatch.setattr(
+        'aiida_vibroscopy.workflows.dielectric.base.find_bandgap',
+        lambda *args,
+        **kwargs: (True, 1.0),
+    )
+
+    process = generate_workchain_dielectric()
+    process.ctx.nscf = nscf
+
+    assert process.check_insulator() is None
+
+
 @pytest.mark.parametrize(
     ('parameters', 'values'),
     (
