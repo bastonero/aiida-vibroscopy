@@ -1,3 +1,27 @@
+## v1.6.1
+
+Minor release to fix a bug in `DielectricWorkChain` introduced in v1.5.0.
+
+### ✨ New contributors
+
+* @cpignedoli has signed the CLA in bastonero/aiida-vibroscopy#115[[07c4021](https://github.com/bastonero/aiida-vibroscopy/commit/07c40211a44639227b674803886679300d6f940b)]
+
+### 🗑️ Deprecations
+
+
+### 👌 Improvements
+
+
+### 🐛 Bug fixes
+
+* Fix dielectric NSCF output access [[82dc38f](https://github.com/bastonero/aiida-vibroscopy/commit/82dc38f9008eae2e24040eab4b0e8d1e006bb02f)]
+
+### ⬆️ Update dependencies
+
+* Deps: support pylint v4; drop pylint-aiida [[a6baa7b](https://github.com/bastonero/aiida-vibroscopy/commit/a6baa7b52ac0957eef706e918d6afd065abd46c7)]
+
+
+
 ## v1.6.0
 
 Minor release to support aiida-quantumespresso v5.0. As the latter does not introduce any breaking changes with the major number update, we still support v4.x compatible versions.
