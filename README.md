@@ -22,7 +22,7 @@ To install from PyPI, simply execute:
 
 or when installing from source:
 
-    git clone https://github.com/bastonero/aiida-vibrosopy
+    git clone https://github.com/bastonero/aiida-vibroscopy
     pip install .
 
 ## Command line interface tool
@@ -63,6 +63,11 @@ If you also calculate the Pockels tensors in a post-processing step, please also
 
 > Virginie de Mestral _el al._, [*Ab initio functional-independent calculations of the clamped Pockels tensor of tetragonal barium titanate*](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.184306), Phys. Rev. B **111**, 184306 (2025)
 
+
+## Contributing
+
+Great that you want to contribute!
+See the [developer guide in the documentation](https://aiida-vibroscopy.readthedocs.io/en/latest/reference/developer.html) for instructions.
 
 ## License
 The `aiida-vibroscopy` plugin package is released under a special academic license.

@@ -40,6 +40,7 @@ topics/conventions
 :caption: Reference
 
 reference/api/index
+reference/developer
 ```
 
 # AiiDA Vibroscopy
