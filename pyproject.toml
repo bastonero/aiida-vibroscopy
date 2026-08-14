@@ -38,9 +38,8 @@ Source = "https://github.com/bastonero/aiida-vibroscopy"
 
 [project.optional-dependencies]
 pre-commit = [
-    'pre-commit~=2.17',
-    'pylint==2.13.7',
-    'pylint-aiida~=0.1.1',
+    'pre-commit~=4.0',
+    'pylint==4.0.7',
     'toml',
 ]
 tests = [
@@ -124,7 +123,6 @@ good-names = [
 ]
 
 [tool.pylint.master]
-load-plugins = ['pylint_aiida']
 ignore-paths= [
     'tests/*',
     'docs/*',
@@ -144,6 +142,7 @@ disable = [
     'too-many-arguments',
     'too-many-branches',
     'too-many-locals',
+    'too-many-positional-arguments',
     'too-many-statements',
 ]
 

@@ -108,7 +108,7 @@ def compute_active_modes(
             if selection_rule is not None:
                 if selection_rule == 'raman':
                     condition = np.dot(Xr * Xr, Xi)
-                elif selection_rule == 'ir':
+                else:  # `ir`, the only other value allowed by the validation above
                     condition = np.dot(Xr, Xi)
             else:
                 condition = 10  # a number > 0
