@@ -31,7 +31,7 @@ dependencies = [
     "aiida-quantumespresso>=4.10,!=4.14,<6.0",
     "aiida-phonopy~=1.5",
     "spglib~=2.6",
-    "phonopy~=3.0",
+    "phonopy>=3.0,<5.0",
 ]
 
 [project.urls]
