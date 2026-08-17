@@ -42,6 +42,59 @@ def boson_factor(frequency: float, temperature: float) -> float:
     return 1.0 / (1.0 - np.exp(-UNITS.cm_to_kelvin * frequency / temperature))
 
 
+def get_gauge_fixed_eigenvectors(
+    frequencies: np.ndarray,
+    eigenvectors: np.ndarray,
+    degeneracy_tolerance: float = 1e-4,
+) -> np.ndarray:
+    r"""Return real orthonormal eigenvectors at :math:`\Gamma`, with fixed gauge.
+
+    At the :math:`\Gamma` point the dynamical matrix is real symmetric (also when a
+    non-analytical direction is specified), so a real orthonormal eigenbasis always exists.
+    Nevertheless, eigensolvers work in complex arithmetics and do not guarantee the choice
+    (gauge) of the eigenvectors, which can be returned complex, with arbitrary phases and,
+    within degenerate subspaces, arbitrarily mixed (see the discussion in
+    https://github.com/phonopy/phonopy/issues/775). For instance, Phonopy v4 diagonalizes
+    using a Rust backend, returning differently gauged eigenvectors with respect to Phonopy
+    v3, which used numpy (LAPACK). Naively taking the real part of such eigenvectors breaks
+    orthonormality, making the physical observables computed from them (IR/Raman intensities,
+    dielectric functions, Pockels tensors, ...) eigensolver dependent, hence not reproducible.
+
+    Here the gauge is fixed by constructing, for each degenerate multiplet, a real
+    orthonormal basis of its eigenspace from the real and imaginary parts of the complex
+    eigenvectors. Any observable summed over complete degenerate multiplets is then
+    independent of the eigensolver.
+
+    :param frequencies: (num modes,) shape array of frequencies in THz, sorted in
+        ascending order as returned by phonopy, used to detect degenerate multiplets
+    :param eigenvectors: (num modes, num modes) shape complex array of eigenvectors,
+        given as columns following the phonopy convention
+    :param degeneracy_tolerance: absolute tolerance in THz on the frequency
+        difference used to group degenerate modes
+
+    :return: (num modes, num modes) shape real array of eigenvectors, given as rows
+    """
+    modes = eigenvectors.T  # rows = modes
+    num_modes = len(frequencies)
+    fixed_eigenvectors = np.zeros((num_modes, num_modes))
+
+    start = 0
+    while start < num_modes:
+        stop = start + 1
+        while stop < num_modes and abs(frequencies[stop] - frequencies[start]) < degeneracy_tolerance:
+            stop += 1
+
+        # The real and imaginary parts of a degenerate multiplet span its (real) eigenspace,
+        # of which the leading right-singular vectors form a real orthonormal basis.
+        stacked_block = np.vstack([modes[start:stop].real, modes[start:stop].imag])
+        _, _, vmatrix = np.linalg.svd(stacked_block, full_matrices=False)
+        fixed_eigenvectors[start:stop] = vmatrix[: stop - start]
+
+        start = stop
+
+    return fixed_eigenvectors
+
+
 def compute_active_modes(
     phonopy_instance: Phonopy,
     degeneracy_tolerance: float = 1.0e-5,
@@ -79,12 +132,17 @@ def compute_active_modes(
         )  # in reduced/crystal (PRIMITIVE) coordinates
 
     # Step 1 - set the irreducible representations and the phonons
+    # Here `set_irreps` is used instead of `run_irreps` (which deprecates it, raising a
+    # DeprecationWarning) since the latter is only available from phonopy v4.2.
     phonopy_instance.set_irreps(q=[0, 0, 0], nac_q_direction=q_reduced, degeneracy_tolerance=degeneracy_tolerance)
     irreps = phonopy_instance.irreps
 
     phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
     frequencies = phonopy_instance.qpoints.frequencies[0] * UNITS.thz_to_cm
-    eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
+    eigvectors = get_gauge_fixed_eigenvectors(
+        frequencies=phonopy_instance.qpoints.frequencies[0],
+        eigenvectors=phonopy_instance.qpoints.eigenvectors[0],
+    )
 
     # Step 2 - getting the active modes with eigenvectors
     Xr = []
@@ -451,7 +509,10 @@ def compute_clamped_pockels_tensor(
 
     phonopy_instance.run_qpoints(q_points=[0, 0, 0], nac_q_direction=q_reduced, with_eigenvectors=True)
     frequencies = phonopy_instance.qpoints.frequencies[0]  # THz
-    eigvectors = phonopy_instance.qpoints.eigenvectors.T.real
+    eigvectors = get_gauge_fixed_eigenvectors(
+        frequencies=frequencies,
+        eigenvectors=phonopy_instance.qpoints.eigenvectors[0],
+    )
 
     if frequencies.min() < imaginary_thr:
         import warnings
