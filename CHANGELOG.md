@@ -1,3 +1,21 @@
+## v1.7.0
+
+Minor release to support phonopy v4.x, while keeping compatibility with the v3.x series.
+Zone-centre post-processed quantities (e.g. IR/Raman intensities, dielectric functions, Pockels tensors) are now
+computed from gauge-fixed eigenvectors, making the results independent of the eigensolver employed by phonopy,
+which could previously yield irreproducible results for degenerate phonon modes.
+The developer tooling is also migrated to Hatch and Ruff.
+
+### 🔧 Maintenance
+
+* Devops: migrate developer tooling to Hatch and Ruff [[8693b6d](https://github.com/bastonero/aiida-vibroscopy/commit/8693b6df6e794b268c8d4352203b801d3cab7931)]
+
+### ⬆️ Update dependencies
+
+* Deps: support phonopy v4.x alongside v3.x [[a3950bf](https://github.com/bastonero/aiida-vibroscopy/commit/a3950bfe7d8b693dad8e22d1bb3c921d18c85064)]
+
+
+
 ## v1.6.1
 
 Minor release to fix a bug in `DielectricWorkChain` introduced in v1.5.0.
